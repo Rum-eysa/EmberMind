@@ -1,0 +1,16 @@
+# Auto detect text files and normalize line endings to LF
+* text=auto
+
+# Code
+*.py text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.db binary

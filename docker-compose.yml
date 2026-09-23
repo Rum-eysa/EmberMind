@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: wildfire_postgres
+    environment:
+      POSTGRES_DB: wildfire_db
+      POSTGRES_USER: wildfire_user
+      POSTGRES_PASSWORD: wildfire_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wildfire_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: wildfire_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: wildfire_app
+    command: python -m flask run --host=0.0.0.0 --port=5000
+    environment:
+      - FLASK_APP=src/app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://wildfire_user:wildfire_password@db:5432/wildfire_db
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wildfire_network
+
+  celery:
+    build: .
+    container_name: wildfire_celery
+    command: celery -A src.tasks worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://wildfire_user:wildfire_password@db:5432/wildfire_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    networks:
+      - wildfire_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  wildfire_network:
+    driver: bridge
