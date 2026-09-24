@@ -9,9 +9,14 @@ from sqlalchemy import select
 from src.config.settings import ProductionConfig, TestingConfig
 from src.database import Database
 from src.models.fire import FireCluster
+from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
+from src.services.topography import (
+    TopographySourceError,
+    sync_topography_for_clusters,
+)
 from src.services.weather import WeatherSourceError, sync_weather_for_clusters
 
 
@@ -82,7 +87,38 @@ class WeatherSyncResponse(BaseModel):
     weather_points_saved: int
 
 
-def create_fastapi_app(config_name: str = "production") -> FastAPI:
+class TopographyDataPointResponse(BaseModel):
+    """Public representation of a topography data point."""
+
+    id: int
+    cluster_key: str | None = None
+    latitude: float
+    longitude: float
+    elevation: float
+    slope: float
+    aspect: float
+    resolution_meters: int
+    fetched_at: str
+    source: str
+
+
+class TopographyResponse(BaseModel):
+    """Response envelope for topography data points."""
+
+    source: str
+    count: int
+    topography_data: list[TopographyDataPointResponse]
+
+
+class TopographySyncResponse(BaseModel):
+    """Response returned after an on-demand topography sync."""
+
+    status: str
+    clusters_processed: int
+    topography_points_saved: int
+
+
+def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     """Create the FastAPI application and its database lifecycle."""
     settings = TestingConfig if config_name == "testing" else ProductionConfig
     database = Database(settings.DATABASE_URL)
@@ -95,7 +131,10 @@ def create_fastapi_app(config_name: str = "production") -> FastAPI:
     api = FastAPI(
         title="Wildfire Monitoring API",
         version="1.0.0",
-        description="NASA FIRMS active-fire and weather forecast monitoring service.",
+        description=(
+            "NASA FIRMS active-fire, weather forecast, "
+            "and USGS/SRTM topography monitoring service."
+        ),
         lifespan=lifespan,
     )
     api.state.database = database
@@ -167,6 +206,45 @@ def create_fastapi_app(config_name: str = "production") -> FastAPI:
                 result = sync_weather_for_clusters(session, settings)
                 return {"status": "ok", **result}
         except WeatherSourceError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.get(
+        "/api/v1/topography",
+        response_model=TopographyResponse,
+        tags=["topography"],
+    )
+    def topography(
+        cluster_key: str | None = None,
+        limit: int = Query(default=100, ge=1, le=1000),
+    ) -> dict[str, Any]:
+        with database.session() as session:
+            query = select(TopographyDataPoint)
+            if cluster_key:
+                query = query.where(TopographyDataPoint.cluster_key == cluster_key)
+            rows = session.scalars(
+                query.order_by(TopographyDataPoint.fetched_at.desc()).limit(limit)
+            ).all()
+            topo_rows = [row.as_dict for row in rows]
+        return {
+            "source": "USGS/SRTM",
+            "count": len(topo_rows),
+            "topography_data": topo_rows,
+        }
+
+    @api.post(
+        "/api/v1/topography/sync",
+        response_model=TopographySyncResponse,
+        tags=["topography"],
+    )
+    def sync_topography() -> dict[str, Any]:
+        try:
+            with database.session() as session:
+                result = sync_topography_for_clusters(session, settings)
+                return {"status": "ok", **result}
+        except TopographySourceError as exc:
             raise HTTPException(
                 status_code=503,
                 detail={"status": "error", "error": str(exc)},

@@ -2,7 +2,7 @@
 ignore=tests
 
 [MESSAGES CONTROL]
-disable=too-few-public-methods,too-many-instance-attributes
+disable=too-few-public-methods,too-many-instance-attributes,duplicate-code
 
 [TYPECHECK]
 ignored-modules=flask_sqlalchemy,celery

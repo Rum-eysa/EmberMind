@@ -40,6 +40,15 @@ class Config:
     )
     WEATHER_RETRY_COUNT = int(os.getenv("WEATHER_RETRY_COUNT", "3"))
 
+    # USGS / SRTM Topography
+    USGS_SRTM_BASE_URL = os.getenv(
+        "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"
+    )
+    TOPOGRAPHY_RESOLUTION_METERS = int(os.getenv("TOPOGRAPHY_RESOLUTION_METERS", "30"))
+    TOPOGRAPHY_CACHE_TTL_SECONDS = int(
+        os.getenv("TOPOGRAPHY_CACHE_TTL_SECONDS", "86400")
+    )
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""
