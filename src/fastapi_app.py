@@ -9,10 +9,15 @@ from sqlalchemy import select
 from src.config.settings import ProductionConfig, TestingConfig
 from src.database import Database
 from src.models.fire import FireCluster
+from src.models.land_cover import LandCoverDataPoint
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
+from src.services.land_cover import (
+    LandCoverSourceError,
+    sync_land_cover_for_clusters,
+)
 from src.services.topography import (
     TopographySourceError,
     sync_topography_for_clusters,
@@ -118,6 +123,37 @@ class TopographySyncResponse(BaseModel):
     topography_points_saved: int
 
 
+class LandCoverDataPointResponse(BaseModel):
+    """Public representation of a land cover data point."""
+
+    id: int
+    cluster_key: str | None = None
+    latitude: float
+    longitude: float
+    corine_code: int | None = None
+    land_cover_class: str
+    fuel_model: str
+    spread_factor: float
+    fetched_at: str
+    source: str
+
+
+class LandCoverResponse(BaseModel):
+    """Response envelope for land cover data points."""
+
+    source: str
+    count: int
+    land_cover_data: list[LandCoverDataPointResponse]
+
+
+class LandCoverSyncResponse(BaseModel):
+    """Response returned after an on-demand land cover sync."""
+
+    status: str
+    clusters_processed: int
+    land_cover_points_saved: int
+
+
 def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     """Create the FastAPI application and its database lifecycle."""
     settings = TestingConfig if config_name == "testing" else ProductionConfig
@@ -133,7 +169,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         version="1.0.0",
         description=(
             "NASA FIRMS active-fire, weather forecast, "
-            "and USGS/SRTM topography monitoring service."
+            "USGS/SRTM topography, and CORINE land cover monitoring service."
         ),
         lifespan=lifespan,
     )
@@ -245,6 +281,45 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 result = sync_topography_for_clusters(session, settings)
                 return {"status": "ok", **result}
         except TopographySourceError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.get(
+        "/api/v1/land-cover",
+        response_model=LandCoverResponse,
+        tags=["land-cover"],
+    )
+    def land_cover(
+        cluster_key: str | None = None,
+        limit: int = Query(default=100, ge=1, le=1000),
+    ) -> dict[str, Any]:
+        with database.session() as session:
+            query = select(LandCoverDataPoint)
+            if cluster_key:
+                query = query.where(LandCoverDataPoint.cluster_key == cluster_key)
+            rows = session.scalars(
+                query.order_by(LandCoverDataPoint.fetched_at.desc()).limit(limit)
+            ).all()
+            lc_rows = [row.as_dict for row in rows]
+        return {
+            "source": "CORINE/LandCover",
+            "count": len(lc_rows),
+            "land_cover_data": lc_rows,
+        }
+
+    @api.post(
+        "/api/v1/land-cover/sync",
+        response_model=LandCoverSyncResponse,
+        tags=["land-cover"],
+    )
+    def sync_land_cover() -> dict[str, Any]:
+        try:
+            with database.session() as session:
+                result = sync_land_cover_for_clusters(session, settings)
+                return {"status": "ok", **result}
+        except LandCoverSourceError as exc:
             raise HTTPException(
                 status_code=503,
                 detail={"status": "error", "error": str(exc)},

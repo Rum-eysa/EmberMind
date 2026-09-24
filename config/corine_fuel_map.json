@@ -1,0 +1,73 @@
+{
+  "version": "1.0.0",
+  "name": "CORINE Land Cover to Fuel Model Mapping",
+  "description": "Versioned mapping rules converting CLC codes to wildfire fuel models and spread acceleration factors.",
+  "mappings": {
+    "312": {
+      "land_cover_class": "kızılçam",
+      "fuel_model": "FM10_RedPine",
+      "spread_factor": 1.8,
+      "description": "Coniferous forest (Pinus brutia / Kızılçam)"
+    },
+    "311": {
+      "land_cover_class": "kızılçam",
+      "fuel_model": "FM10_RedPine",
+      "spread_factor": 1.6,
+      "description": "Broad-leaved forest"
+    },
+    "313": {
+      "land_cover_class": "karma orman",
+      "fuel_model": "FM8_MixedForest",
+      "spread_factor": 1.4,
+      "description": "Mixed forest"
+    },
+    "323": {
+      "land_cover_class": "maki",
+      "fuel_model": "FM4_Maquis",
+      "spread_factor": 2.2,
+      "description": "Sclerophyllous vegetation / Maquis (Maki)"
+    },
+    "321": {
+      "land_cover_class": "maki",
+      "fuel_model": "FM4_Maquis",
+      "spread_factor": 2.0,
+      "description": "Natural grasslands / Shrubland"
+    },
+    "322": {
+      "land_cover_class": "maki",
+      "fuel_model": "FM4_Maquis",
+      "spread_factor": 1.9,
+      "description": "Moors and heathland"
+    },
+    "211": {
+      "land_cover_class": "tarım/zeytin",
+      "fuel_model": "FM1_Agriculture",
+      "spread_factor": 1.1,
+      "description": "Non-irrigated arable land"
+    },
+    "221": {
+      "land_cover_class": "tarım/zeytin",
+      "fuel_model": "FM1_Agriculture",
+      "spread_factor": 1.0,
+      "description": "Vineyards"
+    },
+    "222": {
+      "land_cover_class": "tarım/zeytin",
+      "fuel_model": "FM1_Agriculture",
+      "spread_factor": 1.0,
+      "description": "Fruit trees and berry plantations"
+    },
+    "223": {
+      "land_cover_class": "tarım/zeytin",
+      "fuel_model": "FM1_Agriculture",
+      "spread_factor": 1.2,
+      "description": "Olive groves (Zeytinlik)"
+    }
+  },
+  "default": {
+    "land_cover_class": "bilinmiyor",
+    "fuel_model": "varsayilan",
+    "spread_factor": 1.0,
+    "description": "Unclassified or unknown land cover"
+  }
+}
