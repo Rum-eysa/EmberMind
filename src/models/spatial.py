@@ -1,5 +1,5 @@
 """Spatial database models for events, forecasts, sources, silent regions, and scenarios."""
-from sqlalchemy import Boolean, Column, DateTime, Float, Index, String
+from sqlalchemy import Boolean, Column, DateTime, Float, Index, String, Text
 
 from .base import BaseModel
 
@@ -21,6 +21,10 @@ class FireEvent(BaseModel):
     severity = Column(String(32), nullable=False, default="medium")
     status = Column(String(32), nullable=False, default="active")
     started_at = Column(DateTime, nullable=False)
+    source = Column(String(32), nullable=False, default="satellite")
+    notes = Column(Text, nullable=True)
+    reported_by = Column(String(128), nullable=True)
+    reported_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
         Index(
@@ -50,6 +54,10 @@ class FireEvent(BaseModel):
             "severity": self.severity,
             "status": self.status,
             "started_at": self.started_at.isoformat() + "Z",
+            "source": self.source,
+            "notes": self.notes,
+            "reported_by": self.reported_by,
+            "reported_at": self.reported_at.isoformat() + "Z" if self.reported_at else None,
         }
 
 

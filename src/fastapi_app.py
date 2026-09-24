@@ -23,6 +23,12 @@ from src.services.land_cover import (
     LandCoverSourceError,
     sync_land_cover_for_clusters,
 )
+from src.services.manual_fire_event import (
+    DuplicateFireEventError,
+    ManualFireEventError,
+    create_manual_fire_event,
+    trigger_prediction_for_event,
+)
 from src.services.pipeline_tracker import PipelineTracker
 from src.services.spatial_db import (
     SpatialQueryError,
@@ -193,6 +199,47 @@ class LandCoverSyncResponse(BaseModel):
     land_cover_points_saved: int
 
 
+class ManualFireEventRequest(BaseModel):
+    """Request payload for manual fire event creation."""
+
+    name: str
+    latitude: float
+    longitude: float
+    min_lat: float
+    max_lat: float
+    min_lon: float
+    max_lon: float
+    geometry_wkt: str
+    severity: str = "medium"
+    status: str = "active"
+    started_at: str | None = None
+    source: str = "manual"
+    notes: str | None = None
+    reported_by: str | None = None
+    reported_at: str | None = None
+    check_duplicates: bool = True
+    duplicate_threshold_km: float = 5.0
+    trigger_prediction: bool = True
+
+
+class ManualFireEventResponse(BaseModel):
+    """Response for manual fire event creation."""
+
+    status: str
+    event: dict[str, Any]
+    duplicate_warning: str | None = None
+    prediction_triggered: dict[str, Any] | None = None
+
+
+class ManualFireEventUpdateRequest(BaseModel):
+    """Request payload for updating a manual fire event."""
+
+    name: str | None = None
+    severity: str | None = None
+    status: str | None = None
+    notes: str | None = None
+
+
 class PolygonIntersectionRequest(BaseModel):
     """Request payload for spatial polygon intersection queries."""
 
@@ -230,7 +277,8 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         version="1.0.0",
         description=(
             "NASA FIRMS active-fire, weather forecast, "
-            "USGS/SRTM topography, CORINE land cover, and PostGIS spatial monitoring service."
+            "USGS/SRTM topography, CORINE land cover, PostGIS spatial monitoring service, "
+            "and manual fire event creation with deduplication and prediction triggering."
         ),
         lifespan=lifespan,
     )
@@ -388,16 +436,39 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
 
     @api.get("/api/v1/spatial/events", tags=["spatial"])
     def spatial_events(
-        limit: int = Query(default=100, ge=1, le=1000)
+        limit: int = Query(default=100, ge=1, le=1000),
+        source: str | None = None,
     ) -> dict[str, Any]:
         with database.session() as session:
+            query = select(FireEvent)
+            if source:
+                query = query.where(FireEvent.source == source)
             rows = session.scalars(
-                select(FireEvent).order_by(FireEvent.started_at.desc()).limit(limit)
+                query.order_by(FireEvent.started_at.desc()).limit(limit)
             ).all()
             return {
                 "source": "PostGIS/Spatial",
                 "count": len(rows),
                 "events": [r.as_dict for r in rows],
+            }
+
+    @api.get("/api/v1/events/{event_key}", tags=["events"])
+    def get_event(event_key: str) -> dict[str, Any]:
+        """Get a single fire event by event_key."""
+        with database.session() as session:
+            event = session.scalar(
+                select(FireEvent).where(FireEvent.event_key == event_key)
+            )
+            
+            if not event:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"status": "not_found", "error": f"Event {event_key} not found"},
+                )
+            
+            return {
+                "status": "ok",
+                "event": event.as_dict,
             }
 
     @api.get("/api/v1/spatial/silent-regions", tags=["spatial"])
@@ -424,6 +495,81 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         except SpatialQueryError as exc:
             raise HTTPException(
                 status_code=500,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.post(
+        "/api/v1/events/manual",
+        response_model=ManualFireEventResponse,
+        tags=["events"],
+    )
+    def create_manual_event(req: ManualFireEventRequest) -> dict[str, Any]:
+        """Create a manual fire event with optional deduplication and prediction triggering."""
+        try:
+            with database.session() as session:
+                # Parse datetime strings if provided
+                from datetime import datetime, timezone
+                
+                def parse_datetime(dt_str: str | None) -> datetime | None:
+                    if not dt_str:
+                        return None
+                    try:
+                        # Handle Z suffix (UTC)
+                        if dt_str.endswith("Z"):
+                            dt_str = dt_str[:-1] + "+00:00"
+                        dt = datetime.fromisoformat(dt_str)
+                        # Remove timezone info for compatibility with database
+                        return dt.replace(tzinfo=None)
+                    except ValueError:
+                        return None
+                
+                started_at = parse_datetime(req.started_at)
+                reported_at = parse_datetime(req.reported_at)
+                
+                # Create the manual event
+                event = create_manual_fire_event(
+                    session,
+                    name=req.name,
+                    latitude=req.latitude,
+                    longitude=req.longitude,
+                    min_lat=req.min_lat,
+                    max_lat=req.max_lat,
+                    min_lon=req.min_lon,
+                    max_lon=req.max_lon,
+                    geometry_wkt=req.geometry_wkt,
+                    severity=req.severity,
+                    status=req.status,
+                    started_at=started_at,
+                    source=req.source,
+                    notes=req.notes,
+                    reported_by=req.reported_by,
+                    reported_at=reported_at,
+                    check_duplicates=req.check_duplicates,
+                    duplicate_threshold_km=req.duplicate_threshold_km,
+                )
+                
+                # Trigger prediction if requested
+                prediction_result = None
+                if req.trigger_prediction:
+                    prediction_result = trigger_prediction_for_event(session, event)
+                
+                return {
+                    "status": "created",
+                    "event": event.as_dict,
+                    "prediction_triggered": prediction_result,
+                }
+        except DuplicateFireEventError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "status": "duplicate",
+                    "error": str(exc),
+                    "message": "Manual event location duplicates existing satellite detection",
+                },
+            ) from exc
+        except ManualFireEventError as exc:
+            raise HTTPException(
+                status_code=400,
                 detail={"status": "error", "error": str(exc)},
             ) from exc
 
@@ -587,6 +733,83 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                     results["land_cover"] = {"error": str(exc)}
 
         return {"status": "triggered", "results": results}
+
+    @api.put(
+        "/api/v1/events/{event_key}",
+        tags=["events"],
+    )
+    def update_manual_event(
+        event_key: str,
+        req: ManualFireEventUpdateRequest,
+    ) -> dict[str, Any]:
+        """Update an existing fire event."""
+        try:
+            with database.session() as session:
+                event = session.scalar(
+                    select(FireEvent).where(FireEvent.event_key == event_key)
+                )
+                
+                if not event:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={"status": "not_found", "error": f"Event {event_key} not found"},
+                    )
+                
+                # Update fields if provided
+                if req.name is not None:
+                    event.name = req.name
+                if req.severity is not None:
+                    event.severity = req.severity
+                if req.status is not None:
+                    event.status = req.status
+                if req.notes is not None:
+                    event.notes = req.notes
+                
+                session.flush()
+                
+                return {
+                    "status": "updated",
+                    "event": event.as_dict,
+                }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.delete(
+        "/api/v1/events/{event_key}",
+        tags=["events"],
+    )
+    def delete_manual_event(event_key: str) -> dict[str, Any]:
+        """Delete a fire event."""
+        try:
+            with database.session() as session:
+                event = session.scalar(
+                    select(FireEvent).where(FireEvent.event_key == event_key)
+                )
+                
+                if not event:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={"status": "not_found", "error": f"Event {event_key} not found"},
+                    )
+                
+                session.delete(event)
+                
+                return {
+                    "status": "deleted",
+                    "event_key": event_key,
+                }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
 
     return api
 
