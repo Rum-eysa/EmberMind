@@ -6,8 +6,10 @@ from celery import Celery
 from src.config.settings import ProductionConfig
 from src.database import Database
 from src.services.fire_sync import sync_firms
+from src.services.grid_standard import PilotRegionGridService
 from src.services.land_cover import sync_land_cover_for_clusters
 from src.services.pipeline_tracker import PipelineTracker
+from src.services.road_network import sync_road_network as import_road_network
 from src.services.topography import sync_topography_for_clusters
 from src.services.weather import sync_weather_for_clusters
 
@@ -33,6 +35,10 @@ celery_app.conf.update(
         "sync-land-cover": {
             "task": "src.tasks.sync_land_cover",
             "schedule": config.LAND_COVER_SYNC_INTERVAL_MINUTES * 60,
+        },
+        "sync-road-network": {
+            "task": "src.tasks.sync_road_network",
+            "schedule": config.ROAD_NETWORK_SYNC_INTERVAL_MINUTES * 60,
         },
     },
     timezone="UTC",
@@ -149,6 +155,40 @@ def sync_land_cover(self: Any) -> dict[str, Any]:
         try:
             res = sync_land_cover_for_clusters(session, config)
             records = res.get("land_cover_points_saved", 0)
+            PipelineTracker.complete_job(
+                session,
+                job,
+                records_processed=records,
+                attempt_count=self.request.retries + 1,
+            )
+            return {"status": "ok", **res}
+        except Exception as exc:
+            PipelineTracker.fail_job(
+                session,
+                job,
+                error_message=str(exc),
+                attempt_count=self.request.retries + 1,
+            )
+            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
+            raise self.retry(exc=exc, countdown=countdown) from exc
+
+
+@celery_app.task(
+    name="src.tasks.sync_road_network",
+    bind=True,
+    max_retries=config.PIPELINE_MAX_RETRIES,
+)
+def sync_road_network(self: Any) -> dict[str, Any]:
+    """Import and persist the OpenStreetMap road network for the pilot region."""
+    database = Database(config.DATABASE_URL)
+    grid = PilotRegionGridService()
+    bbox = (grid.min_lat, grid.min_lon, grid.max_lat, grid.max_lon)
+    with database.session() as session:
+        database.create_all()
+        job = PipelineTracker.start_job(session, "sync_road_network", "OpenStreetMap")
+        try:
+            res = import_road_network(session, config, bbox)
+            records = res.get("segments_saved", 0)
             PipelineTracker.complete_job(
                 session,
                 job,

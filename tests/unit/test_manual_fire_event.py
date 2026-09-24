@@ -22,7 +22,7 @@ def test_generate_event_key():
     """Test event key generation."""
     dt = datetime(2024, 1, 15, 10, 30, 45, tzinfo=timezone.utc)
     key = generate_event_key(41.0, 28.0, dt)
-    
+
     assert key.startswith("manual_")
     assert "4100" in key
     assert "2800" in key
@@ -33,7 +33,7 @@ def test_generate_event_key_negative_coords():
     """Test event key generation with negative coordinates."""
     dt = datetime(2024, 1, 15, 10, 30, 45, tzinfo=timezone.utc)
     key = generate_event_key(-41.0, -28.0, dt)
-    
+
     assert key.startswith("manual_")
     assert "m4100" in key  # negative latitude
     assert "m2800" in key  # negative longitude
@@ -42,7 +42,7 @@ def test_generate_event_key_negative_coords():
 def test_check_for_duplicates_no_clusters(session):
     """Test duplicate detection when no clusters exist."""
     duplicate = check_for_duplicates(session, 41.0, 28.0)
-    
+
     assert duplicate is None
 
 
@@ -59,10 +59,10 @@ def test_check_for_duplicates_with_cluster(session):
     )
     session.add(cluster)
     session.flush()
-    
+
     # Check for duplicates at the same location
     duplicate = check_for_duplicates(session, 41.0, 28.0)
-    
+
     assert duplicate is not None
     assert duplicate.cluster_key == "test_cluster_123"
 
@@ -80,10 +80,10 @@ def test_check_for_duplicates_far_cluster(session):
     )
     session.add(cluster)
     session.flush()
-    
+
     # Check for duplicates at a different location
     duplicate = check_for_duplicates(session, 41.0, 28.0)
-    
+
     assert duplicate is None
 
 
@@ -103,7 +103,7 @@ def test_create_manual_fire_event_basic(session):
         status="active",
         check_duplicates=False,
     )
-    
+
     assert event is not None
     assert event.name == "Test Fire"
     assert event.latitude == 41.0
@@ -130,7 +130,7 @@ def test_create_manual_fire_event_with_notes(session):
         reported_by="Operator John",
         check_duplicates=False,
     )
-    
+
     assert event is not None
     assert event.notes == "Smoke visible from highway"
     assert event.reported_by == "Operator John"
@@ -150,7 +150,7 @@ def test_create_manual_fire_event_duplicate_detection(session):
     )
     session.add(cluster)
     session.flush()
-    
+
     # Try to create manual event at same location with duplicate checking
     with pytest.raises(DuplicateFireEventError) as exc_info:
         create_manual_fire_event(
@@ -165,7 +165,7 @@ def test_create_manual_fire_event_duplicate_detection(session):
             geometry_wkt="POINT(28.0 41.0)",
             check_duplicates=True,
         )
-    
+
     assert "duplicates satellite detection" in str(exc_info.value)
 
 
@@ -182,7 +182,7 @@ def test_create_manual_fire_event_skip_duplicate_check(session):
     )
     session.add(cluster)
     session.flush()
-    
+
     # Create manual event with duplicate checking disabled
     event = create_manual_fire_event(
         session,
@@ -196,7 +196,7 @@ def test_create_manual_fire_event_skip_duplicate_check(session):
         geometry_wkt="POINT(28.0 41.0)",
         check_duplicates=False,
     )
-    
+
     assert event is not None
     assert event.name == "Allowed Duplicate"
 
@@ -219,9 +219,9 @@ def test_trigger_prediction_for_event(session):
     )
     session.add(event)
     session.flush()
-    
+
     result = trigger_prediction_for_event(session, event)
-    
+
     assert result["status"] == "triggered"
     assert result["event_key"] == "test_event_pred"
     assert result["model_name"] == "default"
@@ -248,7 +248,7 @@ def test_api_create_manual_event(client):
             "trigger_prediction": False,
         },
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "created"
@@ -275,7 +275,7 @@ def test_api_create_manual_event_with_prediction(client):
             "trigger_prediction": True,
         },
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "created"
@@ -296,7 +296,7 @@ def test_api_create_manual_event_duplicate_error(client, session):
     )
     session.add(cluster)
     session.flush()
-    
+
     response = client.post(
         "/api/v1/events/manual",
         json={
@@ -311,7 +311,7 @@ def test_api_create_manual_event_duplicate_error(client, session):
             "check_duplicates": True,
         },
     )
-    
+
     assert response.status_code == 409
     data = response.json()
     assert data["detail"]["status"] == "duplicate"
@@ -338,9 +338,9 @@ def test_api_get_event(client, session):
     )
     session.add(event)
     session.flush()
-    
+
     response = client.get("/api/v1/events/get_test_event")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -351,7 +351,7 @@ def test_api_get_event(client, session):
 def test_api_get_event_not_found(client):
     """Test API endpoint for non-existent event."""
     response = client.get("/api/v1/events/nonexistent_event")
-    
+
     assert response.status_code == 404
     data = response.json()
     assert data["detail"]["status"] == "not_found"
@@ -377,7 +377,7 @@ def test_api_update_event(client, session):
     )
     session.add(event)
     session.flush()
-    
+
     response = client.put(
         "/api/v1/events/update_test_event",
         json={
@@ -386,7 +386,7 @@ def test_api_update_event(client, session):
             "notes": "Updated notes",
         },
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "updated"
@@ -401,7 +401,7 @@ def test_api_update_event_not_found(client):
         "/api/v1/events/nonexistent_event",
         json={"name": "Updated Name"},
     )
-    
+
     assert response.status_code == 404
     data = response.json()
     assert data["detail"]["status"] == "not_found"
@@ -427,14 +427,14 @@ def test_api_delete_event(client, session):
     )
     session.add(event)
     session.flush()
-    
+
     response = client.delete("/api/v1/events/delete_test_event")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "deleted"
     assert data["event_key"] == "delete_test_event"
-    
+
     # Verify it's deleted
     get_response = client.get("/api/v1/events/delete_test_event")
     assert get_response.status_code == 404
@@ -443,7 +443,7 @@ def test_api_delete_event(client, session):
 def test_api_delete_event_not_found(client):
     """Test API endpoint for deleting non-existent event."""
     response = client.delete("/api/v1/events/nonexistent_event")
-    
+
     assert response.status_code == 404
     data = response.json()
     assert data["detail"]["status"] == "not_found"
@@ -468,7 +468,7 @@ def test_api_get_events_by_source(client, session):
         source="manual",
     )
     session.add(manual_event)
-    
+
     # Create satellite event
     satellite_event = FireEvent(
         event_key="satellite_filter_test",
@@ -487,10 +487,10 @@ def test_api_get_events_by_source(client, session):
     )
     session.add(satellite_event)
     session.flush()
-    
+
     # Get only manual events
     response = client.get("/api/v1/spatial/events?source=manual")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["count"] == 1

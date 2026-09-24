@@ -2,6 +2,7 @@
 from .fire import FireCluster, FireObservation, FirmsSyncStatus
 from .land_cover import LandCoverDataPoint
 from .pipeline import PipelineJobHistory
+from .road_network import CrewBase, RoadClosure, RoadSegment
 from .spatial import (
     FireEvent,
     FireForecast,
@@ -13,6 +14,7 @@ from .topography import TopographyDataPoint
 from .weather import WeatherDataPoint
 
 __all__ = [
+    "CrewBase",
     "FireCluster",
     "FireEvent",
     "FireForecast",
@@ -20,6 +22,8 @@ __all__ = [
     "FirmsSyncStatus",
     "LandCoverDataPoint",
     "PipelineJobHistory",
+    "RoadClosure",
+    "RoadSegment",
     "SilentRegion",
     "SimulationScenario",
     "SpatialSource",

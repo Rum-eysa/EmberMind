@@ -57,7 +57,9 @@ class FireEvent(BaseModel):
             "source": self.source,
             "notes": self.notes,
             "reported_by": self.reported_by,
-            "reported_at": self.reported_at.isoformat() + "Z" if self.reported_at else None,
+            "reported_at": self.reported_at.isoformat() + "Z"
+            if self.reported_at
+            else None,
         }
 
 

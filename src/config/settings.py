@@ -55,6 +55,15 @@ class Config:
         os.getenv("TOPOGRAPHY_CACHE_TTL_SECONDS", "86400")
     )
 
+    # OpenStreetMap / Overpass road network (EM-009)
+    OVERPASS_BASE_URL = os.getenv(
+        "OVERPASS_BASE_URL", "https://overpass-api.de/api/interpreter"
+    )
+    ROAD_NETWORK_SYNC_INTERVAL_MINUTES = int(
+        os.getenv("ROAD_NETWORK_SYNC_INTERVAL_MINUTES", "720")
+    )
+    ROAD_ACCESS_SPEED_KMH = float(os.getenv("ROAD_ACCESS_SPEED_KMH", "40"))
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""

@@ -3,6 +3,13 @@ import os
 import glob
 from typing import Any
 from sqlalchemy import text, Engine
+from sqlalchemy.exc import SQLAlchemyError
+
+
+def _is_idempotent_error(message: str) -> bool:
+    """Return True when a DDL failure means the object already exists."""
+    lowered = message.lower()
+    return "already exists" in lowered or "duplicate column" in lowered
 
 
 def run_migrations(engine: Engine) -> list[str]:
@@ -37,12 +44,20 @@ def run_migrations(engine: Engine) -> list[str]:
                 with open(file_path, "r", encoding="utf-8") as file:
                     sql_content = file.read()
 
-                # Execute statements separated by semicolons
+                # Execute statements separated by semicolons. Each statement runs
+                # in its own savepoint so an already-present object/column (for
+                # example when migrating a schema that the ORM already created)
+                # is skipped rather than aborting the whole migration.
                 statements = [
                     stmt.strip() for stmt in sql_content.split(";") if stmt.strip()
                 ]
                 for stmt in statements:
-                    conn.execute(text(stmt))
+                    try:
+                        with conn.begin_nested():
+                            conn.execute(text(stmt))
+                    except SQLAlchemyError as exc:
+                        if not _is_idempotent_error(str(exc)):
+                            raise
 
                 conn.execute(
                     text("INSERT INTO schema_migrations (version) VALUES (:v)"),

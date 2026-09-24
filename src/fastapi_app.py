@@ -1,5 +1,6 @@
 """Single public FastAPI application for wildfire monitoring."""
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
@@ -13,6 +14,7 @@ from src.models.land_cover import LandCoverDataPoint
 from src.models.spatial import FireEvent, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
+from src.routes.road_network import register_road_network_routes
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
 from src.services.grid_standard import (
@@ -30,6 +32,7 @@ from src.services.manual_fire_event import (
     trigger_prediction_for_event,
 )
 from src.services.pipeline_tracker import PipelineTracker
+from src.services.road_network import RoadNetworkError, sync_road_network
 from src.services.spatial_db import (
     SpatialQueryError,
     execute_polygon_intersection_query,
@@ -262,6 +265,21 @@ class ResampleGridRequest(BaseModel):
     points: list[dict[str, Any]]
 
 
+def parse_datetime(dt_str: str | None) -> datetime | None:
+    """Parse an ISO datetime string (optional Z suffix) into a naive UTC datetime."""
+    if not dt_str:
+        return None
+    try:
+        # Handle Z suffix (UTC)
+        if dt_str.endswith("Z"):
+            dt_str = dt_str[:-1] + "+00:00"
+        parsed = datetime.fromisoformat(dt_str)
+        # Remove timezone info for compatibility with database
+        return parsed.replace(tzinfo=None)
+    except ValueError:
+        return None
+
+
 def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     """Create the FastAPI application and its database lifecycle."""
     settings = TestingConfig if config_name == "testing" else ProductionConfig
@@ -278,12 +296,15 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         description=(
             "NASA FIRMS active-fire, weather forecast, "
             "USGS/SRTM topography, CORINE land cover, PostGIS spatial monitoring service, "
-            "and manual fire event creation with deduplication and prediction triggering."
+            "manual fire event creation with deduplication and prediction triggering, "
+            "and OpenStreetMap road-network accessibility with crew ETA and closure re-routing."
         ),
         lifespan=lifespan,
     )
     api.state.database = database
     api.state.settings = settings
+
+    register_road_network_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -459,13 +480,16 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             event = session.scalar(
                 select(FireEvent).where(FireEvent.event_key == event_key)
             )
-            
+
             if not event:
                 raise HTTPException(
                     status_code=404,
-                    detail={"status": "not_found", "error": f"Event {event_key} not found"},
+                    detail={
+                        "status": "not_found",
+                        "error": f"Event {event_key} not found",
+                    },
                 )
-            
+
             return {
                 "status": "ok",
                 "event": event.as_dict,
@@ -507,25 +531,9 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         """Create a manual fire event with optional deduplication and prediction triggering."""
         try:
             with database.session() as session:
-                # Parse datetime strings if provided
-                from datetime import datetime, timezone
-                
-                def parse_datetime(dt_str: str | None) -> datetime | None:
-                    if not dt_str:
-                        return None
-                    try:
-                        # Handle Z suffix (UTC)
-                        if dt_str.endswith("Z"):
-                            dt_str = dt_str[:-1] + "+00:00"
-                        dt = datetime.fromisoformat(dt_str)
-                        # Remove timezone info for compatibility with database
-                        return dt.replace(tzinfo=None)
-                    except ValueError:
-                        return None
-                
                 started_at = parse_datetime(req.started_at)
                 reported_at = parse_datetime(req.reported_at)
-                
+
                 # Create the manual event
                 event = create_manual_fire_event(
                     session,
@@ -547,12 +555,12 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                     check_duplicates=req.check_duplicates,
                     duplicate_threshold_km=req.duplicate_threshold_km,
                 )
-                
+
                 # Trigger prediction if requested
                 prediction_result = None
                 if req.trigger_prediction:
                     prediction_result = trigger_prediction_for_event(session, event)
-                
+
                 return {
                     "status": "created",
                     "event": event.as_dict,
@@ -644,6 +652,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 "OpenWeather": f"{settings.WEATHER_SYNC_INTERVAL_MINUTES}m",
                 "USGS/SRTM": f"{settings.TOPOGRAPHY_SYNC_INTERVAL_MINUTES}m",
                 "Copernicus": f"{settings.LAND_COVER_SYNC_INTERVAL_MINUTES}m",
+                "OpenStreetMap": f"{settings.ROAD_NETWORK_SYNC_INTERVAL_MINUTES}m",
             }
             return summary
 
@@ -664,7 +673,14 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
 
     @api.post("/api/v1/pipeline/trigger", tags=["pipeline"])
     def pipeline_trigger(req: PipelineTriggerRequest) -> dict[str, Any]:
-        valid_sources = ["firms", "weather", "topography", "land_cover", "all"]
+        valid_sources = [
+            "firms",
+            "weather",
+            "topography",
+            "land_cover",
+            "road_network",
+            "all",
+        ]
         target = req.source.lower().strip()
         if target not in valid_sources:
             raise HTTPException(
@@ -732,6 +748,29 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                     PipelineTracker.fail_job(session, job, error_message=str(exc))
                     results["land_cover"] = {"error": str(exc)}
 
+            if target in ("road_network", "all"):
+                job = PipelineTracker.start_job(
+                    session, "sync_road_network", "OpenStreetMap"
+                )
+                grid_service = PilotRegionGridService()
+                bbox = (
+                    grid_service.min_lat,
+                    grid_service.min_lon,
+                    grid_service.max_lat,
+                    grid_service.max_lon,
+                )
+                try:
+                    res = sync_road_network(session, settings, bbox)
+                    PipelineTracker.complete_job(
+                        session,
+                        job,
+                        records_processed=res.get("segments_saved", 0),
+                    )
+                    results["road_network"] = res
+                except RoadNetworkError as exc:
+                    PipelineTracker.fail_job(session, job, error_message=str(exc))
+                    results["road_network"] = {"error": str(exc)}
+
         return {"status": "triggered", "results": results}
 
     @api.put(
@@ -748,25 +787,28 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 event = session.scalar(
                     select(FireEvent).where(FireEvent.event_key == event_key)
                 )
-                
+
                 if not event:
                     raise HTTPException(
                         status_code=404,
-                        detail={"status": "not_found", "error": f"Event {event_key} not found"},
+                        detail={
+                            "status": "not_found",
+                            "error": f"Event {event_key} not found",
+                        },
                     )
-                
+
                 # Update fields if provided
                 if req.name is not None:
-                    event.name = req.name
+                    event.name = req.name  # type: ignore[assignment]
                 if req.severity is not None:
-                    event.severity = req.severity
+                    event.severity = req.severity  # type: ignore[assignment]
                 if req.status is not None:
-                    event.status = req.status
+                    event.status = req.status  # type: ignore[assignment]
                 if req.notes is not None:
-                    event.notes = req.notes
-                
+                    event.notes = req.notes  # type: ignore[assignment]
+
                 session.flush()
-                
+
                 return {
                     "status": "updated",
                     "event": event.as_dict,
@@ -790,15 +832,18 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 event = session.scalar(
                     select(FireEvent).where(FireEvent.event_key == event_key)
                 )
-                
+
                 if not event:
                     raise HTTPException(
                         status_code=404,
-                        detail={"status": "not_found", "error": f"Event {event_key} not found"},
+                        detail={
+                            "status": "not_found",
+                            "error": f"Event {event_key} not found",
+                        },
                     )
-                
+
                 session.delete(event)
-                
+
                 return {
                     "status": "deleted",
                     "event_key": event_key,
