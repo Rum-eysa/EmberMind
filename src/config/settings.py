@@ -30,6 +30,16 @@ class Config:
     FIRMS_SYNC_INTERVAL_MINUTES = int(os.getenv("FIRMS_SYNC_INTERVAL_MINUTES", "10"))
     FIRMS_CLUSTER_RADIUS_KM = float(os.getenv("FIRMS_CLUSTER_RADIUS_KM", "2"))
 
+    # OpenWeather
+    OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
+    OPENWEATHER_BASE_URL = os.getenv(
+        "OPENWEATHER_BASE_URL", "https://api.openweathermap.org/data/2.5"
+    )
+    OPENWEATHER_CACHE_TTL_SECONDS = int(
+        os.getenv("OPENWEATHER_CACHE_TTL_SECONDS", "1800")
+    )
+    WEATHER_RETRY_COUNT = int(os.getenv("WEATHER_RETRY_COUNT", "3"))
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""

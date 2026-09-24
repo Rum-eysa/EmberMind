@@ -9,8 +9,10 @@ from sqlalchemy import select
 from src.config.settings import ProductionConfig, TestingConfig
 from src.database import Database
 from src.models.fire import FireCluster
+from src.models.weather import WeatherDataPoint
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
+from src.services.weather import WeatherSourceError, sync_weather_for_clusters
 
 
 class FireClusterResponse(BaseModel):
@@ -47,6 +49,39 @@ class SyncResponse(BaseModel):
     stale: bool
 
 
+class WeatherDataPointResponse(BaseModel):
+    """Public representation of a weather forecast data point."""
+
+    id: int
+    cluster_key: str | None = None
+    latitude: float
+    longitude: float
+    temperature: float
+    humidity: float
+    wind_speed: float
+    wind_deg: float
+    forecast_offset_hours: int
+    forecast_time: str
+    fetched_at: str
+    source: str
+
+
+class WeatherResponse(BaseModel):
+    """Response envelope for weather data points."""
+
+    source: str
+    count: int
+    weather_data: list[WeatherDataPointResponse]
+
+
+class WeatherSyncResponse(BaseModel):
+    """Response returned after an on-demand weather sync."""
+
+    status: str
+    clusters_processed: int
+    weather_points_saved: int
+
+
 def create_fastapi_app(config_name: str = "production") -> FastAPI:
     """Create the FastAPI application and its database lifecycle."""
     settings = TestingConfig if config_name == "testing" else ProductionConfig
@@ -60,7 +95,7 @@ def create_fastapi_app(config_name: str = "production") -> FastAPI:
     api = FastAPI(
         title="Wildfire Monitoring API",
         version="1.0.0",
-        description="NASA FIRMS active-fire monitoring service.",
+        description="NASA FIRMS active-fire and weather forecast monitoring service.",
         lifespan=lifespan,
     )
     api.state.database = database
@@ -102,6 +137,39 @@ def create_fastapi_app(config_name: str = "production") -> FastAPI:
             raise HTTPException(
                 status_code=503,
                 detail={"status": "stale", "error": str(exc), **status},
+            ) from exc
+
+    @api.get("/api/v1/weather", response_model=WeatherResponse, tags=["weather"])
+    def weather(
+        cluster_key: str | None = None,
+        limit: int = Query(default=100, ge=1, le=1000),
+    ) -> dict[str, Any]:
+        with database.session() as session:
+            query = select(WeatherDataPoint)
+            if cluster_key:
+                query = query.where(WeatherDataPoint.cluster_key == cluster_key)
+            rows = session.scalars(
+                query.order_by(WeatherDataPoint.forecast_time.asc()).limit(limit)
+            ).all()
+            weather_rows = [row.as_dict for row in rows]
+        return {
+            "source": "OpenWeatherMap",
+            "count": len(weather_rows),
+            "weather_data": weather_rows,
+        }
+
+    @api.post(
+        "/api/v1/weather/sync", response_model=WeatherSyncResponse, tags=["weather"]
+    )
+    def sync_weather() -> dict[str, Any]:
+        try:
+            with database.session() as session:
+                result = sync_weather_for_clusters(session, settings)
+                return {"status": "ok", **result}
+        except WeatherSourceError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail={"status": "error", "error": str(exc)},
             ) from exc
 
     return api
