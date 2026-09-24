@@ -10,6 +10,7 @@ from src.config.settings import ProductionConfig, TestingConfig
 from src.database import Database
 from src.models.fire import FireCluster
 from src.models.land_cover import LandCoverDataPoint
+from src.models.spatial import FireEvent, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.services.fire_sync import sync_firms, sync_status
@@ -17,6 +18,10 @@ from src.services.firms import FirmsSourceError
 from src.services.land_cover import (
     LandCoverSourceError,
     sync_land_cover_for_clusters,
+)
+from src.services.spatial_db import (
+    SpatialQueryError,
+    execute_polygon_intersection_query,
 )
 from src.services.topography import (
     TopographySourceError,
@@ -154,6 +159,15 @@ class LandCoverSyncResponse(BaseModel):
     land_cover_points_saved: int
 
 
+class PolygonIntersectionRequest(BaseModel):
+    """Request payload for spatial polygon intersection queries."""
+
+    min_lat: float
+    max_lat: float
+    min_lon: float
+    max_lon: float
+
+
 def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     """Create the FastAPI application and its database lifecycle."""
     settings = TestingConfig if config_name == "testing" else ProductionConfig
@@ -169,7 +183,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         version="1.0.0",
         description=(
             "NASA FIRMS active-fire, weather forecast, "
-            "USGS/SRTM topography, and CORINE land cover monitoring service."
+            "USGS/SRTM topography, CORINE land cover, and PostGIS spatial monitoring service."
         ),
         lifespan=lifespan,
     )
@@ -322,6 +336,47 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         except LandCoverSourceError as exc:
             raise HTTPException(
                 status_code=503,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.get("/api/v1/spatial/events", tags=["spatial"])
+    def spatial_events(
+        limit: int = Query(default=100, ge=1, le=1000)
+    ) -> dict[str, Any]:
+        with database.session() as session:
+            rows = session.scalars(
+                select(FireEvent).order_by(FireEvent.started_at.desc()).limit(limit)
+            ).all()
+            return {
+                "source": "PostGIS/Spatial",
+                "count": len(rows),
+                "events": [r.as_dict for r in rows],
+            }
+
+    @api.get("/api/v1/spatial/silent-regions", tags=["spatial"])
+    def spatial_silent_regions() -> dict[str, Any]:
+        with database.session() as session:
+            rows = session.scalars(
+                select(SilentRegion).where(SilentRegion.is_active.is_(True))
+            ).all()
+            return {
+                "source": "PostGIS/Spatial",
+                "count": len(rows),
+                "silent_regions": [r.as_dict for r in rows],
+            }
+
+    @api.post("/api/v1/spatial/polygon-intersection", tags=["spatial"])
+    def spatial_polygon_intersection(
+        req: PolygonIntersectionRequest,
+    ) -> dict[str, Any]:
+        try:
+            with database.session() as session:
+                return execute_polygon_intersection_query(
+                    session, req.min_lat, req.max_lat, req.min_lon, req.max_lon
+                )
+        except SpatialQueryError as exc:
+            raise HTTPException(
+                status_code=500,
                 detail={"status": "error", "error": str(exc)},
             ) from exc
 
