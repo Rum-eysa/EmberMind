@@ -22,13 +22,19 @@ class Config:
     CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-    # NASA FIRMS
-    FIRMS_API_KEY = os.getenv("FIRMS_API_KEY", "")
-    FIRMS_SOURCE = os.getenv("FIRMS_SOURCE", "VIIRS_SNPP_NRT")
-    FIRMS_BBOX = os.getenv("FIRMS_BBOX", "25,35,45,43")
-    FIRMS_DAYS = int(os.getenv("FIRMS_DAYS", "1"))
+    # Pipeline Scheduler (5-10 min intervals & retry parameters)
     FIRMS_SYNC_INTERVAL_MINUTES = int(os.getenv("FIRMS_SYNC_INTERVAL_MINUTES", "10"))
-    FIRMS_CLUSTER_RADIUS_KM = float(os.getenv("FIRMS_CLUSTER_RADIUS_KM", "2"))
+    WEATHER_SYNC_INTERVAL_MINUTES = int(
+        os.getenv("WEATHER_SYNC_INTERVAL_MINUTES", "10")
+    )
+    TOPOGRAPHY_SYNC_INTERVAL_MINUTES = int(
+        os.getenv("TOPOGRAPHY_SYNC_INTERVAL_MINUTES", "10")
+    )
+    LAND_COVER_SYNC_INTERVAL_MINUTES = int(
+        os.getenv("LAND_COVER_SYNC_INTERVAL_MINUTES", "10")
+    )
+    PIPELINE_MAX_RETRIES = int(os.getenv("PIPELINE_MAX_RETRIES", "3"))
+    PIPELINE_BACKOFF_FACTOR = float(os.getenv("PIPELINE_BACKOFF_FACTOR", "2.0"))
 
     # OpenWeather
     OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")

@@ -23,6 +23,7 @@ from src.services.land_cover import (
     LandCoverSourceError,
     sync_land_cover_for_clusters,
 )
+from src.services.pipeline_tracker import PipelineTracker
 from src.services.spatial_db import (
     SpatialQueryError,
     execute_polygon_intersection_query,
@@ -32,6 +33,35 @@ from src.services.topography import (
     sync_topography_for_clusters,
 )
 from src.services.weather import WeatherSourceError, sync_weather_for_clusters
+
+
+class PipelineJobResponse(BaseModel):
+    """Public representation of a pipeline job run log."""
+
+    id: int
+    job_name: str
+    source: str
+    status: str
+    start_time: str | None = None
+    end_time: str | None = None
+    duration_seconds: float | None = None
+    attempt_count: int
+    records_processed: int
+    error_message: str | None = None
+    created_at: str | None = None
+
+
+class PipelineJobsResponse(BaseModel):
+    """Response envelope for pipeline job history."""
+
+    count: int
+    jobs: list[PipelineJobResponse]
+
+
+class PipelineTriggerRequest(BaseModel):
+    """Request payload to trigger data source sync jobs."""
+
+    source: str
 
 
 class FireClusterResponse(BaseModel):
@@ -458,6 +488,105 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "resolution_meters": 30,
             "resampled_data": resampled,
         }
+
+    @api.get("/api/v1/pipeline/status", tags=["pipeline"])
+    def pipeline_status() -> dict[str, Any]:
+        with database.session() as session:
+            summary = PipelineTracker.get_pipeline_summary(session)
+            summary["schedules"] = {
+                "FIRMS": f"{settings.FIRMS_SYNC_INTERVAL_MINUTES}m",
+                "OpenWeather": f"{settings.WEATHER_SYNC_INTERVAL_MINUTES}m",
+                "USGS/SRTM": f"{settings.TOPOGRAPHY_SYNC_INTERVAL_MINUTES}m",
+                "Copernicus": f"{settings.LAND_COVER_SYNC_INTERVAL_MINUTES}m",
+            }
+            return summary
+
+    @api.get(
+        "/api/v1/pipeline/jobs",
+        response_model=PipelineJobsResponse,
+        tags=["pipeline"],
+    )
+    def pipeline_jobs(
+        job_name: str | None = None,
+        limit: int = Query(default=50, ge=1, le=500),
+    ) -> dict[str, Any]:
+        with database.session() as session:
+            jobs_list = PipelineTracker.get_job_history(
+                session, job_name=job_name, limit=limit
+            )
+            return {"count": len(jobs_list), "jobs": jobs_list}
+
+    @api.post("/api/v1/pipeline/trigger", tags=["pipeline"])
+    def pipeline_trigger(req: PipelineTriggerRequest) -> dict[str, Any]:
+        valid_sources = ["firms", "weather", "topography", "land_cover", "all"]
+        target = req.source.lower().strip()
+        if target not in valid_sources:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid target source '{req.source}'. Must be one of {valid_sources}",
+            )
+
+        results: dict[str, Any] = {}
+        with database.session() as session:
+            if target in ("firms", "all"):
+                job = PipelineTracker.start_job(session, "sync_nasa_firms", "FIRMS")
+                try:
+                    res = sync_firms(session, settings)
+                    PipelineTracker.complete_job(
+                        session, job, records_processed=res.get("observations", 0)
+                    )
+                    results["firms"] = res
+                except FirmsSourceError as exc:
+                    PipelineTracker.fail_job(session, job, error_message=str(exc))
+                    results["firms"] = {"error": str(exc)}
+
+            if target in ("weather", "all"):
+                job = PipelineTracker.start_job(
+                    session, "sync_openweather", "OpenWeather"
+                )
+                try:
+                    res = sync_weather_for_clusters(session, settings)
+                    PipelineTracker.complete_job(
+                        session,
+                        job,
+                        records_processed=res.get("weather_points_saved", 0),
+                    )
+                    results["weather"] = res
+                except WeatherSourceError as exc:
+                    PipelineTracker.fail_job(session, job, error_message=str(exc))
+                    results["weather"] = {"error": str(exc)}
+
+            if target in ("topography", "all"):
+                job = PipelineTracker.start_job(session, "sync_topography", "USGS/SRTM")
+                try:
+                    res = sync_topography_for_clusters(session, settings)
+                    PipelineTracker.complete_job(
+                        session,
+                        job,
+                        records_processed=res.get("topography_points_saved", 0),
+                    )
+                    results["topography"] = res
+                except TopographySourceError as exc:
+                    PipelineTracker.fail_job(session, job, error_message=str(exc))
+                    results["topography"] = {"error": str(exc)}
+
+            if target in ("land_cover", "all"):
+                job = PipelineTracker.start_job(
+                    session, "sync_land_cover", "Copernicus"
+                )
+                try:
+                    res = sync_land_cover_for_clusters(session, settings)
+                    PipelineTracker.complete_job(
+                        session,
+                        job,
+                        records_processed=res.get("land_cover_points_saved", 0),
+                    )
+                    results["land_cover"] = res
+                except LandCoverSourceError as exc:
+                    PipelineTracker.fail_job(session, job, error_message=str(exc))
+                    results["land_cover"] = {"error": str(exc)}
+
+        return {"status": "triggered", "results": results}
 
     return api
 

@@ -1,6 +1,7 @@
 """Persisted wildfire models."""
 from .fire import FireCluster, FireObservation, FirmsSyncStatus
 from .land_cover import LandCoverDataPoint
+from .pipeline import PipelineJobHistory
 from .spatial import (
     FireEvent,
     FireForecast,
@@ -18,6 +19,7 @@ __all__ = [
     "FireObservation",
     "FirmsSyncStatus",
     "LandCoverDataPoint",
+    "PipelineJobHistory",
     "SilentRegion",
     "SimulationScenario",
     "SpatialSource",
