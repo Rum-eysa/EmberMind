@@ -15,6 +15,10 @@ from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
+from src.services.grid_standard import (
+    GridStandardError,
+    PilotRegionGridService,
+)
 from src.services.land_cover import (
     LandCoverSourceError,
     sync_land_cover_for_clusters,
@@ -166,6 +170,19 @@ class PolygonIntersectionRequest(BaseModel):
     max_lat: float
     min_lon: float
     max_lon: float
+
+
+class TransformCoordinateRequest(BaseModel):
+    """Request payload for EPSG:4326 to UTM 35N conversion and 30m grid snapping."""
+
+    latitude: float
+    longitude: float
+
+
+class ResampleGridRequest(BaseModel):
+    """Request payload for resampling spatial raster data to uniform 30m grid."""
+
+    points: list[dict[str, Any]]
 
 
 def create_fastapi_app(config_name: str = "testing") -> FastAPI:
@@ -379,6 +396,68 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 status_code=500,
                 detail={"status": "error", "error": str(exc)},
             ) from exc
+
+    @api.get("/api/v1/grid/pilot-region", tags=["grid"])
+    def get_pilot_region() -> dict[str, Any]:
+        grid_service = PilotRegionGridService()
+        return {
+            "region_name": "TR-GR Coasline Wildfire Pilot Region",
+            "justification": grid_service.justification,
+            "bounding_box": {
+                "min_latitude": grid_service.min_lat,
+                "max_latitude": grid_service.max_lat,
+                "min_longitude": grid_service.min_lon,
+                "max_longitude": grid_service.max_lon,
+            },
+            "coordinate_standards": {
+                "storage_crs": grid_service.storage_crs,
+                "metric_crs": grid_service.metric_crs,
+            },
+            "grid_specification": {
+                "resolution_meters": grid_service.resolution_meters,
+            },
+        }
+
+    @api.post("/api/v1/grid/transform-coordinate", tags=["grid"])
+    def transform_coordinate(req: TransformCoordinateRequest) -> dict[str, Any]:
+        try:
+            grid_service = PilotRegionGridService()
+            in_region = grid_service.is_within_pilot_region(req.latitude, req.longitude)
+            easting, northing, utm_crs = grid_service.wgs84_to_utm_35n(
+                req.latitude, req.longitude
+            )
+            grid_cell = grid_service.align_to_30m_grid(req.latitude, req.longitude)
+            return {
+                "input": {"latitude": req.latitude, "longitude": req.longitude},
+                "within_pilot_region": in_region,
+                "metric_projection": {
+                    "easting_m": easting,
+                    "northing_m": northing,
+                    "crs": utm_crs,
+                },
+                "grid_30m": {
+                    "cell_id": grid_cell.cell_id,
+                    "grid_lat": grid_cell.grid_lat,
+                    "grid_lon": grid_cell.grid_lon,
+                    "resolution_meters": grid_cell.resolution_meters,
+                },
+            }
+        except GridStandardError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.post("/api/v1/grid/resample-30m", tags=["grid"])
+    def resample_grid_30m(req: ResampleGridRequest) -> dict[str, Any]:
+        grid_service = PilotRegionGridService()
+        resampled = grid_service.resample_raster_layer_to_30m(req.points)
+        return {
+            "source_points_count": len(req.points),
+            "resampled_grid_cells_count": len(resampled),
+            "resolution_meters": 30,
+            "resampled_data": resampled,
+        }
 
     return api
 

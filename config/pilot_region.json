@@ -1,0 +1,24 @@
+{
+  "region_name": "TR-GR Coasline Wildfire Pilot Region",
+  "bounding_box": {
+    "min_latitude": 36.0,
+    "max_latitude": 39.5,
+    "min_longitude": 26.0,
+    "max_longitude": 30.0
+  },
+  "justification": "High wildfire risk zone along Turkey-Greece coastal corridor (Aegean/Western Mediterranean) featuring dense Pinus brutia (kızılçam) forests, maquis vegetation, rugged topography, and severe Meltemi summer wind patterns.",
+  "coordinate_standards": {
+    "storage_crs": "EPSG:4326",
+    "storage_crs_name": "WGS 84 (Geographic Lat/Lon)",
+    "metric_crs": "EPSG:32635",
+    "metric_crs_name": "WGS 84 / UTM Zone 35N",
+    "metric_crs_fallback": "EPSG:32636",
+    "metric_crs_fallback_name": "WGS 84 / UTM Zone 36N"
+  },
+  "grid_specification": {
+    "resolution_meters": 30,
+    "lat_cell_size_deg": 0.00027,
+    "lon_cell_size_deg": 0.00027,
+    "resampling_method": "bilinear"
+  }
+}

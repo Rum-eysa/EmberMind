@@ -1,5 +1,5 @@
-"""Spatial database models (PostGIS/SQLite RTree compatible) for events, forecasts, sources, silent regions, and scenarios."""
-from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String
+"""Spatial database models for events, forecasts, sources, silent regions, and scenarios."""
+from sqlalchemy import Boolean, Column, DateTime, Float, Index, String
 
 from .base import BaseModel
 
