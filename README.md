@@ -22,8 +22,8 @@
 
 ```bash
 # Repository klonla
-git clone https://github.com/yourusername/wildfire-monitoring-system.git
-cd wildfire-monitoring-system
+git clone https://github.com/Rum-eysa/EmberMind.git
+cd EmberMind
 
 # Sanal ortamı oluştur
 python -m venv venv
@@ -32,17 +32,14 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 # Bağımlılıkları yükle
 pip install -r requirements.txt
 
-# Veritabanını migrate et
-python manage.py migrate
-
-# Sunucuyu başlat
-python manage.py runserver
+# Docker ile veritabanı, Redis, API ve FIRMS worker'larını başlat
+docker compose up -d --build
 ```
 
 ### Docker ile Çalıştırma
 
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
 ## 📁 Proje Yapısı
@@ -73,6 +70,25 @@ wildfire-monitoring-system/
 4. **API Katmanı** → GraphQL/REST endpoint'leri
 5. **Arayüz** → Web dashboard ve mobil uygulamalar
 
+### NASA FIRMS kurulumu
+
+1. NASA FIRMS üzerinden bir API anahtarı alın ve `.env.example` dosyasını `.env` olarak kopyalayın.
+2. `FIRMS_BBOX` değerini `minLon,minLat,maxLon,maxLat` formatında izlenecek bölgeye göre ayarlayın.
+3. `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` ve Docker içi `DATABASE_URL` değerlerini `.env` içinde tanımlayın.
+4. Docker ile başlatın: `docker compose up -d --build`.
+
+Celery Beat, FIRMS verisini varsayılan olarak 10 dakikada bir çeker. Veriler normalize edilir ve 2 km içindeki aynı gün gözlemleri tek yangın kümesinde birleştirilir.
+
+Operatör API uçları:
+
+- `GET /api/v1/fires`: Güncel yangın kümeleri
+- `GET /api/v1/fires/status`: Son başarılı veri zamanı, veri yaşı ve kaynak hatası
+- `POST /api/v1/fires/sync`: Manuel senkronizasyon
+
+FastAPI Docker ile `http://localhost:8000` üzerinde çalışır ve interaktif OpenAPI dokümantasyonu `http://localhost:8000/docs` adresindedir.
+
+NASA FIRMS erişilemezse son başarılı veri korunur; veri 20 dakikadan eskiyse status yanıtında `stale: true` döner.
+
 ## 📊 Epic'ler ve Sprint Planlaması
 
 - **E1**: Veri Entegrasyonu ve Veri Hattı
@@ -80,7 +96,7 @@ wildfire-monitoring-system/
 - **E3**: Görselleştirme ve Operatör Paneli
 - **E4**: Ölçeklendirebilirlik ve İzleme
 
-Sprint planlama [Projects](https://github.com/yourusername/wildfire-monitoring-system/projects) sekmesinde.
+Sprint planlama [Projects](https://github.com/Rum-eysa/EmberMind/projects) sekmesinde.
 
 ## 🧪 Test Çalıştırma
 

@@ -1,24 +1,18 @@
-"""Pytest Konfigürasyonu"""
+"""Pytest fixtures for the FastAPI application."""
 import pytest
-from src.app import create_app, db
+from fastapi.testclient import TestClient
+
+from src.fastapi_app import create_fastapi_app
+
 
 @pytest.fixture
-def app():
-    """Test uygulaması"""
-    app = create_app('testing')
-    
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.session.remove()
-        db.drop_all()
+def api():
+    """Return a testing FastAPI application."""
+    return create_fastapi_app("testing")
+
 
 @pytest.fixture
-def client(app):
-    """Test istemcisi"""
-    return app.test_client()
-
-@pytest.fixture
-def runner(app):
-    """CLI test çalıştırıcısı"""
-    return app.test_cli_runner()
+def client(api):
+    """Return a client with the application lifespan enabled."""
+    with TestClient(api) as test_client:
+        yield test_client

@@ -1,0 +1,12 @@
+[MASTER]
+ignore=tests
+
+[MESSAGES CONTROL]
+disable=too-few-public-methods,too-many-instance-attributes
+
+[TYPECHECK]
+ignored-modules=flask_sqlalchemy,celery
+ignored-classes=SQLAlchemy
+
+[BASIC]
+ good-names=db

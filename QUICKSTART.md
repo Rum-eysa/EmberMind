@@ -44,8 +44,7 @@ git branch -M main
 
 ```bash
 # Uzak repository'yi bağla
-# UYARI: yourusername ve wildfire-monitoring-system'i kendi verilerinle değiştir!
-git remote add origin https://github.com/yourusername/wildfire-monitoring-system.git
+git remote add origin https://github.com/Rum-eysa/EmberMind.git
 
 # Tüm dosyaları GitHub'a push et
 git push -u origin main
@@ -53,7 +52,7 @@ git push -u origin main
 
 > **Not**: Eğer SSH key kullanıyorsan, URL'i şu şekilde değiştir:
 > ```bash
-> git remote add origin git@github.com:yourusername/wildfire-monitoring-system.git
+> git remote add origin git@github.com:Rum-eysa/EmberMind.git
 > ```
 
 ---
@@ -84,7 +83,7 @@ venv\Scripts\activate
 pip install -r requirements-dev.txt
 
 # Kontrol et
-pip list | grep Flask
+pip list | grep fastapi
 ```
 
 ### 3. .env Dosyasını Oluştur
@@ -143,7 +142,7 @@ git checkout -b feature/initial-api-setup
 git add .
 
 # Commit et
-git commit -m "feat: Add initial Flask API structure"
+git commit -m "feat: Add FastAPI wildfire monitoring API"
 
 # Push et
 git push origin feature/initial-api-setup
@@ -162,7 +161,7 @@ git push origin feature/initial-api-setup
 
 ### Sunucuyu Çalıştır
 
-#### Option 1: Flask Geliştirme Sunucusu
+#### Option 1: FastAPI Geliştirme Sunucusu
 
 ```bash
 # Sanal ortamı etkinleştir
@@ -172,22 +171,22 @@ source venv/bin/activate
 make dev
 
 # Veya direkt:
-FLASK_ENV=development python src/app.py
+uvicorn src.fastapi_app:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Uygulama `http://localhost:5000` adresinde çalışacak.
+Uygulama `http://localhost:8000` adresinde çalışacak.
 
 #### Option 2: Docker
 
 ```bash
 # Docker konteynerlerini başlat
-docker-compose up -d
+docker compose up -d --build
 
 # Logları izle
-docker-compose logs -f app
+docker compose logs -f app
 
 # Durdur
-docker-compose down
+docker compose down
 ```
 
 ### Test Çalıştır
@@ -308,7 +307,7 @@ git init
 ssh-add ~/.ssh/id_rsa
 
 # Veya HTTPS kullan:
-git remote set-url origin https://github.com/yourusername/repo.git
+git remote set-url origin https://github.com/Rum-eysa/EmberMind.git
 ```
 
 ### "ModuleNotFoundError: No module named 'src'"

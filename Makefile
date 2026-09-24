@@ -11,12 +11,13 @@ help:
 	@echo "  make docker-build  - Docker image'ı oluştur"
 	@echo "  make docker-up     - Docker konteynerlerini başlat"
 	@echo "  make docker-down   - Docker konteynerlerini durdur"
+	@echo "  make api-docs      - FastAPI OpenAPI dokümantasyonunu aç"
 
 install:
 	pip install -r requirements-dev.txt
 
 dev:
-	FLASK_ENV=development python src/app.py
+	uvicorn src.fastapi_app:app --reload --host 127.0.0.1 --port 8000
 
 test:
 	pytest tests/ -v --cov=src --cov-report=html
@@ -39,10 +40,13 @@ docker-build:
 	docker build -t wildfire-monitoring-system:latest .
 
 docker-up:
-	docker-compose up -d
+	docker compose up -d --build
 
 docker-down:
-	docker-compose down
+	docker compose down
 
 docker-logs:
-	docker-compose logs -f app
+	docker compose logs -f app
+
+api-docs:
+	@echo "FastAPI docs: http://localhost:8000/docs"

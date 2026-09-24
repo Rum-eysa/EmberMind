@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
     container_name: wildfire_postgres
     environment:
-      POSTGRES_DB: wildfire_db
-      POSTGRES_USER: wildfire_user
-      POSTGRES_PASSWORD: wildfire_password
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
       - "5432:5432"
     volumes:
@@ -17,6 +15,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - wildfire_network
 
   redis:
     image: redis:7-alpine
@@ -30,18 +30,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - wildfire_network
 
   app:
     build: .
-    container_name: wildfire_app
-    command: python -m flask run --host=0.0.0.0 --port=5000
+    container_name: wildfire_api
+    command: uvicorn src.fastapi_app:app --host 0.0.0.0 --port 8000
     environment:
-      - FLASK_APP=src/app.py
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://wildfire_user:wildfire_password@db:5432/wildfire_db
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
       - REDIS_URL=redis://redis:6379/0
+      - FIRMS_API_KEY=${FIRMS_API_KEY}
+      - FIRMS_SOURCE=${FIRMS_SOURCE:-VIIRS_SNPP_NRT}
+      - FIRMS_BBOX=${FIRMS_BBOX:-25,35,45,43}
+      - FIRMS_SYNC_INTERVAL_MINUTES=${FIRMS_SYNC_INTERVAL_MINUTES:-10}
     ports:
-      - "5000:5000"
+      - "8000:8000"
     volumes:
       - .:/app
     depends_on:
@@ -55,13 +59,41 @@ services:
   celery:
     build: .
     container_name: wildfire_celery
-    command: celery -A src.tasks worker --loglevel=info
+    command: celery -A src.tasks:celery_app worker --loglevel=info
+    healthcheck:
+      disable: true
     environment:
-      - DATABASE_URL=postgresql://wildfire_user:wildfire_password@db:5432/wildfire_db
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
       - REDIS_URL=redis://redis:6379/0
+      - FIRMS_API_KEY=${FIRMS_API_KEY}
+      - FIRMS_SOURCE=${FIRMS_SOURCE:-VIIRS_SNPP_NRT}
+      - FIRMS_BBOX=${FIRMS_BBOX:-25,35,45,43}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wildfire_network
+
+  celery-beat:
+    build: .
+    container_name: wildfire_celery_beat
+    command: celery -A src.tasks:celery_app beat --loglevel=info
+    healthcheck:
+      disable: true
+    environment:
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
+      - REDIS_URL=redis://redis:6379/0
+      - FIRMS_API_KEY=${FIRMS_API_KEY}
+      - FIRMS_SOURCE=${FIRMS_SOURCE:-VIIRS_SNPP_NRT}
+      - FIRMS_BBOX=${FIRMS_BBOX:-25,35,45,43}
+      - FIRMS_SYNC_INTERVAL_MINUTES=${FIRMS_SYNC_INTERVAL_MINUTES:-10}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - wildfire_network
 

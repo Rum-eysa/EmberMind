@@ -12,7 +12,7 @@
 
 ### 1. Repository'yi klonla
 ```bash
-git clone https://github.com/yourusername/wildfire-monitoring-system.git
+git clone <repository-url>
 cd wildfire-monitoring-system
 ```
 
@@ -39,28 +39,30 @@ cp .env.example .env
 createdb wildfire_db
 
 # Tabloları oluştur
-python -c "from src.app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()"
+python scripts/setup_db.py
 ```
 
 ### 6. Uygulamayı başlat
 ```bash
-python src/app.py
+uvicorn src.fastapi_app:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Uygulama `http://localhost:5000` adresinde çalışacaktır.
+Uygulama `http://localhost:8000` adresinde çalışacaktır.
+
+OpenAPI arayüzü `http://localhost:8000/docs` adresinde çalışır.
 
 ## Docker Kurulumu
 
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
 Kontroller:
 ```bash
-docker-compose logs -f app
+docker compose logs -f app
 ```
 
 Durdur:
 ```bash
-docker-compose down
+docker compose down
 ```

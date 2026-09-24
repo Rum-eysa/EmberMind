@@ -1,17 +1,22 @@
-"""Temel Model Sınıfları"""
-from sqlalchemy import Column, DateTime, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from flask_sqlalchemy import SQLAlchemy
+"""Framework-independent SQLAlchemy model base."""
+from datetime import datetime
 
-db = SQLAlchemy()
+from sqlalchemy import Column, DateTime, Integer
+
+from src.database import Base
+
 
 class TimestampMixin:
-    """Timestamp kolonları ekleyen mixin"""
-    created_at = db.Column(db.DateTime, default=func.now())
-    updated_at = db.Column(db.DateTime, default=func.now(), onupdate=func.now())
+    """Timestamp columns shared by persisted models."""
 
-class BaseModel(db.Model, TimestampMixin):
-    """Temel model sınıfı"""
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+
+class BaseModel(Base, TimestampMixin):
+    """Base model with an integer primary key."""
+
     __abstract__ = True
-    id = db.Column(db.Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)

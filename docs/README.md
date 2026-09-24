@@ -16,6 +16,6 @@ Yangın İzleme Sistemi detaylı dokümantasyonu.
 ## Destek
 
 Sorularınız için:
-1. [GitHub Issues](https://github.com/yourusername/wildfire-monitoring-system/issues)
-2. [GitHub Discussions](https://github.com/yourusername/wildfire-monitoring-system/discussions)
+1. [GitHub Issues](https://github.com/Rum-eysa/EmberMind/issues)
+2. [GitHub Discussions](https://github.com/Rum-eysa/EmberMind/discussions)
 3. Email: info@example.com

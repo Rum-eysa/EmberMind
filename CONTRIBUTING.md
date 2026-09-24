@@ -5,7 +5,7 @@ Yangın İzleme Sistemine katkı yapmak için teşekkürler! 🎉
 ## Başlamadan Önce
 
 1. Bu repository'yi fork edin
-2. Klonlayın: `git clone https://github.com/yourusername/wildfire-monitoring-system.git`
+2. Klonlayın: `git clone https://github.com/Rum-eysa/EmberMind.git`
 3. Main branch'ten yeni bir branch oluşturun: `git checkout -b feature/your-feature`
 
 ## Geliştirme İş Akışı

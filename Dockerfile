@@ -18,11 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Port
-EXPOSE 5000
+EXPOSE 8000
 
 # Sağlık kontrolü
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/health')"
+    CMD python -c "import requests; response = requests.get('http://localhost:8000/health', timeout=5); response.raise_for_status()"
 
 # Çalıştır
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0"]
+CMD ["uvicorn", "src.fastapi_app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,2 +1,4 @@
-"""Veri Modelleri"""
-from .base import db
+"""Persisted wildfire models."""
+from .fire import FireCluster, FireObservation, FirmsSyncStatus
+
+__all__ = ["FireCluster", "FireObservation", "FirmsSyncStatus"]

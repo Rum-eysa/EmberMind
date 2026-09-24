@@ -18,7 +18,8 @@
 - Kümele Analizi
 
 ### 4. API Katmanı
-- REST API (Flask)
+- REST API (FastAPI)
+- Framework bağımsız FIRMS use-case servisleri (`src/services/fire_sync.py`)
 - GraphQL (Optional)
 - WebSocket (Real-time)
 
@@ -42,7 +43,11 @@ ML Model (Tahmin)
     ↓
 Cache (Redis)
     ↓
-API Endpoints
+Service Layer
+    ↓
+FastAPI API
     ↓
 Kullanıcı Arayüzü
 ```
+
+FIRMS senkronizasyonu ve kaynak durum mantığı HTTP katmanından bağımsız servislerde tutulur.
