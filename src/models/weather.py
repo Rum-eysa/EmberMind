@@ -19,6 +19,7 @@ class WeatherDataPoint(BaseModel):
     humidity = Column(Float, nullable=False)
     wind_speed = Column(Float, nullable=False)
     wind_deg = Column(Float, nullable=False)
+    rain = Column(Float, nullable=False, default=0.0)
     forecast_offset_hours = Column(Integer, nullable=False, default=0)
     forecast_time = Column(DateTime, nullable=False, index=True)
     fetched_at = Column(DateTime, nullable=False, index=True)
@@ -36,6 +37,7 @@ class WeatherDataPoint(BaseModel):
             "humidity": self.humidity,
             "wind_speed": self.wind_speed,
             "wind_deg": self.wind_deg,
+            "rain": self.rain,
             "forecast_offset_hours": self.forecast_offset_hours,
             "forecast_time": to_utc_iso(self.forecast_time),
             "fetched_at": to_utc_iso(self.fetched_at),

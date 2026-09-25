@@ -7,6 +7,7 @@ from src.config.settings import ProductionConfig
 from src.database import Database
 from src.services.effis import import_effis_perimeters
 from src.services.fire_sync import sync_firms
+from src.services.fwi import compute_region_fwi
 from src.services.grid_standard import PilotRegionGridService
 from src.services.land_cover import sync_land_cover_for_clusters
 from src.services.pipeline_tracker import PipelineTracker
@@ -44,6 +45,10 @@ celery_app.conf.update(
         "import-historical-fire": {
             "task": "src.tasks.import_historical_fire_data",
             "schedule": config.EFFIS_HISTORICAL_SYNC_INTERVAL_MINUTES * 60,
+        },
+        "compute-fire-weather-index": {
+            "task": "src.tasks.compute_fire_weather_index",
+            "schedule": config.FWI_SYNC_INTERVAL_MINUTES * 60,
         },
     },
     timezone="UTC",
@@ -228,6 +233,40 @@ def import_historical_fire_data(self: Any) -> dict[str, Any]:
         try:
             res = import_effis_perimeters(session, config, bbox)
             records = res.get("perimeters_saved", 0)
+            PipelineTracker.complete_job(
+                session,
+                job,
+                records_processed=records,
+                attempt_count=self.request.retries + 1,
+            )
+            return {"status": "ok", **res}
+        except Exception as exc:
+            PipelineTracker.fail_job(
+                session,
+                job,
+                error_message=str(exc),
+                attempt_count=self.request.retries + 1,
+            )
+            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
+            raise self.retry(exc=exc, countdown=countdown) from exc
+
+
+@celery_app.task(
+    name="src.tasks.compute_fire_weather_index",
+    bind=True,
+    max_retries=config.PIPELINE_MAX_RETRIES,
+)
+def compute_fire_weather_index(self: Any) -> dict[str, Any]:
+    """Compute the daily zone Fire Weather Index and drought indicator layer."""
+    database = Database(config.DATABASE_URL)
+    with database.session() as session:
+        database.create_all()
+        job = PipelineTracker.start_job(
+            session, "compute_fire_weather_index", "FWI/OpenWeather"
+        )
+        try:
+            res = compute_region_fwi(session, config)
+            records = res.get("zones_computed", 0)
             PipelineTracker.complete_job(
                 session,
                 job,

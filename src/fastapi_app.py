@@ -16,12 +16,14 @@ from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.routes.data_governance import register_data_governance_routes
 from src.routes.data_quality import register_data_quality_routes
+from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.road_network import register_road_network_routes
 from src.services.data_governance import attribution_for
 from src.services.effis import EffisSourceError, import_effis_perimeters
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
+from src.services.fwi import FwiError, compute_region_fwi
 from src.services.grid_standard import (
     GridStandardError,
     PilotRegionGridService,
@@ -130,6 +132,7 @@ class WeatherDataPointResponse(BaseModel):
     humidity: float
     wind_speed: float
     wind_deg: float
+    rain: float = 0.0
     forecast_offset_hours: int
     forecast_time: str
     fetched_at: str
@@ -316,7 +319,9 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "OpenStreetMap road-network accessibility with crew ETA and closure re-routing, "
             "data-quality/freshness monitoring with operator staleness warnings, "
             "EFFIS historical fire perimeters for model calibration/validation, "
-            "and per-source license/attribution/quota governance with cache plans."
+            "per-source license/attribution/quota governance with cache plans, "
+            "and a daily zone Fire Weather Index (FWI) with drought indicator, "
+            "map layer and high-risk daily summary."
         ),
         lifespan=lifespan,
     )
@@ -327,6 +332,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     register_data_quality_routes(api, database, settings)
     register_historical_fire_routes(api, database, settings)
     register_data_governance_routes(api, database, settings)
+    register_fwi_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -684,6 +690,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 "Copernicus": f"{settings.LAND_COVER_SYNC_INTERVAL_MINUTES}m",
                 "OpenStreetMap": f"{settings.ROAD_NETWORK_SYNC_INTERVAL_MINUTES}m",
                 "EFFIS": f"{settings.EFFIS_HISTORICAL_SYNC_INTERVAL_MINUTES}m",
+                "FWI": f"{settings.FWI_SYNC_INTERVAL_MINUTES}m",
             }
             return summary
 
@@ -711,6 +718,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "land_cover",
             "road_network",
             "historical_fire",
+            "fwi",
             "all",
         ]
         target = req.source.lower().strip()
@@ -777,6 +785,14 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                     "perimeters_saved",
                     EffisSourceError,
                     lambda: import_effis_perimeters(session, settings, bbox),
+                ),
+                (
+                    "fwi",
+                    "compute_fire_weather_index",
+                    "FWI/OpenWeather",
+                    "zones_computed",
+                    FwiError,
+                    lambda: compute_region_fwi(session, settings),
                 ),
             ]
             for key, job_name, job_source, records_key, error_cls, sync_fn in specs:

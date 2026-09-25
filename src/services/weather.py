@@ -31,6 +31,7 @@ class NormalizedWeather:
     forecast_time: datetime
     fetched_at: datetime
     source: str = "OpenWeatherMap"
+    rain_mm: float = 0.0
 
 
 class OpenWeatherClient:
@@ -108,6 +109,7 @@ class OpenWeatherClient:
                     forecast_time=item.forecast_time,
                     fetched_at=item.fetched_at,
                     source="OpenWeatherMap-Cache",
+                    rain_mm=item.rain_mm,
                 )
                 for item in stale_data
             ]
@@ -115,6 +117,18 @@ class OpenWeatherClient:
         raise WeatherSourceError(
             f"OpenWeather request failed after {self.max_retries} attempts: {last_exception}"
         ) from last_exception
+
+    @staticmethod
+    def _extract_rain_mm(item: dict[str, Any]) -> float:
+        """Sum OpenWeather periodic rain accumulations (e.g. ``rain.3h``)."""
+        rain = item.get("rain")
+        if isinstance(rain, dict):
+            return round(
+                sum(float(value) for value in rain.values() if value is not None), 2
+            )
+        if isinstance(rain, (int, float)):
+            return float(rain)
+        return 0.0
 
     def _parse_forecast_response(
         self, lat: float, lon: float, data: dict[str, Any]
@@ -165,6 +179,7 @@ class OpenWeatherClient:
                     forecast_time=forecast_time,
                     fetched_at=now,
                     source="OpenWeatherMap",
+                    rain_mm=self._extract_rain_mm(item),
                 )
             )
 
@@ -184,6 +199,7 @@ class OpenWeatherClient:
                     forecast_time=now,
                     fetched_at=now,
                     source="OpenWeatherMap",
+                    rain_mm=self._extract_rain_mm(data),
                 )
             )
 
@@ -222,6 +238,7 @@ def sync_weather_for_clusters(
                     humidity=item.humidity,
                     wind_speed=item.wind_speed,
                     wind_deg=item.wind_deg,
+                    rain=item.rain_mm,
                     forecast_offset_hours=item.forecast_offset_hours,
                     forecast_time=item.forecast_time,
                     fetched_at=item.fetched_at,

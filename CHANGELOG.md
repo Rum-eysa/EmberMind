@@ -5,6 +5,16 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-014: Yangın Hava İndeksi (FWI) ve kuraklık göstergesi
+  - Kanonik Kanada FWI sistemi (Van Wagner & Pickett 1985) bölge bazında hesaplanır
+    (FFMC/DMC/DC/ISI/BUI/FWI + günlük taşıma/zincirleme kod geçmişi)
+  - `GET /api/v1/fwi/map`: bölge poligonları GeoJSON harita katmanı (risk renk lejantı)
+  - `GET /api/v1/fwi/daily-summary`: yüksek FWI bölgeleri için günlük özet + kuraklık izleme
+  - Kuraklık göstergesi Drought Code (DC) sınıflandırması ile üretilir
+  - Hava durumu verisine yağış (`rain`) alanı eklendi (FWI girdisi)
+  - `FWI_ZONE_SIZE_DEG`, `FWI_SYNC_INTERVAL_MINUTES` konfigürasyon değişkenleri
+    ve günlük Celery beat görevi `compute_fire_weather_index`
+  - V006 migration: `fire_weather_index` tablosu + `weather_data_points.rain`
 - EM-013: Veri kaynakları lisans, atıf ve kota yönetimi
   - Her kaynak için lisans/atıf/kota tablosu (`src/services/data_governance.py` registry)
   - `GET /api/v1/data-sources`, `/attribution`, `/cache-plan` endpoint'leri

@@ -1,5 +1,6 @@
 """Persisted wildfire models."""
 from .fire import FireCluster, FireObservation, FirmsSyncStatus
+from .fwi import FireWeatherIndex
 from .historical_fire import HistoricalFirePerimeter
 from .land_cover import LandCoverDataPoint
 from .pipeline import PipelineJobHistory
@@ -20,6 +21,7 @@ __all__ = [
     "FireEvent",
     "FireForecast",
     "FireObservation",
+    "FireWeatherIndex",
     "FirmsSyncStatus",
     "HistoricalFirePerimeter",
     "LandCoverDataPoint",

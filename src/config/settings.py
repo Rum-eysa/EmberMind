@@ -68,6 +68,12 @@ class Config:
     )
     WEATHER_RETRY_COUNT = int(os.getenv("WEATHER_RETRY_COUNT", "3"))
 
+    # Fire Weather Index & drought indicator (EM-014)
+    # Coarse analysis zone edge length in degrees over the pilot bbox.
+    FWI_ZONE_SIZE_DEG = float(os.getenv("FWI_ZONE_SIZE_DEG", "0.5"))
+    # FWI is a daily indicator; recomputed once per day by default.
+    FWI_SYNC_INTERVAL_MINUTES = int(os.getenv("FWI_SYNC_INTERVAL_MINUTES", "1440"))
+
     # USGS / SRTM Topography
     USGS_SRTM_BASE_URL = os.getenv(
         "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"

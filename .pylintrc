@@ -9,4 +9,4 @@ ignored-modules=flask_sqlalchemy,celery
 ignored-classes=SQLAlchemy
 
 [BASIC]
- good-names=db
+ good-names=db,dc
