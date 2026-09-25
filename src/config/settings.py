@@ -36,6 +36,28 @@ class Config:
     PIPELINE_MAX_RETRIES = int(os.getenv("PIPELINE_MAX_RETRIES", "3"))
     PIPELINE_BACKOFF_FACTOR = float(os.getenv("PIPELINE_BACKOFF_FACTOR", "2.0"))
 
+    # NASA FIRMS multi-satellite ingestion (VIIRS + MODIS, EM-012)
+    FIRMS_API_KEY = os.getenv("FIRMS_API_KEY", "")
+    FIRMS_SOURCES = [
+        source.strip()
+        for source in os.getenv(
+            "FIRMS_SOURCES",
+            "VIIRS_SNPP_NRT,VIIRS_NOAA20_NRT,"
+            "MODIS_Terra_CorrectedAnomalies,MODIS_Aqua_CorrectedAnomalies",
+        ).split(",")
+        if source.strip()
+    ]
+    # Legacy single-source fallback kept for backward compatibility.
+    FIRMS_SOURCE = os.getenv("FIRMS_SOURCE", "VIIRS_SNPP_NRT")
+    FIRMS_BBOX = os.getenv("FIRMS_BBOX", "25,35,45,43")
+    FIRMS_DAYS = int(os.getenv("FIRMS_DAYS", "1"))
+    FIRMS_CLUSTER_RADIUS_KM = float(os.getenv("FIRMS_CLUSTER_RADIUS_KM", "2"))
+    # Two detections of the same fire by different satellites are merged when
+    # they fall within the cluster radius and this acquisition time window.
+    SATELLITE_DEDUP_TIME_WINDOW_MINUTES = int(
+        os.getenv("SATELLITE_DEDUP_TIME_WINDOW_MINUTES", "180")
+    )
+
     # OpenWeather
     OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
     OPENWEATHER_BASE_URL = os.getenv(

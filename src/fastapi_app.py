@@ -77,7 +77,7 @@ class PipelineTriggerRequest(BaseModel):
 
 
 class FireClusterResponse(BaseModel):
-    """Public representation of a FIRMS fire cluster."""
+    """Public representation of a merged VIIRS/MODIS fire cluster."""
 
     cluster_key: str
     latitude: float
@@ -86,6 +86,9 @@ class FireClusterResponse(BaseModel):
     max_frp: float | None
     first_seen_at: str
     last_seen_at: str
+    sources: str | None = None
+    latency_minutes: float | None = None
+    deduplicated_count: int = 0
 
 
 class FiresResponse(BaseModel):
@@ -97,12 +100,15 @@ class FiresResponse(BaseModel):
 
 
 class SyncResponse(BaseModel):
-    """Response returned after an on-demand FIRMS sync."""
+    """Response returned after an on-demand multi-satellite FIRMS sync."""
 
     status: str
     observations: int
     clusters: int
     source: str
+    duplicates_removed: int = 0
+    sources: list[str] | None = None
+    coverage: dict[str, Any] | None = None
     last_success_at: str | None
     last_success_age_minutes: float | None = None
     last_observation_count: int | None = None
@@ -297,7 +303,8 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
         title="Wildfire Monitoring API",
         version="1.0.0",
         description=(
-            "NASA FIRMS active-fire, weather forecast, "
+            "NASA FIRMS active-fire (merged VIIRS/MODIS with detection latency "
+            "and cross-satellite deduplication), weather forecast, "
             "USGS/SRTM topography, CORINE land cover, PostGIS spatial monitoring service, "
             "manual fire event creation with deduplication and prediction triggering, "
             "OpenStreetMap road-network accessibility with crew ETA and closure re-routing, "

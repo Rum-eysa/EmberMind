@@ -1,4 +1,9 @@
-"""NASA FIRMS ingestion, normalization, and clustering service."""
+"""NASA FIRMS ingestion, normalization, and clustering service.
+
+VIIRS and MODIS products are fetched through the same FIRMS area CSV endpoint
+and normalised onto one common schema (:class:`NormalizedFire`), including the
+publication latency between satellite acquisition and the data being released.
+"""
 import csv
 import hashlib
 import io
@@ -12,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.fire import FireCluster, FireObservation
+from src.utils.timeutils import utc_now
 
 
 class FirmsSourceError(RuntimeError):
@@ -20,6 +26,8 @@ class FirmsSourceError(RuntimeError):
 
 @dataclass(frozen=True)
 class NormalizedFire:
+    """Common detection schema shared by every VIIRS/MODIS FIRMS product."""
+
     source_id: str
     latitude: float
     longitude: float
@@ -28,6 +36,18 @@ class NormalizedFire:
     confidence: float | None
     satellite: str | None
     instrument: str | None
+    product: str | None = None
+    published_at: datetime | None = None
+
+    @property
+    def latency_minutes(self) -> float | None:
+        """Minutes between satellite overpass (acquisition) and publication.
+
+        When the product does not carry an ``updated`` timestamp the ingest
+        time is used instead and the value is therefore an upper bound.
+        """
+        reference = self.published_at or utc_now()
+        return round((reference - self.observed_at).total_seconds() / 60, 1)
 
 
 class FirmsClient:
@@ -57,12 +77,16 @@ class FirmsClient:
 
         try:
             rows = csv.DictReader(io.StringIO(response.text))
-            return [self._normalize(row) for row in rows if row.get("latitude")]
+            return [
+                self._normalize(row, product=self.source)
+                for row in rows
+                if row.get("latitude")
+            ]
         except (KeyError, TypeError, ValueError) as exc:
             raise FirmsSourceError(f"NASA FIRMS response is invalid: {exc}") from exc
 
     @staticmethod
-    def _normalize(row: dict[str, str]) -> NormalizedFire:
+    def _normalize(row: dict[str, str], product: str | None = None) -> NormalizedFire:
         latitude = float(row["latitude"])
         longitude = float(row["longitude"])
         if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
@@ -75,6 +99,7 @@ class FirmsClient:
             .replace(tzinfo=timezone.utc)
             .replace(tzinfo=None)
         )
+        published_at = _parse_timestamp(row.get("updated"))
         source_id = hashlib.sha256(
             f"{row.get('satellite', '')}|{row.get('instrument', '')}|{row['latitude']}|"
             f"{row['longitude']}|{row['acq_date']}|{row['acq_time']}".encode()
@@ -89,7 +114,21 @@ class FirmsClient:
             confidence=_confidence(row.get("confidence")),
             satellite=row.get("satellite"),
             instrument=row.get("instrument"),
+            product=product,
+            published_at=published_at,
         )
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    """Parse a FIRMS ``updated`` publication timestamp (naive UTC)."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value.strip(), fmt).replace(tzinfo=None)
+        except ValueError:
+            continue
+    return None
 
 
 def _optional_float(value: str | None) -> float | None:
@@ -107,7 +146,8 @@ def _confidence(value: str | None) -> float | None:
         return {"low": 25.0, "nominal": 50.0, "high": 90.0}.get(value.lower())
 
 
-def _distance_km(left: NormalizedFire, right: NormalizedFire) -> float:
+def distance_km(left: NormalizedFire, right: NormalizedFire) -> float:
+    """Great-circle distance in km between two normalized detections."""
     radius = 6371.0
     lat1, lat2 = math.radians(left.latitude), math.radians(right.latitude)
     delta_lat = math.radians(right.latitude - left.latitude)
@@ -154,7 +194,7 @@ def cluster_observations(
         for right in range(left + 1, len(items)):
             if (
                 items[left].observed_at.date() == items[right].observed_at.date()
-                and _distance_km(items[left], items[right]) <= radius_km
+                and distance_km(items[left], items[right]) <= radius_km
             ):
                 union(left, right)
 
@@ -171,14 +211,21 @@ def cluster_observations(
     return result
 
 
-def ingest_firms(
-    session: Session, client: FirmsClient, cluster_radius_km: float = 2.0
+def persist_observations(
+    session: Session,
+    observations: Iterable[NormalizedFire],
+    cluster_radius_km: float = 2.0,
 ) -> dict[str, int]:
-    """Fetch FIRMS data and upsert normalized observations and clusters."""
-    observations = client.fetch()
+    """Cluster and upsert already normalized detections into the database.
+
+    Works for any mix of VIIRS/MODIS products because they share the common
+    :class:`NormalizedFire` schema. Each cluster records the contributing
+    satellites and the worst-case publication latency of its detections.
+    """
+    items = list(observations)
     total = 0
     clusters = 0
-    for cluster_key, group in cluster_observations(observations, cluster_radius_km):
+    for cluster_key, group in cluster_observations(items, cluster_radius_km):
         first_seen = min(item.observed_at for item in group)
         last_seen = max(item.observed_at for item in group)
         existing = session.scalar(
@@ -197,15 +244,26 @@ def ingest_firms(
         latitude = sum(item.latitude for item in group) / len(group)
         longitude = sum(item.longitude for item in group) / len(group)
         frps = [item.frp for item in group if item.frp is not None]
+        latencies = [
+            item.latency_minutes for item in group if item.latency_minutes is not None
+        ]
+        contributing = sorted(
+            {item.satellite or item.product or "unknown" for item in group}
+        )
         if existing is None:
             existing = FireCluster(cluster_key=cluster_key, first_seen_at=first_seen)
             session.add(existing)
             clusters += 1
+        elif existing.sources:
+            previously_seen = {s for s in str(existing.sources).split(";") if s}
+            contributing = sorted(previously_seen | set(contributing))
         existing.latitude = latitude  # type: ignore[assignment]
         existing.longitude = longitude  # type: ignore[assignment]
         existing.observation_count = len(group)  # type: ignore[assignment]
         existing.max_frp = max(frps) if frps else None  # type: ignore[assignment]
         existing.last_seen_at = last_seen  # type: ignore[assignment]
+        existing.sources = ";".join(contributing)  # type: ignore[assignment]
+        existing.latency_minutes = max(latencies) if latencies else None  # type: ignore[assignment]
 
         for item in group:
             record = session.scalar(
@@ -224,6 +282,16 @@ def ingest_firms(
             record.confidence = item.confidence  # type: ignore[assignment]
             record.satellite = item.satellite  # type: ignore[assignment]
             record.instrument = item.instrument  # type: ignore[assignment]
+            record.product = item.product  # type: ignore[assignment]
+            record.published_at = item.published_at  # type: ignore[assignment]
+            record.latency_minutes = item.latency_minutes  # type: ignore[assignment]
             total += 1
             session.flush()
     return {"observations": total, "clusters": clusters}
+
+
+def ingest_firms(
+    session: Session, client: FirmsClient, cluster_radius_km: float = 2.0
+) -> dict[str, int]:
+    """Fetch FIRMS data for one product and upsert observations and clusters."""
+    return persist_observations(session, client.fetch(), cluster_radius_km)

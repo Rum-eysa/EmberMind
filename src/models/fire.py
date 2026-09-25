@@ -20,6 +20,9 @@ class FireCluster(BaseModel):
     first_seen_at = Column(DateTime, nullable=False)
     last_seen_at = Column(DateTime, nullable=False, index=True)
     source = Column(String(32), nullable=False, default="NASA FIRMS")
+    sources = Column(String(160))
+    latency_minutes = Column(Float)
+    deduplicated_count = Column(Integer, nullable=False, default=0)
 
     @property
     def as_dict(self) -> dict[str, Any]:
@@ -32,11 +35,18 @@ class FireCluster(BaseModel):
             "max_frp": self.max_frp,
             "first_seen_at": to_utc_iso(self.first_seen_at),
             "last_seen_at": to_utc_iso(self.last_seen_at),
+            "sources": self.sources,
+            "latency_minutes": self.latency_minutes,
+            "deduplicated_count": self.deduplicated_count,
         }
 
 
 class FireObservation(BaseModel):
-    """One normalized active-fire detection received from NASA FIRMS."""
+    """One normalized active-fire detection received from NASA FIRMS.
+
+    VIIRS and MODIS products are mapped onto this single common schema so the
+    rest of the pipeline never needs to know which satellite produced a row.
+    """
 
     __tablename__ = "fire_observations"
 
@@ -49,6 +59,9 @@ class FireObservation(BaseModel):
     confidence = Column(Float)
     satellite = Column(String(32))
     instrument = Column(String(32))
+    product = Column(String(48))
+    published_at = Column(DateTime)
+    latency_minutes = Column(Float)
     source = Column(String(32), nullable=False, default="NASA FIRMS")
 
     @property
@@ -64,6 +77,9 @@ class FireObservation(BaseModel):
             "confidence": self.confidence,
             "satellite": self.satellite,
             "instrument": self.instrument,
+            "product": self.product,
+            "published_at": to_utc_iso(self.published_at),
+            "latency_minutes": self.latency_minutes,
         }
 
 
