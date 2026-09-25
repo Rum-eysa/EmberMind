@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from src.database import Database
 from src.models.historical_fire import HistoricalFirePerimeter
+from src.services.data_governance import attribution_for
 from src.services.effis import (
     EffisSourceError,
     assign_dataset_splits,
@@ -87,6 +88,7 @@ def register_historical_fire_routes(
             "source": "EFFIS",
             "count": len(perimeters),
             "perimeters": perimeters,
+            "attribution": attribution_for(settings, "historical_fire"),
         }
 
     @api.get("/api/v1/historical-fires/dataset", tags=["historical-fires"])

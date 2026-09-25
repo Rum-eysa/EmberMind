@@ -14,9 +14,11 @@ from src.models.land_cover import LandCoverDataPoint
 from src.models.spatial import FireEvent, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
+from src.routes.data_governance import register_data_governance_routes
 from src.routes.data_quality import register_data_quality_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.road_network import register_road_network_routes
+from src.services.data_governance import attribution_for
 from src.services.effis import EffisSourceError, import_effis_perimeters
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
@@ -97,6 +99,7 @@ class FiresResponse(BaseModel):
     source: str
     count: int
     fires: list[FireClusterResponse]
+    attribution: str | None = None
 
 
 class SyncResponse(BaseModel):
@@ -139,6 +142,7 @@ class WeatherResponse(BaseModel):
     source: str
     count: int
     weather_data: list[WeatherDataPointResponse]
+    attribution: str | None = None
 
 
 class WeatherSyncResponse(BaseModel):
@@ -170,6 +174,7 @@ class TopographyResponse(BaseModel):
     source: str
     count: int
     topography_data: list[TopographyDataPointResponse]
+    attribution: str | None = None
 
 
 class TopographySyncResponse(BaseModel):
@@ -201,6 +206,7 @@ class LandCoverResponse(BaseModel):
     source: str
     count: int
     land_cover_data: list[LandCoverDataPointResponse]
+    attribution: str | None = None
 
 
 class LandCoverSyncResponse(BaseModel):
@@ -309,7 +315,8 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "manual fire event creation with deduplication and prediction triggering, "
             "OpenStreetMap road-network accessibility with crew ETA and closure re-routing, "
             "data-quality/freshness monitoring with operator staleness warnings, "
-            "and EFFIS historical fire perimeters for model calibration/validation."
+            "EFFIS historical fire perimeters for model calibration/validation, "
+            "and per-source license/attribution/quota governance with cache plans."
         ),
         lifespan=lifespan,
     )
@@ -319,6 +326,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     register_road_network_routes(api, database, settings)
     register_data_quality_routes(api, database, settings)
     register_historical_fire_routes(api, database, settings)
+    register_data_governance_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -337,7 +345,12 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 .limit(limit)
             ).all()
             fire_rows = [row.as_dict for row in rows]
-        return {"source": "NASA FIRMS", "count": len(fire_rows), "fires": fire_rows}
+        return {
+            "source": "NASA FIRMS",
+            "count": len(fire_rows),
+            "fires": fire_rows,
+            "attribution": attribution_for(settings, "firms"),
+        }
 
     @api.get("/api/v1/fires/status", tags=["fires"])
     def fires_status() -> dict[str, Any]:
@@ -375,6 +388,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "source": "OpenWeatherMap",
             "count": len(weather_rows),
             "weather_data": weather_rows,
+            "attribution": attribution_for(settings, "weather"),
         }
 
     @api.post(
@@ -412,6 +426,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "source": "USGS/SRTM",
             "count": len(topo_rows),
             "topography_data": topo_rows,
+            "attribution": attribution_for(settings, "topography"),
         }
 
     @api.post(
@@ -451,6 +466,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "source": "CORINE/LandCover",
             "count": len(lc_rows),
             "land_cover_data": lc_rows,
+            "attribution": attribution_for(settings, "land_cover"),
         }
 
     @api.post(

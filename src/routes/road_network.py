@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from src.database import Database
 from src.models.road_network import CrewBase, RoadClosure, RoadSegment
+from src.services.data_governance import attribution_for
 from src.services.grid_standard import PilotRegionGridService
 from src.services.road_network import (
     RoadNetworkError,
@@ -96,6 +97,7 @@ def register_road_network_routes(
             "source": "OpenStreetMap",
             "count": len(segments),
             "segments": segments,
+            "attribution": attribution_for(settings, "road_network"),
         }
 
     @api.post("/api/v1/roads/sync", tags=["roads"])
