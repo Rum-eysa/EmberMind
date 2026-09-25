@@ -1,5 +1,5 @@
 """Manual fire event creation service with deduplication and prediction triggering."""
-from datetime import datetime, timezone
+from datetime import datetime
 from math import cos
 from typing import Optional
 
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.models.fire import FireCluster
 from src.models.spatial import FireEvent
+from src.utils.timeutils import utc_now
 
 
 class ManualFireEventError(Exception):
@@ -65,7 +66,7 @@ def check_for_duplicates(
         )
     ).all()
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
 
     for cluster in clusters:
         # Calculate distance using Haversine formula approximation
@@ -142,10 +143,10 @@ def create_manual_fire_event(
         ManualFireEventError: For other creation errors
     """
     if started_at is None:
-        started_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        started_at = utc_now()
 
     if reported_at is None:
-        reported_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        reported_at = utc_now()
 
     # Check for duplicates if requested
     if check_duplicates:
@@ -165,9 +166,7 @@ def create_manual_fire_event(
     existing = session.scalar(select(FireEvent).where(FireEvent.event_key == event_key))
     if existing:
         # Regenerate with microseconds if collision
-        event_key = generate_event_key(
-            latitude, longitude, datetime.now(timezone.utc).replace(tzinfo=None)
-        )
+        event_key = generate_event_key(latitude, longitude, utc_now())
 
     # Create the event
     event = FireEvent(

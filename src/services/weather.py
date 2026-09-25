@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from src.models.fire import FireCluster
 from src.models.weather import WeatherDataPoint
+from src.utils.timeutils import utc_now
 
 
 class WeatherSourceError(RuntimeError):
@@ -119,7 +120,7 @@ class OpenWeatherClient:
         self, lat: float, lon: float, data: dict[str, Any]
     ) -> list[NormalizedWeather]:
         """Parse OpenWeather API JSON and extract 0-6h forecast items."""
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = utc_now()
         max_horizon = now + timedelta(hours=6, minutes=30)
         results: list[NormalizedWeather] = []
 

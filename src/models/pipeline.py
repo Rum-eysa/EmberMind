@@ -1,14 +1,10 @@
 """Pipeline job history ORM model."""
-from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text
 
 from src.models.base import BaseModel
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+from src.utils.timeutils import to_utc_iso, utc_now
 
 
 class PipelineJobHistory(BaseModel):
@@ -19,7 +15,7 @@ class PipelineJobHistory(BaseModel):
     job_name = Column(String(100), nullable=False, index=True)
     source = Column(String(50), nullable=False)
     status = Column(String(50), nullable=False, default="PENDING")
-    start_time = Column(DateTime, default=_utc_now, nullable=False)
+    start_time = Column(DateTime, default=utc_now, nullable=False)
     end_time = Column(DateTime, nullable=True)
     duration_seconds = Column(Float, nullable=True)
     attempt_count = Column(Integer, nullable=False, default=1)
@@ -34,11 +30,11 @@ class PipelineJobHistory(BaseModel):
             "job_name": self.job_name,
             "source": self.source,
             "status": self.status,
-            "start_time": self.start_time.isoformat() if self.start_time else None,
-            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "start_time": to_utc_iso(self.start_time),
+            "end_time": to_utc_iso(self.end_time),
             "duration_seconds": self.duration_seconds,
             "attempt_count": self.attempt_count,
             "records_processed": self.records_processed,
             "error_message": self.error_message,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": to_utc_iso(self.created_at),
         }

@@ -1,6 +1,6 @@
 """USGS/SRTM Topography (elevation, slope, aspect) fetching, caching, and persistence service."""
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import datetime
 import math
 import time
 from typing import Any
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.models.fire import FireCluster
 from src.models.topography import TopographyDataPoint
+from src.utils.timeutils import utc_now
 
 
 class TopographySourceError(RuntimeError):
@@ -27,7 +28,7 @@ class NormalizedTopography:
     slope: float
     aspect: float
     resolution_meters: int = 30
-    fetched_at: datetime = datetime.now(timezone.utc).replace(tzinfo=None)
+    fetched_at: datetime = field(default_factory=utc_now)
     source: str = "USGS/SRTM"
 
 
@@ -178,7 +179,7 @@ class SRTMTopographyClient:
             slope=slope,
             aspect=aspect,
             resolution_meters=self.resolution_meters,
-            fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            fetched_at=utc_now(),
             source="USGS/SRTM",
         )
 
@@ -200,7 +201,7 @@ def sync_topography_for_clusters(session: Session, settings: Any) -> dict[str, A
         cache_ttl_seconds=getattr(settings, "TOPOGRAPHY_CACHE_TTL_SECONDS", 86400),
     )
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     saved_count = 0
 
     for cluster in clusters:

@@ -1,6 +1,9 @@
 """Spatial database models for events, forecasts, sources, silent regions, and scenarios."""
+from typing import Any
+
 from sqlalchemy import Boolean, Column, DateTime, Float, Index, String, Text
 
+from ..utils.timeutils import to_utc_iso
 from .base import BaseModel
 
 
@@ -38,7 +41,7 @@ class FireEvent(BaseModel):
     )
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,
@@ -53,13 +56,11 @@ class FireEvent(BaseModel):
             "geometry_wkt": self.geometry_wkt,
             "severity": self.severity,
             "status": self.status,
-            "started_at": self.started_at.isoformat() + "Z",
+            "started_at": to_utc_iso(self.started_at),
             "source": self.source,
             "notes": self.notes,
             "reported_by": self.reported_by,
-            "reported_at": self.reported_at.isoformat() + "Z"
-            if self.reported_at
-            else None,
+            "reported_at": to_utc_iso(self.reported_at),
         }
 
 
@@ -79,7 +80,7 @@ class FireForecast(BaseModel):
     __table_args__ = (Index("idx_fire_forecasts_spatial", "latitude", "longitude"),)
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,
@@ -89,7 +90,7 @@ class FireForecast(BaseModel):
             "longitude": self.longitude,
             "predicted_area_ha": self.predicted_area_ha,
             "geometry_wkt": self.geometry_wkt,
-            "forecast_for": self.forecast_for.isoformat() + "Z",
+            "forecast_for": to_utc_iso(self.forecast_for),
         }
 
 
@@ -119,7 +120,7 @@ class SpatialSource(BaseModel):
     )
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,
@@ -130,9 +131,7 @@ class SpatialSource(BaseModel):
             "min_lon": self.min_lon,
             "max_lon": self.max_lon,
             "geometry_wkt": self.geometry_wkt,
-            "last_synced_at": self.last_synced_at.isoformat() + "Z"
-            if self.last_synced_at
-            else None,
+            "last_synced_at": to_utc_iso(self.last_synced_at),
             "status": self.status,
         }
 
@@ -162,7 +161,7 @@ class SilentRegion(BaseModel):
     )
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,
@@ -205,7 +204,7 @@ class SimulationScenario(BaseModel):
     )
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,

@@ -1,6 +1,9 @@
 """Road network models (OpenStreetMap import, closures, crew bases)."""
+from typing import Any
+
 from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String
 
+from ..utils.timeutils import to_utc_iso
 from .base import BaseModel
 
 
@@ -37,7 +40,7 @@ class RoadSegment(BaseModel):
     )
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,
@@ -54,7 +57,7 @@ class RoadSegment(BaseModel):
             "length_km": self.length_km,
             "max_speed_kmh": self.max_speed_kmh,
             "one_way": self.one_way,
-            "fetched_at": self.fetched_at.isoformat() + "Z",
+            "fetched_at": to_utc_iso(self.fetched_at),
             "source": self.source,
         }
 
@@ -77,7 +80,7 @@ class RoadClosure(BaseModel):
     )
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,
@@ -86,10 +89,8 @@ class RoadClosure(BaseModel):
             "reason": self.reason,
             "status": self.status,
             "reported_by": self.reported_by,
-            "reported_at": self.reported_at.isoformat() + "Z",
-            "resolved_at": self.resolved_at.isoformat() + "Z"
-            if self.resolved_at
-            else None,
+            "reported_at": to_utc_iso(self.reported_at),
+            "resolved_at": to_utc_iso(self.resolved_at),
         }
 
 
@@ -108,7 +109,7 @@ class CrewBase(BaseModel):
     __table_args__ = (Index("idx_crew_bases_coords", "latitude", "longitude"),)
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return API-friendly dictionary representation."""
         return {
             "id": self.id,

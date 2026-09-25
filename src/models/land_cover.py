@@ -1,6 +1,9 @@
 """CORINE Land Cover & fuel class conversion persistence models."""
+from typing import Any
+
 from sqlalchemy import Column, DateTime, Float, Integer, String
 
+from ..utils.timeutils import to_utc_iso
 from .base import BaseModel
 
 
@@ -24,7 +27,7 @@ class LandCoverDataPoint(BaseModel):
     source = Column(String(64), nullable=False, default="CORINE/LandCover")
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return the land cover data point in API-friendly JSON-compatible form."""
         return {
             "id": self.id,
@@ -35,6 +38,6 @@ class LandCoverDataPoint(BaseModel):
             "land_cover_class": self.land_cover_class,
             "fuel_model": self.fuel_model,
             "spread_factor": self.spread_factor,
-            "fetched_at": self.fetched_at.isoformat() + "Z",
+            "fetched_at": to_utc_iso(self.fetched_at),
             "source": self.source,
         }

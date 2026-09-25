@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import Column, DateTime, Float, Index, Integer, String, Text
 
+from ..utils.timeutils import to_utc_iso
 from .base import BaseModel
 
 
@@ -50,10 +51,8 @@ class HistoricalFirePerimeter(BaseModel):
             "country_code": self.country_code,
             "country": self.country,
             "national_code": self.national_code,
-            "date_start": self.date_start.isoformat() + "Z"
-            if self.date_start
-            else None,
-            "date_end": self.date_end.isoformat() + "Z" if self.date_end else None,
+            "date_start": to_utc_iso(self.date_start),
+            "date_end": to_utc_iso(self.date_end),
             "area_km2": self.area_km2,
             "mmi_level": self.mmi_level,
             "latitude": self.latitude,
@@ -61,7 +60,5 @@ class HistoricalFirePerimeter(BaseModel):
             "geometry": geometry,
             "split": self.split,
             "source": self.source,
-            "fetched_at": self.fetched_at.isoformat() + "Z"
-            if self.fetched_at
-            else None,
+            "fetched_at": to_utc_iso(self.fetched_at),
         }

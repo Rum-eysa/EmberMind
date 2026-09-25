@@ -7,23 +7,16 @@ warning when it has not delivered fresh data for longer than its configured
 freshness threshold.
 """
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.pipeline import PipelineJobHistory
+from src.utils.timeutils import to_utc_iso, utc_now
 
 RECENT_JOBS_WINDOW = 50
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-def _iso(value: datetime | None) -> str | None:
-    return value.isoformat() + "Z" if value is not None else None
 
 
 @dataclass(frozen=True)
@@ -214,11 +207,11 @@ def _source_report(
         "job_source": spec.job_source,
         "sync_interval_minutes": spec.interval_minutes,
         "freshness_threshold_minutes": threshold,
-        "last_success_at": _iso(_success_time(signals.last_success)),
+        "last_success_at": to_utc_iso(_success_time(signals.last_success)),
         "last_success_age_minutes": verdict.age_minutes,
         "outage_minutes": verdict.outage_minutes,
         "last_run_status": signals.last_run_status,
-        "last_run_at": _iso(signals.last_run_at),
+        "last_run_at": to_utc_iso(signals.last_run_at),
         "consecutive_failures": signals.consecutive_failures,
         "last_error": signals.last_error,
         "status": verdict.status,
@@ -273,14 +266,14 @@ def evaluate_data_quality(
     session: Session, settings: Any, now: datetime | None = None
 ) -> dict[str, Any]:
     """Build a freshness and health report for every monitored data source."""
-    reference = now or _utc_now()
+    reference = now or utc_now()
     sources = [
         _evaluate_source(session, spec, settings, reference)
         for spec in build_source_registry(settings)
     ]
     warnings = [_warning_entry(source) for source in sources if source["warning"]]
     return {
-        "generated_at": _iso(reference),
+        "generated_at": to_utc_iso(reference),
         "overall_status": _overall_status(sources, warnings),
         "warning_count": len(warnings),
         "sources": sources,

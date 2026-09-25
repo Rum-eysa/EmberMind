@@ -1,10 +1,10 @@
 """Framework-independent FIRMS synchronization use cases."""
-from datetime import datetime, timezone
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.models.fire import FirmsSyncStatus
 from src.services.firms import FirmsClient, FirmsSourceError, ingest_firms
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from src.utils.timeutils import to_utc_iso, utc_now
 
 
 def sync_firms(session: Session, settings) -> dict[str, int]:
@@ -27,10 +27,10 @@ def sync_firms(session: Session, settings) -> dict[str, int]:
             settings.FIRMS_CLUSTER_RADIUS_KM,
         )
     except FirmsSourceError as exc:
-        status.last_error_at = datetime.now(timezone.utc).replace(tzinfo=None)  # type: ignore[assignment]
+        status.last_error_at = utc_now()  # type: ignore[assignment]
         status.last_error = str(exc)[:500]  # type: ignore[assignment]
         raise
-    status.last_success_at = datetime.now(timezone.utc).replace(tzinfo=None)  # type: ignore[assignment]
+    status.last_success_at = utc_now()  # type: ignore[assignment]
     status.last_error = None  # type: ignore[assignment]
     status.last_observation_count = result["observations"]  # type: ignore[assignment]
     return result
@@ -48,15 +48,13 @@ def sync_status(session: Session) -> dict[str, object]:
             "last_error": None,
             "stale": True,
         }
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     age_minutes = None
     if status.last_success_at:
         age_minutes = round((now - status.last_success_at).total_seconds() / 60, 1)
     return {
         "source": "NASA FIRMS",
-        "last_success_at": status.last_success_at.isoformat() + "Z"
-        if status.last_success_at
-        else None,
+        "last_success_at": to_utc_iso(status.last_success_at),
         "last_success_age_minutes": age_minutes,
         "last_observation_count": status.last_observation_count,
         "last_error": status.last_error,

@@ -1,6 +1,6 @@
 """CORINE Land Cover & fuel class conversion service."""
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import os
 from typing import Any
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from src.models.fire import FireCluster
 from src.models.land_cover import LandCoverDataPoint
+from src.utils.timeutils import utc_now
 
 
 class LandCoverSourceError(RuntimeError):
@@ -26,7 +27,7 @@ class NormalizedLandCoverFuel:
     land_cover_class: str
     fuel_model: str
     spread_factor: float
-    fetched_at: datetime = datetime.now(timezone.utc).replace(tzinfo=None)
+    fetched_at: datetime = field(default_factory=utc_now)
     source: str = "CORINE/LandCover"
 
 
@@ -119,7 +120,7 @@ class LandCoverFuelService:
             land_cover_class=land_class,
             fuel_model=fuel_mod,
             spread_factor=spread_fact,
-            fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            fetched_at=utc_now(),
             source="CORINE/LandCover",
         )
 
@@ -131,7 +132,7 @@ def sync_land_cover_for_clusters(session: Session, settings: Any) -> dict[str, A
         return {"clusters_processed": 0, "land_cover_points_saved": 0}
 
     service = LandCoverFuelService()
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     saved_count = 0
 
     for cluster in clusters:

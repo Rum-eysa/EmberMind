@@ -1,6 +1,5 @@
 """Road network import (OpenStreetMap/Overpass), routing graph, ETA and closure recalculation."""
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import heapq
 import math
 import time
@@ -11,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.road_network import CrewBase, RoadClosure, RoadSegment
+from src.utils.timeutils import utc_now
 
 BoundingBox = tuple[float, float, float, float]  # (min_lat, min_lon, max_lat, max_lon)
 
@@ -451,7 +451,7 @@ def compute_arrival_for_event(
 
 def upsert_segments(session: Session, segments: list[NormalizedSegment]) -> int:
     """Insert or update normalised segments keyed by segment_key; return affected count."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     count = 0
     for seg in segments:
         existing = session.scalar(
@@ -525,7 +525,7 @@ def mark_road_closure(
     if not segment:
         raise RoadSegmentNotFoundError(f"Road segment {segment_key} not found")
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     existing = session.scalar(
         select(RoadClosure).where(
             RoadClosure.segment_key == segment_key, RoadClosure.status == "active"
@@ -558,7 +558,7 @@ def resolve_road_closure(session: Session, segment_key: str) -> int:
             RoadClosure.segment_key == segment_key, RoadClosure.status == "active"
         )
     ).all()
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     for closure in rows:
         closure.status = "resolved"  # type: ignore[assignment]
         closure.resolved_at = now  # type: ignore[assignment]

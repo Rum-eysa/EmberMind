@@ -7,7 +7,7 @@ deterministic train/test/validation splitting so the spread model can be
 calibrated and validated against at least ``MIN_TRAINING_EVENTS`` past events.
 """
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 import json
 import math
 import time
@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.historical_fire import HistoricalFirePerimeter
+from src.utils.timeutils import utc_now
 
 BoundingBox = tuple[float, float, float, float]  # (min_lat, min_lon, max_lat, max_lon)
 
@@ -228,7 +229,7 @@ class EffisClient:
 
 def upsert_perimeters(session: Session, perimeters: list[NormalizedPerimeter]) -> int:
     """Insert or update normalised perimeters keyed by perimeter_key."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     count = 0
     for item in perimeters:
         existing = session.scalar(

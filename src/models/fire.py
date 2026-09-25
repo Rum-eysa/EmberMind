@@ -1,6 +1,9 @@
 """NASA FIRMS active-fire persistence models."""
+from typing import Any
+
 from sqlalchemy import Column, DateTime, Float, Integer, String
 
+from ..utils.timeutils import to_utc_iso
 from .base import BaseModel
 
 
@@ -19,7 +22,7 @@ class FireCluster(BaseModel):
     source = Column(String(32), nullable=False, default="NASA FIRMS")
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict[str, Any]:
         """Return the cluster in API-friendly JSON-compatible form."""
         return {
             "cluster_key": self.cluster_key,
@@ -27,8 +30,8 @@ class FireCluster(BaseModel):
             "longitude": self.longitude,
             "observation_count": self.observation_count,
             "max_frp": self.max_frp,
-            "first_seen_at": self.first_seen_at.isoformat() + "Z",
-            "last_seen_at": self.last_seen_at.isoformat() + "Z",
+            "first_seen_at": to_utc_iso(self.first_seen_at),
+            "last_seen_at": to_utc_iso(self.last_seen_at),
         }
 
 
@@ -49,14 +52,14 @@ class FireObservation(BaseModel):
     source = Column(String(32), nullable=False, default="NASA FIRMS")
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict[str, Any]:
         """Return the observation in API-friendly JSON-compatible form."""
         return {
             "source_id": self.source_id,
             "cluster_key": self.cluster_key,
             "latitude": self.latitude,
             "longitude": self.longitude,
-            "observed_at": self.observed_at.isoformat() + "Z",
+            "observed_at": to_utc_iso(self.observed_at),
             "frp": self.frp,
             "confidence": self.confidence,
             "satellite": self.satellite,

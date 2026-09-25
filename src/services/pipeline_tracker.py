@@ -1,15 +1,12 @@
 """Pipeline job tracking and status monitoring service."""
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from src.models.pipeline import PipelineJobHistory
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+from src.utils.timeutils import utc_now
 
 
 def _resolve_job_id(job_or_id: PipelineJobHistory | int) -> int:
@@ -28,7 +25,7 @@ class PipelineTracker:
             job_name=job_name,
             source=source,
             status="RUNNING",
-            start_time=_utc_now(),
+            start_time=utc_now(),
             attempt_count=1,
             records_processed=0,
         )
@@ -50,7 +47,7 @@ class PipelineTracker:
         if not job:
             raise ValueError(f"Job with id {job_id} not found.")
 
-        now = _utc_now()
+        now = utc_now()
         start_time = cast(datetime | None, job.start_time)
         duration_seconds = (
             round((now - start_time).total_seconds(), 3) if start_time else None
@@ -85,7 +82,7 @@ class PipelineTracker:
         if not job:
             raise ValueError(f"Job with id {job_id} not found.")
 
-        now = _utc_now()
+        now = utc_now()
         start_time = cast(datetime | None, job.start_time)
         duration_seconds = (
             round((now - start_time).total_seconds(), 3) if start_time else None

@@ -1,6 +1,9 @@
 """OpenWeather forecast persistence models."""
+from typing import Any
+
 from sqlalchemy import Column, DateTime, Float, Integer, String
 
+from ..utils.timeutils import to_utc_iso
 from .base import BaseModel
 
 
@@ -22,7 +25,7 @@ class WeatherDataPoint(BaseModel):
     source = Column(String(64), nullable=False, default="OpenWeatherMap")
 
     @property
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         """Return the weather data point in API-friendly JSON-compatible form."""
         return {
             "id": self.id,
@@ -34,7 +37,7 @@ class WeatherDataPoint(BaseModel):
             "wind_speed": self.wind_speed,
             "wind_deg": self.wind_deg,
             "forecast_offset_hours": self.forecast_offset_hours,
-            "forecast_time": self.forecast_time.isoformat() + "Z",
-            "fetched_at": self.fetched_at.isoformat() + "Z",
+            "forecast_time": to_utc_iso(self.forecast_time),
+            "fetched_at": to_utc_iso(self.fetched_at),
             "source": self.source,
         }
