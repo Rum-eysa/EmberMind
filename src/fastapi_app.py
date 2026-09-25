@@ -14,6 +14,7 @@ from src.models.land_cover import LandCoverDataPoint
 from src.models.spatial import FireEvent, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
+from src.routes.data_quality import register_data_quality_routes
 from src.routes.road_network import register_road_network_routes
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
@@ -297,7 +298,8 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "NASA FIRMS active-fire, weather forecast, "
             "USGS/SRTM topography, CORINE land cover, PostGIS spatial monitoring service, "
             "manual fire event creation with deduplication and prediction triggering, "
-            "and OpenStreetMap road-network accessibility with crew ETA and closure re-routing."
+            "OpenStreetMap road-network accessibility with crew ETA and closure re-routing, "
+            "and data-quality/freshness monitoring with operator staleness warnings."
         ),
         lifespan=lifespan,
     )
@@ -305,6 +307,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     api.state.settings = settings
 
     register_road_network_routes(api, database, settings)
+    register_data_quality_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:

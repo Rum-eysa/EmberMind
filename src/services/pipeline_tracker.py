@@ -125,7 +125,7 @@ class PipelineTracker:
     @staticmethod
     def get_pipeline_summary(session: Session) -> dict[str, Any]:
         """Summarize pipeline status across all sources and total metrics."""
-        sources = ["FIRMS", "OpenWeather", "USGS/SRTM", "Copernicus"]
+        sources = ["FIRMS", "OpenWeather", "USGS/SRTM", "Copernicus", "OpenStreetMap"]
         source_summary: dict[str, Any] = {}
 
         for src in sources:

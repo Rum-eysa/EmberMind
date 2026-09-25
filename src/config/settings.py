@@ -64,6 +64,17 @@ class Config:
     )
     ROAD_ACCESS_SPEED_KMH = float(os.getenv("ROAD_ACCESS_SPEED_KMH", "40"))
 
+    # Data quality & freshness monitoring (EM-010)
+    # A source is "stale" once its last successful pull is older than
+    # sync_interval * DATA_QUALITY_STALE_MULTIPLIER minutes.
+    DATA_QUALITY_STALE_MULTIPLIER = float(
+        os.getenv("DATA_QUALITY_STALE_MULTIPLIER", "2")
+    )
+    # Consecutive failed pulls after which a source is reported as "down".
+    DATA_QUALITY_FAILURE_WARNING_THRESHOLD = int(
+        os.getenv("DATA_QUALITY_FAILURE_WARNING_THRESHOLD", "3")
+    )
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""
