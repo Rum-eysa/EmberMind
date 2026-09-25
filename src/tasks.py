@@ -5,6 +5,7 @@ from celery import Celery
 
 from src.config.settings import ProductionConfig
 from src.database import Database
+from src.services.effis import import_effis_perimeters
 from src.services.fire_sync import sync_firms
 from src.services.grid_standard import PilotRegionGridService
 from src.services.land_cover import sync_land_cover_for_clusters
@@ -39,6 +40,10 @@ celery_app.conf.update(
         "sync-road-network": {
             "task": "src.tasks.sync_road_network",
             "schedule": config.ROAD_NETWORK_SYNC_INTERVAL_MINUTES * 60,
+        },
+        "import-historical-fire": {
+            "task": "src.tasks.import_historical_fire_data",
+            "schedule": config.EFFIS_HISTORICAL_SYNC_INTERVAL_MINUTES * 60,
         },
     },
     timezone="UTC",
@@ -189,6 +194,40 @@ def sync_road_network(self: Any) -> dict[str, Any]:
         try:
             res = import_road_network(session, config, bbox)
             records = res.get("segments_saved", 0)
+            PipelineTracker.complete_job(
+                session,
+                job,
+                records_processed=records,
+                attempt_count=self.request.retries + 1,
+            )
+            return {"status": "ok", **res}
+        except Exception as exc:
+            PipelineTracker.fail_job(
+                session,
+                job,
+                error_message=str(exc),
+                attempt_count=self.request.retries + 1,
+            )
+            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
+            raise self.retry(exc=exc, countdown=countdown) from exc
+
+
+@celery_app.task(
+    name="src.tasks.import_historical_fire_data",
+    bind=True,
+    max_retries=config.PIPELINE_MAX_RETRIES,
+)
+def import_historical_fire_data(self: Any) -> dict[str, Any]:
+    """Import EFFIS historical fire perimeters for the pilot region."""
+    database = Database(config.DATABASE_URL)
+    grid = PilotRegionGridService()
+    bbox = (grid.min_lat, grid.min_lon, grid.max_lat, grid.max_lon)
+    with database.session() as session:
+        database.create_all()
+        job = PipelineTracker.start_job(session, "import_historical_fire_data", "EFFIS")
+        try:
+            res = import_effis_perimeters(session, config, bbox)
+            records = res.get("perimeters_saved", 0)
             PipelineTracker.complete_job(
                 session,
                 job,

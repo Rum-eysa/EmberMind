@@ -64,6 +64,22 @@ class Config:
     )
     ROAD_ACCESS_SPEED_KMH = float(os.getenv("ROAD_ACCESS_SPEED_KMH", "40"))
 
+    # EFFIS historical fire perimeters (EM-011)
+    EFFIS_BASE_URL = os.getenv(
+        "EFFIS_BASE_URL",
+        "https://effis.jrc.ec.europa.eu/geoportal/arcgis/rest/services/"
+        "effis_perimeters/MapServer/0",
+    )
+    EFFIS_HISTORICAL_YEARS = [
+        int(year)
+        for year in os.getenv(
+            "EFFIS_HISTORICAL_YEARS", "2007,2008,2012,2017,2021"
+        ).split(",")
+    ]
+    EFFIS_HISTORICAL_SYNC_INTERVAL_MINUTES = int(
+        os.getenv("EFFIS_HISTORICAL_SYNC_INTERVAL_MINUTES", "10080")
+    )
+
     # Data quality & freshness monitoring (EM-010)
     # A source is "stale" once its last successful pull is older than
     # sync_interval * DATA_QUALITY_STALE_MULTIPLIER minutes.

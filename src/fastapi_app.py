@@ -15,7 +15,9 @@ from src.models.spatial import FireEvent, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.routes.data_quality import register_data_quality_routes
+from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.road_network import register_road_network_routes
+from src.services.effis import EffisSourceError, import_effis_perimeters
 from src.services.fire_sync import sync_firms, sync_status
 from src.services.firms import FirmsSourceError
 from src.services.grid_standard import (
@@ -299,7 +301,8 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "USGS/SRTM topography, CORINE land cover, PostGIS spatial monitoring service, "
             "manual fire event creation with deduplication and prediction triggering, "
             "OpenStreetMap road-network accessibility with crew ETA and closure re-routing, "
-            "and data-quality/freshness monitoring with operator staleness warnings."
+            "data-quality/freshness monitoring with operator staleness warnings, "
+            "and EFFIS historical fire perimeters for model calibration/validation."
         ),
         lifespan=lifespan,
     )
@@ -308,6 +311,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
 
     register_road_network_routes(api, database, settings)
     register_data_quality_routes(api, database, settings)
+    register_historical_fire_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -656,6 +660,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                 "USGS/SRTM": f"{settings.TOPOGRAPHY_SYNC_INTERVAL_MINUTES}m",
                 "Copernicus": f"{settings.LAND_COVER_SYNC_INTERVAL_MINUTES}m",
                 "OpenStreetMap": f"{settings.ROAD_NETWORK_SYNC_INTERVAL_MINUTES}m",
+                "EFFIS": f"{settings.EFFIS_HISTORICAL_SYNC_INTERVAL_MINUTES}m",
             }
             return summary
 
@@ -682,6 +687,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "topography",
             "land_cover",
             "road_network",
+            "historical_fire",
             "all",
         ]
         target = req.source.lower().strip()
@@ -693,86 +699,76 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
 
         results: dict[str, Any] = {}
         with database.session() as session:
-            if target in ("firms", "all"):
-                job = PipelineTracker.start_job(session, "sync_nasa_firms", "FIRMS")
+            grid_service = PilotRegionGridService()
+            bbox = (
+                grid_service.min_lat,
+                grid_service.min_lon,
+                grid_service.max_lat,
+                grid_service.max_lon,
+            )
+            specs = [
+                (
+                    "firms",
+                    "sync_nasa_firms",
+                    "FIRMS",
+                    "observations",
+                    FirmsSourceError,
+                    lambda: sync_firms(session, settings),
+                ),
+                (
+                    "weather",
+                    "sync_openweather",
+                    "OpenWeather",
+                    "weather_points_saved",
+                    WeatherSourceError,
+                    lambda: sync_weather_for_clusters(session, settings),
+                ),
+                (
+                    "topography",
+                    "sync_topography",
+                    "USGS/SRTM",
+                    "topography_points_saved",
+                    TopographySourceError,
+                    lambda: sync_topography_for_clusters(session, settings),
+                ),
+                (
+                    "land_cover",
+                    "sync_land_cover",
+                    "Copernicus",
+                    "land_cover_points_saved",
+                    LandCoverSourceError,
+                    lambda: sync_land_cover_for_clusters(session, settings),
+                ),
+                (
+                    "road_network",
+                    "sync_road_network",
+                    "OpenStreetMap",
+                    "segments_saved",
+                    RoadNetworkError,
+                    lambda: sync_road_network(session, settings, bbox),
+                ),
+                (
+                    "historical_fire",
+                    "import_historical_fire_data",
+                    "EFFIS",
+                    "perimeters_saved",
+                    EffisSourceError,
+                    lambda: import_effis_perimeters(session, settings, bbox),
+                ),
+            ]
+            for key, job_name, job_source, records_key, error_cls, sync_fn in specs:
+                if target not in (key, "all"):
+                    continue
+                job = PipelineTracker.start_job(session, job_name, job_source)
                 try:
-                    res = sync_firms(session, settings)
+                    res = sync_fn()
                     PipelineTracker.complete_job(
-                        session, job, records_processed=res.get("observations", 0)
+                        session, job, records_processed=res.get(records_key, 0)
                     )
-                    results["firms"] = res
-                except FirmsSourceError as exc:
+                    results[key] = res
+                except error_cls as exc:
                     PipelineTracker.fail_job(session, job, error_message=str(exc))
-                    results["firms"] = {"error": str(exc)}
-
-            if target in ("weather", "all"):
-                job = PipelineTracker.start_job(
-                    session, "sync_openweather", "OpenWeather"
-                )
-                try:
-                    res = sync_weather_for_clusters(session, settings)
-                    PipelineTracker.complete_job(
-                        session,
-                        job,
-                        records_processed=res.get("weather_points_saved", 0),
-                    )
-                    results["weather"] = res
-                except WeatherSourceError as exc:
-                    PipelineTracker.fail_job(session, job, error_message=str(exc))
-                    results["weather"] = {"error": str(exc)}
-
-            if target in ("topography", "all"):
-                job = PipelineTracker.start_job(session, "sync_topography", "USGS/SRTM")
-                try:
-                    res = sync_topography_for_clusters(session, settings)
-                    PipelineTracker.complete_job(
-                        session,
-                        job,
-                        records_processed=res.get("topography_points_saved", 0),
-                    )
-                    results["topography"] = res
-                except TopographySourceError as exc:
-                    PipelineTracker.fail_job(session, job, error_message=str(exc))
-                    results["topography"] = {"error": str(exc)}
-
-            if target in ("land_cover", "all"):
-                job = PipelineTracker.start_job(
-                    session, "sync_land_cover", "Copernicus"
-                )
-                try:
-                    res = sync_land_cover_for_clusters(session, settings)
-                    PipelineTracker.complete_job(
-                        session,
-                        job,
-                        records_processed=res.get("land_cover_points_saved", 0),
-                    )
-                    results["land_cover"] = res
-                except LandCoverSourceError as exc:
-                    PipelineTracker.fail_job(session, job, error_message=str(exc))
-                    results["land_cover"] = {"error": str(exc)}
-
-            if target in ("road_network", "all"):
-                job = PipelineTracker.start_job(
-                    session, "sync_road_network", "OpenStreetMap"
-                )
-                grid_service = PilotRegionGridService()
-                bbox = (
-                    grid_service.min_lat,
-                    grid_service.min_lon,
-                    grid_service.max_lat,
-                    grid_service.max_lon,
-                )
-                try:
-                    res = sync_road_network(session, settings, bbox)
-                    PipelineTracker.complete_job(
-                        session,
-                        job,
-                        records_processed=res.get("segments_saved", 0),
-                    )
-                    results["road_network"] = res
-                except RoadNetworkError as exc:
-                    PipelineTracker.fail_job(session, job, error_message=str(exc))
-                    results["road_network"] = {"error": str(exc)}
+                    results[key] = {"error": str(exc)}
 
         return {"status": "triggered", "results": results}
 
