@@ -92,7 +92,16 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
         try:
             arrival: datetime | None = None
             if req.actual_arrival_time:
-                arrival = datetime.fromisoformat(req.actual_arrival_time)
+                try:
+                    arrival = datetime.fromisoformat(req.actual_arrival_time)
+                except ValueError as exc:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "status": "error",
+                            "error": "actual_arrival_time must be ISO-8601",
+                        },
+                    ) from exc
             with database.session() as session:
                 metrics = evaluate_forecast_against_actual(
                     session,

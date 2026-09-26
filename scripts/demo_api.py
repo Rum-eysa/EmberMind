@@ -1,4 +1,4 @@
-"""Gelistirme yardimcisi: API'yi EM-012/015/072/073/103/104 demo verisiyle yerelde calistirir.
+"""Gelistirme yardimcisi: API'yi EM-012/015/017/072/073/103/104 demo verisiyle yerelde calistirir.
 
 Kullanim:
     python scripts/demo_api.py                  # sentetik senaryo tohumi 7
@@ -14,6 +14,7 @@ EM-104: `--seed` ayni kalrsa ayni sentetik veri uretilir (iletişim kesinti
 bolgeleri, ruzgar gecmisi, kaynak dagilimi); tum kayitlar SENTETIK etiketlidir.
 """
 import argparse  # noqa: E402
+import math
 import os
 import sys
 
@@ -22,6 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from datetime import timedelta  # noqa: E402
 
 import uvicorn  # noqa: E402
+from shapely import affinity, wkt as shapely_wkt  # noqa: E402
 
 from src.fastapi_app import create_fastapi_app  # noqa: E402
 from src.models.fire import FireCluster, FireObservation, FirmsSyncStatus  # noqa: E402
@@ -32,6 +34,9 @@ from src.models.road_network import CrewBase, RoadSegment, RoadClosure  # noqa: 
 from src.models.spatial import FireEvent, SilentRegion  # noqa: E402
 from src.services.fwi import fwi_risk_category  # noqa: E402
 from src.services.spread import predict_spread  # noqa: E402
+from src.services.spread_metrics import (  # noqa: E402
+    evaluate_forecast_against_actual,
+)
 from src.services.synthetic import (  # noqa: E402
     PRESETS,
     SyntheticError,
@@ -281,7 +286,7 @@ def seed_demo_data() -> None:
             session.add(asset)
         session.commit()
         # EM-015 spread engine: 30/60/120 dk risk poligonlari (demo kumesi icin).
-        predict_spread(
+        spread_result = predict_spread(
             session,
             api.state.settings,
             {
@@ -297,6 +302,24 @@ def seed_demo_data() -> None:
                 "aspect_deg": 180.0,
                 "fuel_model": "FM10_RedPine",
             },
+        )
+        # EM-017 degerlendirme: 120 dk tahmin poligonu kaydirilip olceklendirerek
+        # sentetik "gercek cevre" uretilir; IoU / alan / varis zamani metrikleri
+        # spread_evaluation_metrics tablosuna yazilir (surum bazli ozet icin).
+        predicted = shapely_wkt.loads(spread_result["forecasts"][-1]["geometry_wkt"])
+        scale_origin = (
+            predicted.centroid.x + 0.0015,
+            predicted.centroid.y - 0.0010,
+        )
+        actual_poly = affinity.scale(predicted, 1.18, 0.92, origin=scale_origin)
+        dlat_m = 111320.0
+        dlon_m = 111320.0 * math.cos(math.radians(38.9005))
+        evaluate_forecast_against_actual(
+            session,
+            event_key="demo-merged-001",
+            actual_perimeter_wkt=actual_poly.wkt,
+            actual_area_ha=round(actual_poly.area * dlat_m * dlon_m / 10000.0, 2),
+            actual_arrival_time=now + timedelta(minutes=95),
         )
 
 

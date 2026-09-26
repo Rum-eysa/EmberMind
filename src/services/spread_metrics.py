@@ -52,20 +52,6 @@ def _parse_wkt_polygon(wkt: str) -> Polygon | None:
         return None
 
 
-def _polygon_from_geojson(geojson: dict[str, Any]) -> Polygon | None:
-    """Convert a GeoJSON Polygon geometry to a Shapely Polygon."""
-    try:
-        coords = geojson.get("coordinates", [])
-        if not coords or not coords[0] or len(coords[0]) < 4:
-            return None
-        poly = Polygon(coords[0])
-        if not poly.is_valid:
-            poly = poly.buffer(0)
-        return poly if poly.area > 0 else None
-    except (TypeError, ValueError):
-        return None
-
-
 # ---------------------------------------------------------------------------
 # Core metric computations
 # ---------------------------------------------------------------------------
@@ -113,7 +99,7 @@ def compute_arrival_time_error(
 ) -> float:
     """Absolute arrival time error in minutes.
 
-    Positive means the model predicted late (actual arrived before prediction).
+    Returns the unsigned deviation between predicted and actual arrival.
     Returns 0.0 if either timestamp is missing.
     """
     if forecast_for is None or actual_arrival is None:
@@ -168,9 +154,30 @@ def evaluate_forecast_against_actual(  # pylint: disable=too-many-arguments
 
     version = model_version or forecasts[0].model_name
     batch_key = f"EVAL-{uuid.uuid4().hex[:12]}"
-    results: list[dict[str, Any]] = []
 
-    for forecast in forecasts:  # pylint: disable=invalid-name
+    # Event start time (used to derive actual arrival in minutes from start)
+    actual_arrival_min: float | None = None
+    if actual_arrival_time:
+        event = session.scalar(
+            select(FireEvent).where(FireEvent.event_key == event_key)
+        )
+        if event and event.started_at:
+            start = (
+                event.started_at.replace(tzinfo=None)
+                if event.started_at.tzinfo
+                else event.started_at
+            )
+            act = (
+                actual_arrival_time.replace(tzinfo=None)
+                if actual_arrival_time.tzinfo
+                else actual_arrival_time
+            )
+            actual_arrival_min = round((act - start).total_seconds() / 60.0, 1)
+
+    results: list[dict[str, Any]] = []
+    metric_rows: list[SpreadEvaluationMetric] = []
+
+    for forecast in forecasts:
         # IoU
         iou = compute_iou(str(forecast.geometry_wkt), actual_perimeter_wkt)
 
@@ -185,26 +192,8 @@ def evaluate_forecast_against_actual(  # pylint: disable=too-many-arguments
                 fc_forecast_for, actual_arrival_time
             )
 
-        # Compute predicted arrival (horizon from event start)
+        # Predicted arrival expressed as minutes from event start (horizon)
         predicted_arrival_min = float(forecast.horizon_minutes)
-        actual_arrival_min: float | None = None
-        if actual_arrival_time:
-            # Find event start time
-            event = session.scalar(
-                select(FireEvent).where(FireEvent.event_key == event_key)
-            )
-            if event and event.started_at:
-                start = (
-                    event.started_at.replace(tzinfo=None)
-                    if event.started_at.tzinfo
-                    else event.started_at
-                )
-                act = (
-                    actual_arrival_time.replace(tzinfo=None)
-                    if actual_arrival_time.tzinfo
-                    else actual_arrival_time
-                )
-                actual_arrival_min = round((act - start).total_seconds() / 60.0, 1)
 
         metric_row = SpreadEvaluationMetric(
             event_key=event_key,
@@ -228,8 +217,11 @@ def evaluate_forecast_against_actual(  # pylint: disable=too-many-arguments
             ),
         )
         session.add(metric_row)
-        results.append(metric_row.as_dict)
+        metric_rows.append(metric_row)
 
+    # Flush so ids/timestamps are populated before serializing the response
+    session.flush()
+    results.extend(row.as_dict for row in metric_rows)
     session.commit()
     return results
 
@@ -264,9 +256,8 @@ def version_summary(
         func.avg(SpreadEvaluationMetric.arrival_time_error_min).label(
             "mean_arrival_time_error_min"
         ),
-        func.count(SpreadEvaluationMetric.id).label(
-            "evaluation_count"
-        ),  # pylint: disable=not-callable
+        # pylint: disable=not-callable
+        func.count(SpreadEvaluationMetric.id).label("evaluation_count"),
     ]
     query = select(*base_cols).group_by(SpreadEvaluationMetric.model_version)
     if model_version:

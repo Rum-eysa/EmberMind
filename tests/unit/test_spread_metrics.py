@@ -182,6 +182,9 @@ class TestEvaluateForecast:
         for r in results:
             assert r["iou_score"] >= 0.0
             assert r["area_error_pct"] >= 0.0
+            # Flushed rows must carry id and created_at in the response
+            assert r["id"] is not None
+            assert r["created_at"] is not None
         # Verify persisted
         rows = session.scalars(
             select(SpreadEvaluationMetric).where(
@@ -296,6 +299,20 @@ class TestSpreadMetricsEndpoints:
             },
         )
         assert resp.status_code == 400
+
+    def test_evaluate_endpoint_bad_arrival_time(self, client, session):
+        _seed_event_and_forecasts(session, "eval_api_badts")
+        resp = client.post(
+            "/api/v1/spread/evaluate",
+            json={
+                "event_key": "eval_api_badts",
+                "actual_perimeter_wkt": _square_wkt(28.0, 37.0, 0.02),
+                "actual_area_ha": 100.0,
+                "actual_arrival_time": "not-a-timestamp",
+            },
+        )
+        assert resp.status_code == 400
+        assert "ISO-8601" in resp.text
 
     def test_metrics_list_endpoint(self, client, session):
         now = _seed_event_and_forecasts(session, "eval_api_02")
