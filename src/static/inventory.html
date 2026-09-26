@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EmberMind — Kaynak Envanteri (Koordinatör)</title>
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <style>
+    /* EM-075 design system: coordinator inventory screen (EM-103) */
+    header { display: flex; justify-content: space-between; align-items: baseline;
+             padding: 14px 20px 6px; gap: var(--space-4); flex-wrap: wrap; }
+    header h1 { font-size: var(--font-size-lg); margin: 0; }
+    nav a { margin-left: var(--space-3); font-size: var(--font-size-sm); }
+    main { display: grid; grid-template-columns: 1fr 360px; gap: var(--space-4);
+           padding: 10px 20px 24px; align-items: start; }
+    .em-table td.num, .em-table th.num { text-align: right;
+      font-family: var(--font-family-mono); }
+    #capacity-table { width: 100%; }
+    textarea.em-input { width: 100%; min-height: 110px;
+      font-family: var(--font-family-mono); font-size: var(--font-size-xs); }
+    #status { font-size: var(--font-size-sm); min-height: 1.2em; }
+    #status.error { color: var(--color-danger); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+    @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kaynak Envanteri — Koordinatör <span class="em-badge">EM-103</span></h1>
+    <nav>
+      <a href="/ui">→ Operatör Haritası</a>
+      <a href="/panel">→ Komutan Paneli</a>
+      <a href="/styleguide">→ Tasarım Sistemi</a>
+      <button id="theme-toggle" class="em-btn em-btn--secondary em-btn--sm"
+              type="button">🌓 Tema</button>
+    </nav>
+  </header>
+  <main>
+    <section class="em-stack">
+      <div class="em-panel">
+        <div class="em-panel__header">
+          <h2 class="em-panel__title">Filtreler</h2>
+          <div class="em-row">
+            <select id="f-type" class="em-select" aria-label="Tür filtresi">
+              <option value="">Tüm türler</option>
+              <option value="crew">Ekip</option>
+              <option value="helicopter">Helikopter</option>
+              <option value="uav">İHA</option>
+            </select>
+            <select id="f-status" class="em-select" aria-label="Durum filtresi">
+              <option value="">Tüm durumlar</option>
+              <option value="available">Müsait</option>
+              <option value="deployed">Görevde</option>
+              <option value="maintenance">Bakımda</option>
+              <option value="out_of_service">Arızalı</option>
+            </select>
+            <input id="f-country" class="em-input" placeholder="Ülke (TR)"
+                   aria-label="Ülke filtresi">
+            <button id="refresh" class="em-btn em-btn--sm" type="button">Yenile</button>
+          </div>
+        </div>
+        <div id="status" aria-live="polite"></div>
+      </div>
+
+      <div class="em-card">
+        <h2 class="em-card__title">Envanter</h2>
+        <table class="em-table" id="resources">
+          <thead><tr>
+            <th>Anahtar</th><th>Ad</th><th>Tür</th><th>Üs</th><th>Ülke</th>
+            <th>Durum</th><th class="num">Kapasite</th>
+            <th class="num">Konum</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="em-muted" id="attribution"></p>
+      </div>
+
+      <div class="em-card">
+        <h2 class="em-card__title">CSV ile Toplu İçe Aktarma</h2>
+        <p class="em-muted">Başlıklar Türkçe/eşanlamlı kabul edilir
+          (key,tur,enlem,boylam,ad,üs,ülke,durum,kapasite,unit).
+          <code>resource_key</code> varsa güncellenir, yoksa oluşturulur.</p>
+        <textarea id="csv-text" class="em-input" aria-label="CSV metni"
+placeholder="resource_key,resource_type,latitude,longitude,status,capacity
+EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
+        <div class="em-row" style="margin-top:var(--space-3)">
+          <button id="csv-import" class="em-btn" type="button">CSV İçe Aktar</button>
+          <span id="csv-result" class="em-muted"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="em-stack">
+      <div class="em-card">
+        <h2 class="em-card__title">Kapasite Özeti</h2>
+        <div class="kv" style="display:grid;gap:var(--space-1)">
+          <div class="em-row" style="justify-content:space-between">
+            <span class="em-muted">Toplam varlık</span><b id="cap-total">–</b></div>
+          <div class="em-row" style="justify-content:space-between">
+            <span class="em-muted">Müsait</span><b id="cap-available">–</b></div>
+        </div>
+        <table class="em-table" id="capacity-table" style="margin-top:var(--space-3)">
+          <thead><tr><th>Tür</th><th class="num">Müsait</th>
+            <th class="num">Görevde</th><th class="num">Toplam</th>
+            <th class="num">Kapasite</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="em-card">
+        <h2 class="em-card__title" id="form-title">Yeni Kayıt</h2>
+        <form id="resource-form" class="em-form">
+          <div class="em-form__field">
+            <label class="em-form__label" for="r-key">Anahtar (resource_key)</label>
+            <input id="r-key" class="em-input" required>
+            <span class="em-form__hint">Düzenlemede anahtar değişmez.</span>
+          </div>
+          <div class="grid-2">
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-name">Ad</label>
+              <input id="r-name" class="em-input">
+            </div>
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-type">Tür</label>
+              <select id="r-type" class="em-select" required>
+                <option value="crew">Ekip</option>
+                <option value="helicopter">Helikopter</option>
+                <option value="uav">İHA</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-lat">Enlem</label>
+              <input id="r-lat" class="em-input" type="number" step="any"
+                     min="-90" max="90" required>
+            </div>
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-lon">Boylam</label>
+              <input id="r-lon" class="em-input" type="number" step="any"
+                     min="-180" max="180" required>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-base">Üs (base_key)</label>
+              <input id="r-base" class="em-input">
+            </div>
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-country">Ülke</label>
+              <input id="r-country" class="em-input">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-status">Durum</label>
+              <select id="r-status" class="em-select">
+                <option value="available">Müsait</option>
+                <option value="deployed">Görevde</option>
+                <option value="maintenance">Bakımda</option>
+                <option value="out_of_service">Arızalı</option>
+              </select>
+            </div>
+            <div class="em-form__field">
+              <label class="em-form__label" for="r-capacity">Kapasite</label>
+              <input id="r-capacity" class="em-input" type="number" step="any"
+                     min="0" value="0">
+            </div>
+          </div>
+          <div class="em-form__field">
+            <label class="em-form__label" for="r-unit">Kapasite birimi</label>
+            <input id="r-unit" class="em-input" placeholder="personnel / tons / uçuş">
+          </div>
+          <div class="em-row">
+            <button class="em-btn" type="submit" id="save-btn">Kaydet</button>
+            <button class="em-btn em-btn--secondary" type="button"
+                    id="cancel-edit">Vazgeç</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+  <script>
+  "use strict";
+  const API = "/api/v1/resources";
+  const TYPE_TR = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
+  const STATUS_TR = {
+    available: "Müsait", deployed: "Görevde",
+    maintenance: "Bakımda", out_of_service: "Arızalı",
+  };
+  const STATUS_BADGE = {
+    available: "em-badge--success", deployed: "",
+    maintenance: "em-badge--warning", out_of_service: "em-badge--danger",
+  };
+  let editingKey = null;
+
+  const $ = id => document.getElementById(id);
+  function setStatus(text, isError) {
+    const el = $("status");
+    el.textContent = text;
+    el.className = isError ? "error" : "";
+  }
+
+  function rowHtml(r) {
+    const badge = `em-badge ${STATUS_BADGE[r.status] || ""}`;
+    return `<tr>
+      <td><b>${r.resource_key}</b></td><td>${r.name || "-"}</td>
+      <td>${TYPE_TR[r.resource_type] || r.resource_type}</td>
+      <td>${r.base_key || "-"}</td><td>${r.country || "-"}</td>
+      <td><span class="${badge}">${STATUS_TR[r.status] || r.status}</span></td>
+      <td class="num">${r.capacity}${r.capacity_unit ? " " + r.capacity_unit : ""}</td>
+      <td class="num">${r.latitude}, ${r.longitude}</td>
+      <td class="em-row">
+        <button class="em-btn em-btn--sm" data-edit="${r.resource_key}"
+                type="button">Düzenle</button>
+        <button class="em-btn em-btn--secondary em-btn--sm"
+                data-delete="${r.resource_key}" type="button">Sil</button>
+      </td></tr>`;
+  }
+
+  function renderCapacity(capacity) {
+    $("cap-total").textContent = capacity.total_resources;
+    $("cap-available").textContent = capacity.available_resources;
+    const tbody = document.querySelector("#capacity-table tbody");
+    tbody.innerHTML = Object.entries(capacity.by_type).map(([type, b]) => `
+      <tr><td>${TYPE_TR[type] || type}</td>
+      <td class="num">${b.available}</td><td class="num">${b.deployed}</td>
+      <td class="num">${b.total}</td>
+      <td class="num">${b.capacity.toFixed(1)}</td></tr>`).join("");
+  }
+
+  async function refreshList() {
+    const params = new URLSearchParams();
+    if ($("f-type").value) params.set("resource_type", $("f-type").value);
+    if ($("f-status").value) params.set("status", $("f-status").value);
+    if ($("f-country").value) params.set("country", $("f-country").value);
+    const res = await fetch(`${API}?${params}`);
+    const body = await res.json();
+    if (!res.ok) { setStatus(`Hata: ${body.detail?.error || res.status}`, true); return; }
+    document.querySelector("#resources tbody").innerHTML =
+      body.resources.map(rowHtml).join("");
+    renderCapacity(body.capacity);
+    $("attribution").textContent = body.attribution;
+    setStatus(`Envanter: ${body.count} kayıt`);
+  }
+
+  function fillForm(r) {
+    editingKey = r.resource_key;
+    $("form-title").textContent = `Düzenle — ${r.resource_key}`;
+    $("r-key").value = r.resource_key;
+    $("r-key").disabled = true;
+    $("r-name").value = r.name || "";
+    $("r-type").value = r.resource_type;
+    $("r-lat").value = r.latitude;
+    $("r-lon").value = r.longitude;
+    $("r-base").value = r.base_key || "";
+    $("r-country").value = r.country || "";
+    $("r-status").value = r.status;
+    $("r-capacity").value = r.capacity;
+    $("r-unit").value = r.capacity_unit || "";
+  }
+
+  function resetForm() {
+    editingKey = null;
+    $("form-title").textContent = "Yeni Kayıt";
+    $("r-key").disabled = false;
+    $("resource-form").reset();
+    $("r-capacity").value = "0";
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    const payload = {
+      resource_key: $("r-key").value.trim(),
+      name: $("r-name").value.trim() || null,
+      resource_type: $("r-type").value,
+      latitude: Number($("r-lat").value),
+      longitude: Number($("r-lon").value),
+      base_key: $("r-base").value.trim() || null,
+      country: $("r-country").value.trim() || null,
+      status: $("r-status").value,
+      capacity: Number($("r-capacity").value || 0),
+      capacity_unit: $("r-unit").value.trim() || null,
+    };
+    const url = editingKey ? `${API}/${editingKey}` : API;
+    let res;
+    if (editingKey) {
+      delete payload.resource_key;
+      res = await fetch(url, { method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload) });
+    } else {
+      res = await fetch(url, { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload) });
+    }
+    const body = await res.json();
+    if (!res.ok) { setStatus(`Kaydedilemedi: ${body.detail?.error || res.status}`, true); return; }
+    resetForm();
+    await refreshList();
+  }
+
+  async function onTableClick(event) {
+    const key = event.target.dataset.edit || event.target.dataset.delete;
+    if (!key) return;
+    if (event.target.dataset.delete) {
+      if (!confirm(`${key} silinsin mi?`)) return;
+      const res = await fetch(`${API}/${key}`, { method: "DELETE" });
+      if (!res.ok) { setStatus(`Silinemedi: ${key}`, true); return; }
+      await refreshList();
+      return;
+    }
+    const res = await fetch(`${API}/${key}`);
+    if (res.ok) fillForm(await res.json());
+  }
+
+  async function importCsv() {
+    const text = $("csv-text").value;
+    if (!text.trim()) { setStatus("Önce CSV metni yapıştırın.", true); return; }
+    const res = await fetch(`${API}/import/csv`, {
+      method: "POST", headers: { "Content-Type": "text/csv" }, body: text });
+    const body = await res.json();
+    if (!res.ok) {
+      setStatus(`CSV alınamadı: ${body.detail?.error || res.status}`, true);
+      $("csv-result").textContent = "";
+      return;
+    }
+    $("csv-result").textContent =
+      `satır: ${body.rows} · yeni: ${body.created} · güncellenen: ${body.updated}`
+      + (body.errors.length ? ` · hatalı: ${body.skipped} → `
+         + body.errors.map(e => `satır ${e.row}`).join(", ") : "");
+    await refreshList();
+  }
+
+  $("refresh").addEventListener("click", refreshList);
+  document.querySelector("#resources tbody")
+    .addEventListener("click", onTableClick);
+  $("resource-form").addEventListener("submit", save);
+  $("cancel-edit").addEventListener("click", resetForm);
+  $("csv-import").addEventListener("click", importCsv);
+
+  // EM-075 tema anahtarı (operatör tercihini panelle paylaşırlar).
+  const storedTheme = localStorage.getItem("embermind-theme");
+  if (storedTheme) document.documentElement.dataset.theme = storedTheme;
+  $("theme-toggle").addEventListener("click", () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("embermind-theme", root.dataset.theme);
+  });
+
+  refreshList().catch(err => setStatus(`Başlatılamadı: ${err.message}`, true));
+  </script>
+</body>
+</html>

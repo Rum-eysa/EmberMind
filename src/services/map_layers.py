@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.fire import FireCluster
+from src.models.inventory import SuppressionResource
 from src.models.land_cover import LandCoverDataPoint
 from src.models.road_network import CrewBase, RoadSegment
 from src.models.spatial import FireEvent, FireForecast, SilentRegion
@@ -24,7 +25,9 @@ LAYER_ROW_LIMIT = 2000
 
 FORECASTS_ATTRIBUTION = "Yayılım tahmini: EmberMind Rothermel motoru (EM-015)"
 SILENT_REGIONS_ATTRIBUTION = "Sessiz bölgeler: operatör kayıtları (EmberMind)"
-RESOURCES_ATTRIBUTION = "Müdahale kaynakları: EmberMind crew_bases"
+RESOURCES_ATTRIBUTION = (
+    "Müdahale kaynakları: EmberMind crew_bases + koordinatör envanteri (EM-103)"
+)
 
 
 class MapLayerError(RuntimeError):
@@ -228,7 +231,8 @@ def silent_regions_layer(session: Session) -> dict[str, Any]:
 
 
 def resources_layer(session: Session) -> dict[str, Any]:
-    """Suppression resources: firefighting crew bases."""
+    """Suppression resources: crew bases plus the EM-103 coordinator
+    inventory (crew / helicopter / uav assets), distinguished by ``kind``."""
     features: list[dict[str, Any]] = []
     rows = session.scalars(select(CrewBase).order_by(CrewBase.id)).all()
     for row in rows:
@@ -237,10 +241,31 @@ def resources_layer(session: Session) -> dict[str, Any]:
                 row.latitude,
                 row.longitude,
                 {
+                    "kind": "crew_base",
                     "base_key": str(row.base_key),
                     "name": str(row.name),
                     "crew_type": str(row.crew_type),
                     "available": bool(row.available),
+                },
+            )
+        )
+    assets = session.scalars(
+        select(SuppressionResource).order_by(SuppressionResource.resource_key)
+    ).all()
+    for row in assets:
+        features.append(
+            _point_feature(
+                row.latitude,
+                row.longitude,
+                {
+                    "kind": "suppression_resource",
+                    "resource_key": str(row.resource_key),
+                    "name": str(row.name),
+                    "resource_type": str(row.resource_type),
+                    "status": str(row.status),
+                    "capacity": float(row.capacity),
+                    "capacity_unit": row.capacity_unit,
+                    "available": str(row.status) == "available",
                 },
             )
         )

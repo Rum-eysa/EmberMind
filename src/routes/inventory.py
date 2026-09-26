@@ -1,7 +1,9 @@
 """Resource inventory endpoints: CRUD and CSV bulk import (EM-103)."""
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from src.database import Database
@@ -19,6 +21,9 @@ from src.services.inventory import (
 # The inventory is internally managed (not an external data source), so it
 # carries a fixed attribution rather than a governance-registry lookup.
 INVENTORY_ATTRIBUTION = "Kaynak envanteri: EmberMind koordinatör kayıtları (EM-103)"
+
+# Shipped with the package: src/routes/../static/inventory.html
+INVENTORY_PAGE = Path(__file__).resolve().parent.parent / "static" / "inventory.html"
 
 
 class ResourceCreateRequest(BaseModel):
@@ -60,6 +65,14 @@ def register_inventory_routes(api: FastAPI, database: Database, _settings: Any) 
     The inventory is an internal coordinator store, so no governance settings
     lookup is needed here; the signature matches the other register_* helpers.
     """
+
+    @api.get("/inventory", tags=["ui"], response_class=FileResponse)
+    def inventory_page() -> FileResponse:
+        """Coordinator inventory screen: CRUD table, capacity card,
+        CSV bulk-import box (EM-103 acceptance UI)."""
+        if not INVENTORY_PAGE.is_file():
+            raise HTTPException(status_code=404, detail="Inventory page missing")
+        return FileResponse(INVENTORY_PAGE, media_type="text/html")
 
     @api.get("/api/v1/resources", tags=["inventory"])
     def resources(

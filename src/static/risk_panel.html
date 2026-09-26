@@ -100,6 +100,17 @@
         </table>
       </div>
       <div class="card">
+        <h2>Kaynak Envanteri (EM-103)</h2>
+        <table id="inventory">
+          <thead><tr><th>Varlık</th><th class="num">Müsait</th>
+            <th class="num">Görevde</th><th class="num">Toplam</th>
+            <th class="num">Kapasite</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="kv" style="margin-top:6px"><span>Envanter toplamı / müsait</span>
+          <b id="inv-total">–</b></div>
+      </div>
+      <div class="card">
         <h2>Kaynak</h2>
         <div id="attribution" class="em-muted"></div>
       </div>
@@ -112,6 +123,7 @@
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
   };
+  const RESOURCE_TR = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
 
   function setText(id, value) { document.getElementById(id).textContent = value; }
 
@@ -168,6 +180,23 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${type}</td><td class="num">${bucket.available}</td><td class="num">${bucket.total}</td>`;
       capBody.appendChild(tr);
+    }
+
+    // EM-103 koordinatör envanteri: kapasite hesabı güncel kalır.
+    const inv = data.capacity.inventory;
+    const invBody = document.querySelector("#inventory tbody");
+    invBody.innerHTML = "";
+    if (inv) {
+      for (const [type, b] of Object.entries(inv.by_type)) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${RESOURCE_TR[type] || type}</td>
+          <td class="num">${b.available}</td><td class="num">${b.deployed}</td>
+          <td class="num">${b.total}</td><td class="num">${b.capacity.toFixed(1)}</td>`;
+        invBody.appendChild(tr);
+      }
+      setText("inv-total", inv.total_resources + " / " + inv.available_resources);
+    } else {
+      invBody.innerHTML = '<tr><td colspan="5">envanter verisi yok</td></tr>';
     }
     setText("attribution", data.attribution || "FWI: OpenWeather · Kapasite: EmberMind");
   }

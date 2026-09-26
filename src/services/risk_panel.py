@@ -15,6 +15,7 @@ from src.models.fwi import FireWeatherIndex
 from src.models.road_network import CrewBase, RoadClosure
 from src.models.spatial import FireEvent
 from src.services.fwi import RISK_COLORS, RISK_ORDER
+from src.services.inventory import capacity_summary
 from src.utils.timeutils import to_utc_iso, utc_now
 
 
@@ -65,7 +66,12 @@ def zone_risk_rows(
 
 
 def capacity_breakdown(session: Session) -> dict[str, Any]:
-    """Suppression capacity: crew bases by type, incidents, road closures."""
+    """Suppression capacity: crew bases by type, incidents, road closures.
+
+    The EM-103 coordinator inventory (crew / helicopter / uav assets) rides
+    along in ``inventory`` so the command panel capacity account stays
+    current with what the coordinator manages.
+    """
     by_type: dict[str, dict[str, int]] = {}
     total_bases = 0
     available_bases = 0
@@ -96,6 +102,7 @@ def capacity_breakdown(session: Session) -> dict[str, Any]:
             "unavailable": total_bases - available_bases,
             "by_crew_type": by_type,
         },
+        "inventory": capacity_summary(session),
         "active_incidents": int(active_incidents or 0),
         "active_road_closures": int(active_closures or 0),
     }

@@ -2,6 +2,7 @@
 from datetime import date
 
 from src.models.fwi import FireWeatherIndex
+from src.models.inventory import SuppressionResource
 from src.models.road_network import CrewBase, RoadClosure
 from src.models.spatial import FireEvent
 from src.services.fwi import RISK_COLORS, fwi_risk_category
@@ -172,6 +173,38 @@ def test_capacity_breakdown(session):
     assert capacity["active_road_closures"] == 1
 
 
+def test_panel_capacity_includes_inventory_rollup(session):
+    """EM-103: the coordinator inventory feeds the panel capacity account."""
+    session.add(
+        SuppressionResource(
+            resource_key="EKIP-P1",
+            name="Piyade Timi",
+            resource_type="crew",
+            latitude=37.0,
+            longitude=28.0,
+            status="available",
+            capacity=25.0,
+        )
+    )
+    session.add(
+        SuppressionResource(
+            resource_key="HEL-P1",
+            name="Söndürme Helikopteri",
+            resource_type="helicopter",
+            latitude=36.8,
+            longitude=28.1,
+            status="deployed",
+            capacity=12.0,
+        )
+    )
+    session.commit()
+    inventory = capacity_breakdown(session)["inventory"]
+    assert inventory["total_resources"] == 2
+    assert inventory["available_resources"] == 1
+    assert inventory["by_type"]["crew"]["capacity"] == 25.0
+    assert inventory["by_type"]["helicopter"]["deployed"] == 1
+
+
 def test_panel_empty_without_fwi_history(session):
     panel = build_capacity_risk_panel(session, PanelSettings())
     assert panel["day"] is None
@@ -207,12 +240,14 @@ def test_panel_page_served_as_single_panel(client):
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     html = response.text
-    # Tek panel: risk indeksi, eşik rengi, ilk aşım zamanı, kapasite kırılımı.
+    # Tek panel: risk indeksi, eşik rengi, ilk aşım zamanı, kapasite kırılımı
+    # ve EM-103 envanter kartı.
     for fragment in (
         "max-risk",
         "Eşik Renkleri",
         "İlk Aşım",
         "Kapasite Kırılımı",
+        "Kaynak Envanteri (EM-103)",
         "/api/v1/panel/capacity-risk",
     ):
         assert fragment in html

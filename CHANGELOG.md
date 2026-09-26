@@ -20,6 +20,12 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     `resource_key` üzerinden upsert, satır bazlı hata toleransı (bozuk satır
     `errors` listesinde raporlanır, import devam eder), başlık eşanlamlıları
     (tur/tür, enlem, boylam, üs, ülke, durum, kapasite…)
+  - Koordinatör ekranı `GET /inventory` (EM-075 bileşenleriyle): filtreli
+    tablo, ekle/düzenle/sil formu, kapasite kartı ve CSV yapıştırma kutusu;
+    `/ui` lejantı ve `/panel`'den karşılıklı bağlantı
+  - Kapasite döngüsü kapatıldı: envanter varlıkları `/ui` "Müdahale
+    Kaynakları" katmanına (`kind=suppression_resource`, türe göre renk) ve
+    `/panel` kapasite kartına (`capacity.inventory`) bağlandı
 - EM-075: Tasarım sistemi ve UI bileşen kütüphanesi (`/styleguide`)
   - Renk (risk eşik paleti dahil), tipografi ve boşluk belirteçleri
     `src/static/tokens.css` içinde CSS custom property olarak tanımlandı;
@@ -91,6 +97,12 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - V005 migration: tespit/gecikme/tekilleştirme alanları
 
 ### Fixed
+- Demo verisi tamamlandı (`scripts/demo_api.py`): FWI bölge günleri, aktif
+  yol kapatması, aktif olay ve EM-103 envanter kayıtları eklenmediği için
+  `/panel` ve envanter ekranları demo modunda boş kalıyordu (import edilen
+  seed modelleri hiç kullanılmıyordu)
+- `docs/api/README.md`: kodda var olmayan bayat `POST /api/v1/predictions`
+  bölümü kaldırıldı (yayılım tahmini EM-015 bölümündeki gerçek uçla belgeli)
 - FWI rüzgâr birimi tutarsızlığı giderildi: hava durumu gözlemi `m/s` olarak
   saklanırken FWI denklemleri `km/h` bekliyordu; toplama (aggregation) sınırında
   `× 3.6` dönüşümü eklendi (yayılım motoru ile tutarlı, düşük rüzgârlı günlerde

@@ -78,7 +78,8 @@ GET /api/v1/map/layers/{katman}      # GeoJSON FeatureCollection
 ```
 Katmanlar: `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
 (30/60/120 dk risk bölgesi poligonları), `fuel` (yakıt sınıfı), `silent-regions`
-(sessiz bölgeler), `resources` (müdahale kaynakları/ekip üsleri), `roads` (yol ağı).
+(sessiz bölgeler), `resources` (müdahale kaynakları: ekip üsleri **ve** EM-103
+koordinatör envanter varlıkları — `kind` alanıyla ayrılır), `roads` (yol ağı).
 `forecasts` katmanı `?horizon_minutes=` ve `?event_key=` ile filtrelenebilir; arayüzdeki
 **zaman kaydırıcısı** ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
 Her yanıtta kaynak lisansı gereği `attribution` alanı döner (EM-013).
@@ -92,7 +93,8 @@ Panel tek ekranda: bölge **risk indeksi** (FWI) ve **eşik rengi** (CFS risk
 sınıfı paleti), `RISK_PANEL_THRESHOLD` (vars. 30) değerine ulaşan ilk gün olarak
 **ilk aşım zamanı** (bölge ve bölge geneli), **kapasite kırılımı** (ekip
 türü ve müsaitlik bazlı müdahale üsleri, aktif yangın olayları, aktif yol
-kapatmaları). Operatör haritasındaki lejanttan `/panel`'e geçilir.
+kapatmaları) ve **EM-103 kaynak envanteri** toplamı (`capacity.inventory`).
+Operatör haritasındaki lejanttan `/panel`'e geçilir.
 
 ### Tasarım Sistemi ve Bileşen Kütüphanesi (EM-075)
 ```
@@ -109,7 +111,8 @@ beyaz-listedeki CSS dosyalarını sunar (keyfi dosya okuma yok).
 
 ### Kaynak Envanteri (EM-103)
 ```
-GET    /api/v1/resources              # envanter listesi (tür/durum/üs/ülke filtresi + kapasite toplamı)
+GET    /inventory                       # koordinatör envanter ekranı (CRUD + CSV)
+GET    /api/v1/resources                # envanter listesi (tür/durum/üs/ülke filtresi + kapasite toplamı)
 POST   /api/v1/resources              # yeni ekip / helikopter / İHA kaydı
 GET    /api/v1/resources/capacity     # tür bazında kapasite kırılımı
 GET    /api/v1/resources/{key}        # tek kayıt
@@ -127,20 +130,8 @@ CSV içe aktarma `resource_key` üzerinden upsert yapar; doğrulamadan geçen
 satırlar işlenir, bozuk satırlar `errors` listesinde satır numarasıyla
 raporlanır ve içe aktarma kesintisiz sürer. `python-multipart` bağımlılığı
 olmadığından CSV, `UploadFile` yerine **ham istek gövdesi** (`text/csv`, UTF-8)
-olarak okunur.
-
-### Tahmin
-```
-POST /api/v1/predictions
-```
-
-Body:
-```json
-{
-  "fire_id": "12345",
-  "hours": 24
-}
-```
+olarak okunur. Envanter varlıkları ayrıca `/ui` "Müdahale Kaynakları"
+katmanında ve `/panel` kapasite kartında gösterilir (kapasite hesabı güncel kalır).
 
 ## Error Codes
 

@@ -1,8 +1,8 @@
 # Ekran Wireframe'leri (EM-074)
 
-Dört ana ekran: **ana harita**, **risk paneli**, **öneri paneli**, **what-if
-akışı**. ✅ = mevcut kodda var (davranış belgelenmiştir); 🔜 = planlanan
-(mimari kararlar için hedef sözleşme önerilir).
+Beş ana ekran: **ana harita**, **risk paneli**, **öneri paneli**, **what-if
+akışı**, **kaynak envanteri**. ✅ = mevcut kodda var (davranış belgelenmiştir);
+🔜 = planlanan (mimari kararlar için hedef sözleşme önerilir).
 
 ---
 
@@ -127,6 +127,35 @@ eder; fark, sonuçların **karşılaştırmalı** çizilmesidir.
 (girdiler override). `event_key` **gönderilmez** → senaryo satırı üretilmez,
 kirlilik olmaz. Karar verici onaylarsa ayrı bir görevde gerçek tahmine
 dönüştürülür.
+
+---
+
+## 5) Kaynak envanteri `/inventory` ✅ (EM-103)
+
+```
++--------------------------------------------------------------------------------+
+| Kaynak Envanteri — Koordinatör [EM-103]  /ui  /panel  /styleguide  [🌓 Tema]   |
++---------------------------------------------------+----------------------------+
+| FİLTRELER: tür ▾  durum ▾  ülke [__]  [Yenile]    | KAPASİTE ÖZETİ           |
+| +-----------------------------------------------+ | | toplam / müsait         | |
+| | anahtar | ad | tür | üs | ülke | durum | kapa-| | | tür bazında tablo       | |
+| | ...     | ...| ... | ...| ...  | rozet | site | | +----------------------------+
+| | konum | [Düzenle] [Sil]                       | | YENİ KAYIT / DÜZENLE     |
+| +-----------------------------------------------+ | | (em-form: anahtar, ad,  |
+| EM-103 CRUD tablosu (GET/PUT/DELETE resources)    | |  tür, enlem/boylam, üs,  |
+|                                                   | |  ülke, durum, kapasite)  |
++---------------------------------------------------+----------------------------+
+| CSV İÇE AKTAR: [yapıştırma alanı] [CSV İçe Aktar] → satır/yeni/güncel/hatalı   |
++--------------------------------------------------------------------------------+
+```
+
+**Etkileşim sözleşmesi (canlı API):**
+- Liste + filtreler `GET /api/v1/resources`; kapasite kartı aynı yanıttaki
+  `capacity` alanından, panel kartı ise `GET /api/v1/resources/capacity` ile
+  aynıdır.
+- Kaydetme `POST/PUT /api/v1/resources`; silme onay kutusu + `DELETE`.
+- CSV kutusu `POST /api/v1/resources/import/csv` (ham metin gövdesi);
+  sonuç satırında `created/updated/errors` özeti gösterilir.
 
 ---
 

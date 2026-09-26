@@ -334,3 +334,31 @@ def test_csv_import_endpoint_errors(client):
     )
     assert undecodable.status_code == 400
     assert "UTF-8" in undecodable.json()["detail"]["error"]
+
+
+# ------------------------------------------------------------------ ui ---
+
+
+def test_inventory_page_served_with_design_system(client):
+    response = client.get("/inventory")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    html = response.text
+    # EM-075 bileşenleri + canlı API sözleşmesi (CRUD, kapasite, CSV).
+    for fragment in (
+        "/static/tokens.css",
+        "/static/components.css",
+        "em-table",
+        "em-form",
+        "theme-toggle",
+        "/api/v1/resources",
+        "/import/csv",  # URL, API sabitinden kuruluyor (${API}/import/csv)
+        "Kaynak Envanteri",
+    ):
+        assert fragment in html, fragment
+
+
+def test_inventory_screen_wired_into_map_and_panel(client):
+    """Kabul: kapasite hesabı güncel kalsın — ekranlar arası bağlantı."""
+    assert "/inventory" in client.get("/ui").text
+    assert "Kaynak Envanteri (EM-103)" in client.get("/panel").text

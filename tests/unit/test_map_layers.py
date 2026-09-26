@@ -1,5 +1,6 @@
 """EM-072 operator map layer tests (GeoJSON feeds + Leaflet UI page)."""
 from src.models.fire import FireCluster
+from src.models.inventory import SuppressionResource
 from src.models.land_cover import LandCoverDataPoint
 from src.models.road_network import CrewBase, RoadSegment
 from src.models.spatial import FireEvent, SilentRegion
@@ -204,8 +205,31 @@ def test_silent_regions_use_wkt_or_bbox_fallback(session):
 
 def test_resources_and_roads_layers(session):
     _seed_map_data(session)
+    session.add(
+        SuppressionResource(
+            resource_key="IHA-072",
+            name="Keşif İHA",
+            resource_type="uav",
+            latitude=37.0,
+            longitude=28.0,
+            status="deployed",
+            capacity=2.0,
+        )
+    )
+    session.commit()
     resources = build_layer(session, None, "resources")
+    # Crew bases come first, then EM-103 inventory assets (distinguished by kind).
     assert resources["features"][0]["properties"]["available"] is True
+    assert resources["features"][0]["properties"]["kind"] == "crew_base"
+    assets = [
+        f
+        for f in resources["features"]
+        if f["properties"]["kind"] == "suppression_resource"
+    ]
+    assert len(assets) == 1
+    assert assets[0]["properties"]["resource_type"] == "uav"
+    assert assets[0]["properties"]["available"] is False
+    assert "EM-103" in resources["attribution"]
     roads = build_layer(session, None, "roads")
     road = roads["features"][0]
     assert road["geometry"]["type"] == "LineString"

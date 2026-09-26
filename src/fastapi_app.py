@@ -333,8 +333,9 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "panel (/panel) with threshold colours, first exceedance time "
             "and capacity breakdown, all built on a shared design system "
             "with light/dark themes (/styleguide), plus a coordinator resource "
-            "inventory (crew/helicopter/uav CRUD with CSV bulk import) that "
-            "keeps the capacity account current."
+            "inventory (crew/helicopter/uav CRUD with CSV bulk import) exposed "
+            "as a management screen (/inventory) that feeds the panel capacity "
+            "account and the map resources layer."
         ),
         lifespan=lifespan,
     )

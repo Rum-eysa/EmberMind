@@ -1,25 +1,30 @@
-"""Gelistirme yardimcisi: API'yi EM-012/015/072/073 demo verisiyle yerelde calistirir.
+"""Gelistirme yardimcisi: API'yi EM-012/015/072/073/103 demo verisiyle yerelde calistirir.
 
 Kullanim:
     python scripts/demo_api.py
-    -> http://127.0.0.1:8000/ui      (operator map, EM-072)
-    -> http://127.0.0.1:8000/panel   (commander panel, EM-073)
-    -> http://127.0.0.1:8000/docs    (Swagger UI)
-     -> http://127.0.0.1:8000/api/v1/fires (birlestirilmis VIIRS/MODIS kumeleri)
+    -> http://127.0.0.1:8000/ui          (operator map, EM-072)
+    -> http://127.0.0.1:8000/panel       (commander panel, EM-073)
+    -> http://127.0.0.1:8000/inventory   (kaynak envanteri, EM-103)
+    -> http://127.0.0.1:8000/styleguide  (tasarim sistemi, EM-075)
+    -> http://127.0.0.1:8000/docs        (Swagger UI)
+    -> http://127.0.0.1:8000/api/v1/fires (birlestirilmis VIIRS/MODIS kumeleri)
 """
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from datetime import timedelta  # noqa: E402
+
 import uvicorn  # noqa: E402
 
 from src.fastapi_app import create_fastapi_app  # noqa: E402
 from src.models.fire import FireCluster, FireObservation, FirmsSyncStatus  # noqa: E402
 from src.models.fwi import FireWeatherIndex  # noqa: E402
+from src.models.inventory import SuppressionResource  # noqa: E402
 from src.models.land_cover import LandCoverDataPoint  # noqa: E402
 from src.models.road_network import CrewBase, RoadSegment, RoadClosure  # noqa: E402
-from src.models.spatial import SilentRegion  # noqa: E402
+from src.models.spatial import FireEvent, SilentRegion  # noqa: E402
 from src.services.fwi import fwi_risk_category  # noqa: E402
 from src.services.spread import predict_spread  # noqa: E402
 from src.utils.timeutils import utc_now  # noqa: E402
@@ -169,6 +174,99 @@ def seed_demo_data() -> None:
                 fetched_at=now,
             )
         )
+        # --- EM-073 komutan paneli: FWI bölge günleri + aktif olay/kapanma ---
+        today = now.date()
+        fwi_zones = {
+            "FWI_DEMO_BATI": [22.0, 34.0, 41.0],  # eşik (30) 2. gün aşılır
+            "FWI_DEMO_DOGU": [8.0, 12.0, 15.0],   # hiç aşım yok
+        }
+        for zone, series in fwi_zones.items():
+            for offset, fwi in enumerate(series):
+                session.add(
+                    FireWeatherIndex(
+                        zone_key=zone,
+                        region_name="Demo bölge (Ege sahili)",
+                        day=today - timedelta(days=len(series) - 1 - offset),
+                        fwi=fwi,
+                        isi=fwi * 0.6,
+                        risk_category=fwi_risk_category(fwi),
+                        drought_category="moderate" if fwi < 30 else "severe",
+                    )
+                )
+        session.add(
+            FireEvent(
+                event_key="demo-event-001",
+                name="Demo Aktif Olay (Menteşe)",
+                latitude=37.5,
+                longitude=28.0,
+                min_lat=37.4,
+                max_lat=37.6,
+                min_lon=27.9,
+                max_lon=28.1,
+                geometry_wkt="POLYGON((27.9 37.4, 28.1 37.4, 28.1 37.6, 27.9 37.6, 27.9 37.4))",
+                status="active",
+                started_at=now - timedelta(hours=3),
+            )
+        )
+        session.add(
+            RoadClosure(
+                segment_key="demo-seg-001",
+                reason="yangın nedeniyle kapalı (demo)",
+                status="active",
+                reported_at=now - timedelta(hours=1),
+            )
+        )
+        # --- EM-103 koordinatör kaynak envanteri ---
+        for asset in (
+            SuppressionResource(
+                resource_key="EKIP-DEMO-01",
+                name="Menteşe Arazöz Timi",
+                resource_type="crew",
+                latitude=37.5,
+                longitude=28.0,
+                base_key="demo-base-001",
+                country="TR",
+                status="available",
+                capacity=25.0,
+                capacity_unit="personnel",
+            ),
+            SuppressionResource(
+                resource_key="EKIP-DEMO-02",
+                name="Ula Piyade Timi",
+                resource_type="crew",
+                latitude=37.03,
+                longitude=28.35,
+                base_key="demo-base-001",
+                country="TR",
+                status="deployed",
+                capacity=30.0,
+                capacity_unit="personnel",
+            ),
+            SuppressionResource(
+                resource_key="HELI-DEMO-01",
+                name="Dalaman Helikopter 1",
+                resource_type="helicopter",
+                latitude=36.71,
+                longitude=28.52,
+                country="TR",
+                status="available",
+                capacity=12.0,
+                capacity_unit="tons",
+            ),
+            SuppressionResource(
+                resource_key="IHA-DEMO-01",
+                name="İHA Keşif-1",
+                resource_type="uav",
+                latitude=38.85,
+                longitude=27.65,
+                base_key="demo-base-001",
+                country="TR",
+                status="maintenance",
+                capacity=4.0,
+                capacity_unit="uçuş saati",
+            ),
+        ):
+            session.add(asset)
         session.commit()
         # EM-015 spread engine: 30/60/120 dk risk poligonlari (demo kumesi icin).
         predict_spread(
