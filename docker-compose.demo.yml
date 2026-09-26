@@ -22,15 +22,17 @@ services:
       - "8000:8000"
     volumes:
       - demo_data:/app/instance
-    depends_on: []
+    depends_on: !reset {}
     networks:
       - wildfire_network
 
   celery:
     profiles: ["prod-only"]
+    depends_on: !reset {}
 
   celery-beat:
     profiles: ["prod-only"]
+    depends_on: !reset {}
 
 volumes:
   demo_data:

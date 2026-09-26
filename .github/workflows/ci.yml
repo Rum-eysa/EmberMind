@@ -116,6 +116,7 @@ jobs:
         POSTGRES_USER: ci
         POSTGRES_PASSWORD: ci
         DATABASE_URL: sqlite:///instance/wildfire-demo.db
+        FIRMS_API_KEY: ""
       run: docker compose -f docker-compose.yml -f docker-compose.demo.yml config --quiet
     
     - name: Build Docker image

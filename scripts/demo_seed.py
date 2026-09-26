@@ -23,6 +23,13 @@ def main() -> None:
     seed = int(os.getenv("DEMO_SYNTHETIC_SEED", "7"))
     preset = os.getenv("DEMO_SYNTHETIC_PRESET", "standart")
 
+    # Ensure SQLite parent directory exists (CI-safe)
+    if db_path.startswith("sqlite:///"):
+        rel = db_path.replace("sqlite:///", "")
+        parent = os.path.dirname(rel)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
     print(f"[demo_seed] DB: {db_path}")
     database = Database(db_path)
     database.create_all()
