@@ -95,7 +95,7 @@
   };
 
   const map = L.map("map", { zoomControl: true }).setView([37.75, 28.0], 9);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  const baseTiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
   }).addTo(map);
@@ -157,7 +157,7 @@
   }
 
   function renderHorizons() {
-    if (!forecastAll) return;
+    if (!forecastAll || !forecastAll.features) return;
     const selected = HORIZONS[sliderIndex];
     const cumulative = document.getElementById("horizon-cumulative").checked;
     Object.values(forecastByHorizon).forEach(g => map.removeLayer(g));
@@ -167,7 +167,7 @@
       const group = L.geoJSON(
         { ...forecastAll,
           features: forecastAll.features.filter(
-            f => f.properties.horizon_minutes === h)},
+            f => f.properties && f.properties.horizon_minutes === h)},
         { style: f => styleFor("forecasts", f, true),
           onEachFeature: (f, layer) => layer.bindPopup(popupHtml(f)) }
       );
@@ -195,14 +195,19 @@
 
   async function init() {
     const res = await fetch(API);
+    if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
     const catalog = await res.json();
+    if (!catalog || !Array.isArray(catalog.layers)) throw new Error("Geçersiz katalog yanıtı");
     for (const meta of catalog.layers) {
       layers[meta.key] = makeGeoJsonLayer(meta.key);
     }
     // Toggleable overlays: operator aç/kapa yapabilir (Leaflet layer control).
     const overlays = {};
-    for (const meta of catalog.layers) overlays[meta.title] = layers[meta.key];
-    L.control.layers({ "Temel harita": null }, overlays, { collapsed: false })
+    for (const meta of catalog.layers) {
+      if (layers[meta.key]) overlays[meta.title] = layers[meta.key];
+    }
+    const baseLayers = { "Temel harita": baseTiles };
+    L.control.layers(baseLayers, overlays, { collapsed: false })
       .addTo(map);
 
     document.getElementById("horizon-slider").addEventListener("input", e => {
@@ -213,20 +218,26 @@
 
     // Aktif yangın + risk bölgeleri varsayılan açık; diğerleri tembel yüklenir.
     const controlDiv = document.querySelector(".leaflet-control-layers");
-    controlDiv.addEventListener("change", async () => {
-      for (const meta of catalog.layers) {
-        const on = map.hasLayer(layers[meta.key]);
-        if (on && !layers[meta.key]._loaded) {
-          layers[meta.key]._loaded = true;
-          try { await loadLayer(meta.key); }
-          catch (err) { setStatus(`Hata: ${err.message}`); }
+    if (controlDiv) {
+      controlDiv.addEventListener("change", async () => {
+        for (const meta of catalog.layers) {
+          const layer = layers[meta.key];
+          if (!layer) continue;
+          const on = map.hasLayer(layer);
+          if (on && !layer._loaded) {
+            layer._loaded = true;
+            try { await loadLayer(meta.key); }
+            catch (err) { setStatus(`Hata: ${err.message}`); }
+          }
         }
-      }
-    });
+      });
+    }
 
     for (const key of ["fires", "forecasts"]) {
-      layers[key].addTo(map);
-      layers[key]._loaded = true;
+      const layer = layers[key];
+      if (!layer) continue;
+      layer.addTo(map);
+      layer._loaded = true;
       try { await loadLayer(key); } catch (err) { setStatus(`Hata: ${err.message}`); }
     }
   }
