@@ -13,6 +13,7 @@ from .spatial import (
     SimulationScenario,
     SpatialSource,
 )
+from .synthetic import ScenarioRun
 from .topography import TopographyDataPoint
 from .weather import WeatherDataPoint
 
@@ -29,6 +30,7 @@ __all__ = [
     "PipelineJobHistory",
     "RoadClosure",
     "RoadSegment",
+    "ScenarioRun",
     "SilentRegion",
     "SimulationScenario",
     "SpatialSource",

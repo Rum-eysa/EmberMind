@@ -24,6 +24,7 @@ from src.routes.map_layers import register_map_layer_routes
 from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
 from src.routes.spread import register_spread_routes
+from src.routes.synthetic import register_synthetic_routes
 from src.services.data_governance import attribution_for
 from src.services.effis import EffisSourceError, import_effis_perimeters
 from src.services.fire_sync import sync_firms, sync_status
@@ -335,7 +336,9 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "with light/dark themes (/styleguide), plus a coordinator resource "
             "inventory (crew/helicopter/uav CRUD with CSV bulk import) exposed "
             "as a management screen (/inventory) that feeds the panel capacity "
-            "account and the map resources layer."
+            "account and the map resources layer, plus a deterministic "
+            "synthetic scenario generator (seeded fire/wind/outage/resource "
+            "data, every record explicitly labelled) for demo use."
         ),
         lifespan=lifespan,
     )
@@ -352,6 +355,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     register_risk_panel_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
     register_inventory_routes(api, database, settings)
+    register_synthetic_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:

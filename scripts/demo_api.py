@@ -1,14 +1,19 @@
-"""Gelistirme yardimcisi: API'yi EM-012/015/072/073/103 demo verisiyle yerelde calistirir.
+"""Gelistirme yardimcisi: API'yi EM-012/015/072/073/103/104 demo verisiyle yerelde calistirir.
 
 Kullanim:
-    python scripts/demo_api.py
+    python scripts/demo_api.py                  # sentetik senaryo tohumi 7
+    python scripts/demo_api.py --seed 42 --preset firtina
     -> http://127.0.0.1:8000/ui          (operator map, EM-072)
     -> http://127.0.0.1:8000/panel       (commander panel, EM-073)
     -> http://127.0.0.1:8000/inventory   (kaynak envanteri, EM-103)
     -> http://127.0.0.1:8000/styleguide  (tasarim sistemi, EM-075)
     -> http://127.0.0.1:8000/docs        (Swagger UI)
     -> http://127.0.0.1:8000/api/v1/fires (birlestirilmis VIIRS/MODIS kumeleri)
+
+EM-104: `--seed` ayni kalrsa ayni sentetik veri uretilir (iletişim kesinti
+bolgeleri, ruzgar gecmisi, kaynak dagilimi); tum kayitlar SENTETIK etiketlidir.
 """
+import argparse  # noqa: E402
 import os
 import sys
 
@@ -27,6 +32,13 @@ from src.models.road_network import CrewBase, RoadSegment, RoadClosure  # noqa: 
 from src.models.spatial import FireEvent, SilentRegion  # noqa: E402
 from src.services.fwi import fwi_risk_category  # noqa: E402
 from src.services.spread import predict_spread  # noqa: E402
+from src.services.synthetic import (  # noqa: E402
+    PRESETS,
+    SyntheticError,
+    build_dataset,
+    persist_dataset,
+    record_run,
+)
 from src.utils.timeutils import utc_now  # noqa: E402
 
 api = create_fastapi_app("testing")
@@ -178,7 +190,7 @@ def seed_demo_data() -> None:
         today = now.date()
         fwi_zones = {
             "FWI_DEMO_BATI": [22.0, 34.0, 41.0],  # eşik (30) 2. gün aşılır
-            "FWI_DEMO_DOGU": [8.0, 12.0, 15.0],   # hiç aşım yok
+            "FWI_DEMO_DOGU": [8.0, 12.0, 15.0],  # hiç aşım yok
         }
         for zone, series in fwi_zones.items():
             for offset, fwi in enumerate(series):
@@ -288,9 +300,51 @@ def seed_demo_data() -> None:
         )
 
 
+def seed_synthetic_scenario(seed: int, preset: str) -> dict:
+    """EM-104: deterministik sentetik senaryoyu üretip kalıcı tabloları yazar.
+
+    Ayni `seed` + ayni `preset` her kosuda birebir ayni veriyi verir; her
+    kayit SENTETIK etiketi tasir (not: ana demo verisinden ayrtılır).
+    """
+    if preset not in PRESETS:
+        raise SystemExit(f"bilinmeyen preset '{preset}'; secenekler: {sorted(PRESETS)}")
+    database = api.state.database
+    dataset = build_dataset(seed, preset=preset)
+    with database.session() as session:
+        counts = persist_dataset(session, dataset)
+        record_run(session, dataset, persisted=True, preset=preset)
+        session.commit()
+    meta = dataset["meta"]
+    print(
+        f"[EM-104] sentetik senaryo: seed={seed} preset={preset} "
+        f"tag={meta['scenario_tag']} kayit={meta['record_count']} "
+        f"result_hash={meta['result_hash'][:12]}... etiketli alanlar: {counts}"
+    )
+    return dataset
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="EmberMind demo API (EM-104)")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=7,
+        help="sentetik uretec tohumi (ayni seed ayni sonuc)",
+    )
+    parser.add_argument(
+        "--preset", default="standart", help=f"senaryo preset'i: {sorted(PRESETS)}"
+    )
+    parser.add_argument(
+        "--no-synthetic", action="store_true", help="sentetik senaryoyu atla"
+    )
+    args = parser.parse_args()
     # The app defines a custom lifespan, so seed up-front (the in-memory
     # SQLite uses StaticPool, so the data survives across sessions inside
     # this process).
     seed_demo_data()
+    if not args.no_synthetic:
+        try:
+            seed_synthetic_scenario(args.seed, args.preset)
+        except SyntheticError as exc:
+            raise SystemExit(f"sentetik senaryo hatasi: {exc}") from exc
     uvicorn.run(api, host="127.0.0.1", port=8000, log_level="info")

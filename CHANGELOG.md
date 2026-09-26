@@ -5,6 +5,25 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-104: Deterministik sentetik veri üreteci (E11)
+  - `src/services/synthetic.py`: tohumdan (`seed` → sha256 → deterministik akış)
+    yapılandırılabilir senaryo üretir: yangın konumu, rüzgâr geçmişi
+    (rastgele yürüyüş: hız/yön/sıcaklık/nem), iletişim kesinti bölgeleri ve
+    kaynak dağılımı (üs + ekip/helikopter/İHA, durum ağırlıklı atama);
+    `standart` / `firtina` / `kaynak-dagitik` ön ayarları (`PRESETS`)
+  - **Aynı tohum aynı sonucu verir**: konfigürasyon kanonik JSON + sha256 ile
+    `config_hash`/`result_hash` olarak `ScenarioRun` denetim kaydına yazılır
+    (V009 migration); aynı (seed, config) tekrarında tek denetim kaydı kalır
+  - **Açık etiketleme**: her sentetik kayıt `synthetic: true`,
+    `synthetic_label` ("SENTETİK VERİ — demo amaçlı üretildi…") ve `SYN-`
+    anahtar ön eki taşır; kalıcı yazımda `source="synthetic"`, not/reason
+    alanlarında etiket tekrarlanır; `DELETE /api/v1/scenarios/synthetic/{tag}`
+    etiket bazlı temizlik sağlar (tekrar tohumlama idempotent)
+  - Uç noktalar: `POST /api/v1/scenarios/synthetic/generate` (ops.
+    `persist`), `GET /api/v1/scenarios/presets`,
+    `GET /api/v1/scenarios/synthetic/runs[/{run_key}]`
+  - `scripts/demo_api.py --seed N --preset X`: demo sunucusu sentetik senaryoyu
+    açılışta üretir (`--no-synthetic` ile atlanabilir)
 - EM-103: Kaynak envanteri CRUD ve CSV toplu içe aktarma (E11)
   - `SuppressionResource` modeli (`src/models/inventory.py`): ekip / helikopter /
     İHA varlıkları konum, üs, ülke, durum (`available`, `deployed`, `maintenance`,

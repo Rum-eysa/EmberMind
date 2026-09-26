@@ -133,6 +133,26 @@ olmadığından CSV, `UploadFile` yerine **ham istek gövdesi** (`text/csv`, UTF
 olarak okunur. Envanter varlıkları ayrıca `/ui` "Müdahale Kaynakları"
 katmanında ve `/panel` kapasite kartında gösterilir (kapasite hesabı güncel kalır).
 
+### Sentetik Veri Üreteci (EM-104)
+```
+GET    /api/v1/scenarios/presets                 # hazır senaryo ön ayarları
+POST   /api/v1/scenarios/synthetic/generate      # tohumlu deterministik üretim (ops. kalıcı yazma)
+GET    /api/v1/scenarios/synthetic/runs          # üretim denetim kayıtları (hash'li)
+GET    /api/v1/scenarios/synthetic/runs/{key}    # tek kayıt + sentetik örnek satırlar
+DELETE /api/v1/scenarios/synthetic/{tag}         # senaryo etiketine göre temizlik
+```
+Demo sunucusu, erişilemeyen verileri (iletişim kesintisi bölgeleri, rüzgâr
+geçmişi, kapasite/kaynak dağılımı, yangın konumu) gerçekçi senaryolarla
+üretir. Senaryo `seed` + yapılandırılabilir `config`/`preset` ile belirlenir;
+**aynı tohum aynı sonucu** verir (dataset sha256 `result_hash` olarak denetim
+kaydına yazılır). **Tüm sentetik kayıtlar** `synthetic: true`,
+`synthetic_label` ("SENTETİK VERİ…") ve `SYN-` anahtar ön eki ile açıkça
+etiketlenir; kalıcı yazımda `source="synthetic"`, not/reason alanlarında etiket
+tekrarlanır. `persist=true` veriyi operasyonel tablolara yazar (olay, sessiz
+bölge, hava noktası, üs + envanter varlığı) ve aynı tohumda tekrar çalışma
+idempotent'tir; `DELETE` ile etiket bazlı geri alınabilir. Demo:
+`python scripts/demo_api.py --seed 42 --preset firtina`.
+
 ## Error Codes
 
 - `200`: Başarılı
