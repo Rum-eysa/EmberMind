@@ -107,6 +107,28 @@ niteliği ve `prefers-color-scheme` ile desteklenir; `/ui` ve `/panel` bu
 sisteme bağlıdır, `/panel`'de tema anahtarı bulunur. `/static` yalnızca
 beyaz-listedeki CSS dosyalarını sunar (keyfi dosya okuma yok).
 
+### Kaynak Envanteri (EM-103)
+```
+GET    /api/v1/resources              # envanter listesi (tür/durum/üs/ülke filtresi + kapasite toplamı)
+POST   /api/v1/resources              # yeni ekip / helikopter / İHA kaydı
+GET    /api/v1/resources/capacity     # tür bazında kapasite kırılımı
+GET    /api/v1/resources/{key}        # tek kayıt
+PUT    /api/v1/resources/{key}        # kısmi güncelleme
+DELETE /api/v1/resources/{key}        # silme
+POST   /api/v1/resources/import/csv   # ham CSV gövdesiyle toplu içe aktarma (upsert)
+```
+Koordinatör, müdahale varlıklarını (ekip, helikopter, İHA) konum, üs, ülke,
+durum (`available` / `deployed` / `maintenance` / `out_of_service`) ve sayısal
+kapasite ile yönetir; böylece komutan panelindeki kapasite hesabı güncel kalır.
+Türkçe eşanlamlılar kabul edilir (ekip→crew, helikopter→helicopter, iha→uav,
+müsait→available, görevde→deployed…). Bu envanter, yol ağı `crew_bases`
+(rotalama başlangıçları) kayıtlarından **ayrı** bir koordinatör kaynağıdır.
+CSV içe aktarma `resource_key` üzerinden upsert yapar; doğrulamadan geçen
+satırlar işlenir, bozuk satırlar `errors` listesinde satır numarasıyla
+raporlanır ve içe aktarma kesintisiz sürer. `python-multipart` bağımlılığı
+olmadığından CSV, `UploadFile` yerine **ham istek gövdesi** (`text/csv`, UTF-8)
+olarak okunur.
+
 ### Tahmin
 ```
 POST /api/v1/predictions

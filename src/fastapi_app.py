@@ -19,6 +19,7 @@ from src.routes.data_quality import register_data_quality_routes
 from src.routes.design_system import register_design_system_routes
 from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
+from src.routes.inventory import register_inventory_routes
 from src.routes.map_layers import register_map_layer_routes
 from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
@@ -331,7 +332,9 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "and a horizon time slider, plus a commander capacity & risk "
             "panel (/panel) with threshold colours, first exceedance time "
             "and capacity breakdown, all built on a shared design system "
-            "with light/dark themes (/styleguide)."
+            "with light/dark themes (/styleguide), plus a coordinator resource "
+            "inventory (crew/helicopter/uav CRUD with CSV bulk import) that "
+            "keeps the capacity account current."
         ),
         lifespan=lifespan,
     )
@@ -347,6 +350,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     register_map_layer_routes(api, database, settings)
     register_risk_panel_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
+    register_inventory_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:

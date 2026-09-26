@@ -5,6 +5,21 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-103: Kaynak envanteri CRUD ve CSV toplu içe aktarma (E11)
+  - `SuppressionResource` modeli (`src/models/inventory.py`): ekip / helikopter /
+    İHA varlıkları konum, üs, ülke, durum (`available`, `deployed`, `maintenance`,
+    `out_of_service`) ve sayısal kapasite ile tutulur (V008 migration);
+    yol ağı `crew_bases` (rotalama başlangıcı)ndan ayrı, koordinatör kaynağıdır
+  - `GET/POST /api/v1/resources`, `GET/PUT/DELETE /api/v1/resources/{key}`:
+    tür/durum/üs/ülke filtreli listeleme, doğrulamalı ekleme (yinelen key → 409),
+    kısmi güncelleme ve silme; Türkçe eşanlamlılar kabul edilir
+    (ekip→crew, helikopter→helicopter, iha→uav, müsait→available, görevde→deployed…)
+  - `GET /api/v1/resources/capacity`: tür bazında toplam/müsait/görevde/
+    kapasite toplamı — komutan panelindeki kapasite hesabı güncel kalır
+  - `POST /api/v1/resources/import/csv`: ham CSV metni ile toplu içe aktarma;
+    `resource_key` üzerinden upsert, satır bazlı hata toleransı (bozuk satır
+    `errors` listesinde raporlanır, import devam eder), başlık eşanlamlıları
+    (tur/tür, enlem, boylam, üs, ülke, durum, kapasite…)
 - EM-075: Tasarım sistemi ve UI bileşen kütüphanesi (`/styleguide`)
   - Renk (risk eşik paleti dahil), tipografi ve boşluk belirteçleri
     `src/static/tokens.css` içinde CSS custom property olarak tanımlandı;
