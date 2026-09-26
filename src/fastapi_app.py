@@ -16,6 +16,7 @@ from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.routes.data_governance import register_data_governance_routes
 from src.routes.data_quality import register_data_quality_routes
+from src.routes.design_system import register_design_system_routes
 from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.map_layers import register_map_layer_routes
@@ -329,7 +330,8 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "and an operator map UI (/ui) with toggleable GeoJSON layers "
             "and a horizon time slider, plus a commander capacity & risk "
             "panel (/panel) with threshold colours, first exceedance time "
-            "and capacity breakdown."
+            "and capacity breakdown, all built on a shared design system "
+            "with light/dark themes (/styleguide)."
         ),
         lifespan=lifespan,
     )
@@ -344,6 +346,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     register_spread_routes(api, database, settings)
     register_map_layer_routes(api, database, settings)
     register_risk_panel_routes(api, database, settings)
+    register_design_system_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:

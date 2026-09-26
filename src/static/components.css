@@ -1,0 +1,160 @@
+/*
+ * EmberMind design system — shared UI components (EM-075).
+ *
+ * Buttons, cards, panels, badges, tables and forms built exclusively from
+ * the tokens in tokens.css. Every wildfire UI page (operator map, command
+ * panel, styleguide and future screens) must reuse these classes instead of
+ * shipping one-off styles.
+ */
+
+/* ---------- Base ---------- */
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-base);
+}
+
+a { color: var(--color-accent); }
+
+/* ---------- Button ---------- */
+.em-btn {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.em-btn:hover { background: var(--color-primary-strong); }
+.em-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.em-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.em-btn--secondary {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+.em-btn--secondary:hover { background: var(--bg-inset); }
+
+.em-btn--ghost { background: transparent; color: var(--color-primary); }
+.em-btn--ghost:hover { background: var(--bg-inset); }
+
+.em-btn--sm {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- Card ---------- */
+.em-card {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
+}
+.em-card__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-tight);
+}
+.em-card__body { color: var(--text-secondary); }
+
+/* ---------- Panel ---------- */
+.em-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-3) var(--space-4);
+}
+.em-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.em-panel__title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+/* ---------- Badge ---------- */
+.em-badge {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: var(--line-height-base);
+}
+.em-badge--success { background: var(--color-success); color: #fff; border-color: transparent; }
+.em-badge--warning { background: var(--color-warning); color: #fff; border-color: transparent; }
+.em-badge--danger  { background: var(--color-danger);  color: #fff; border-color: transparent; }
+
+/* Risk threshold badges: one per RISK_COLORS category (tokens.css --risk-*) */
+.em-badge--risk-very_low   { background: var(--risk-very-low);   color: #222; border-color: var(--border-color); }
+.em-badge--risk-low        { background: var(--risk-low);        color: #222; }
+.em-badge--risk-moderate   { background: var(--risk-moderate);   color: #222; }
+.em-badge--risk-high       { background: var(--risk-high);       color: #222; }
+.em-badge--risk-very_high  { background: var(--risk-very-high);  color: #fff; }
+.em-badge--risk-extreme    { background: var(--risk-extreme);    color: #fff; }
+
+/* ---------- Table ---------- */
+.em-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-surface);
+  font-size: var(--font-size-sm);
+}
+.em-table th,
+.em-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.em-table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  background: var(--bg-inset);
+}
+.em-table tbody tr:hover { background: var(--bg-inset); }
+.em-table td--num { font-family: var(--font-family-mono); text-align: right; }
+
+/* ---------- Form ---------- */
+.em-form { display: grid; gap: var(--space-3); }
+.em-form__field { display: grid; gap: var(--space-1); }
+.em-form__label { font-size: var(--font-size-sm); font-weight: 600; }
+.em-form__hint { font-size: var(--font-size-xs); color: var(--text-secondary); }
+
+.em-input,
+.em-select {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+}
+.em-input:focus-visible,
+.em-select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+.em-switch { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* ---------- Utility ---------- */
+.em-stack > * + * { margin-top: var(--space-3); }
+.em-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.em-muted { color: var(--text-secondary); font-size: var(--font-size-sm); }

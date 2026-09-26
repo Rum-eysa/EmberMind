@@ -1,44 +1,48 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EmberMind — Komutan Kapasite &amp; Risk Paneli</title>
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/components.css">
   <style>
-    :root { color-scheme: dark; }
-    body { margin: 0; background: #14181f; color: #e8eaed;
-           font-family: "Segoe UI", Arial, sans-serif; }
+    /* EM-075 design system: all colours/spacing come from tokens.css */
+    body { background: var(--bg-page); color: var(--text-primary); }
     header { display: flex; justify-content: space-between; align-items: baseline;
              padding: 14px 20px 6px; }
-    header h1 { font-size: 18px; margin: 0; }
-    #meta { font-size: 12px; color: #9aa0a6; }
-    main { display: grid; grid-template-columns: 320px 1fr 320px; gap: 14px;
+    header h1 { font-size: var(--font-size-lg); margin: 0; }
+    #meta { font-size: var(--font-size-xs); color: var(--text-secondary); }
+    main { display: grid; grid-template-columns: 320px 1fr 320px; gap: var(--space-4);
            padding: 10px 20px 24px; align-items: start; }
-    .card { background: #1d232c; border: 1px solid #2c3540; border-radius: 10px;
-            padding: 14px 16px; margin-bottom: 14px; }
-    .card h2 { font-size: 13px; margin: 0 0 10px; color: #9aa0a6;
+    .card { background: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg); padding: var(--space-4);
+            margin-bottom: var(--space-4); }
+    .card h2 { font-size: var(--font-size-sm); margin: 0 0 10px; color: var(--text-secondary);
                text-transform: uppercase; letter-spacing: .06em; }
-    #risk-hero { text-align: center; padding: 22px 14px; border-radius: 10px;
-                 border: 1px solid #2c3540; }
+    #risk-hero { text-align: center; padding: 22px 14px; border-radius: var(--radius-lg);
+                 border: 1px solid var(--border-color); }
     #risk-hero .value { font-size: 56px; font-weight: 800; line-height: 1.05; }
-    #risk-hero .label { font-size: 13px; opacity: .9; }
-    .kv { display: flex; justify-content: space-between; font-size: 13px;
-          padding: 4px 0; border-bottom: 1px dashed #2c3540; }
+    #risk-hero .label { font-size: var(--font-size-sm); opacity: .9; }
+    .kv { display: flex; justify-content: space-between; font-size: var(--font-size-sm);
+          padding: var(--space-1) 0; border-bottom: 1px dashed var(--border-color); }
     .kv:last-child { border-bottom: 0; }
     #legend { display: flex; flex-wrap: wrap; gap: 6px; }
     #legend span { display: inline-flex; align-items: center; gap: 5px;
                    font-size: 11px; padding: 3px 8px; border-radius: 20px;
-                   background: #232a34; }
+                   background: var(--bg-inset); }
     #legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #262e39; }
-    th { color: #9aa0a6; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border-color); }
+    th { color: var(--text-secondary); font-weight: 600; font-size: 11px;
+         text-transform: uppercase; }
     td.num { text-align: right; font-variant-numeric: tabular-nums; }
     .chip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
-    .bar { background: #2c3540; border-radius: 4px; height: 8px; overflow: hidden; }
+    .bar { background: var(--bg-inset); border-radius: var(--radius-sm); height: 8px;
+           overflow: hidden; }
     .bar i { display: block; height: 100%; }
-    .over { color: #ff6b6b; font-weight: 700; }
-    #status { font-size: 12px; color: #9aa0a6; }
+    .over { color: var(--color-danger); font-weight: 700; }
+    #status { font-size: var(--font-size-xs); color: var(--text-secondary); }
     @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -48,6 +52,8 @@
     <div id="meta">
       <span id="panel-day"></span> · eşik <span id="panel-threshold"></span>
       · <span id="status">yükleniyor…</span>
+      · <button id="theme-toggle" class="em-btn em-btn--secondary em-btn--sm"
+            type="button">🌓 Tema</button>
     </div>
   </header>
   <main>
@@ -95,7 +101,7 @@
       </div>
       <div class="card">
         <h2>Kaynak</h2>
-        <div id="attribution" style="font-size:11px;color:#9aa0a6"></div>
+        <div id="attribution" class="em-muted"></div>
       </div>
     </section>
   </main>
@@ -178,6 +184,16 @@
 
   refresh();
   setInterval(refresh, 60000);
+
+  // EM-075 tema anahtarı: panel koyu başlar, kullanıcı tercihi saklanır.
+  const themeBtn = document.getElementById("theme-toggle");
+  const storedTheme = localStorage.getItem("embermind-theme");
+  if (storedTheme) document.documentElement.dataset.theme = storedTheme;
+  themeBtn.addEventListener("click", () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("embermind-theme", root.dataset.theme);
+  });
   </script>
 </body>
 </html>

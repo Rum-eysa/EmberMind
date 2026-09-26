@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EmberMind — Tasarım Sistemi (EM-075)</title>
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <style>
+    main { max-width: 960px; margin: 0 auto; padding: var(--space-5); }
+    section { margin-bottom: var(--space-6); }
+    h1 { font-size: var(--font-size-2xl); }
+    h2 { font-size: var(--font-size-xl); margin-bottom: var(--space-2); }
+    .swatches, .type-scale, .space-scale { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+    .swatch { width: 120px; font-size: var(--font-size-xs); text-align: center; }
+    .swatch i { display: block; height: 48px; border: 1px solid var(--border-color);
+                border-radius: var(--radius-md); margin-bottom: var(--space-1); }
+    .space-demo { height: 24px; background: var(--color-accent); border-radius: 2px; }
+    header { display: flex; justify-content: space-between; align-items: center;
+             max-width: 960px; margin: 0 auto; padding: var(--space-5) var(--space-5) 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EmberMind Tasarım Sistemi</h1>
+    <button id="theme-toggle" class="em-btn em-btn--secondary em-btn--sm" type="button">
+      🌓 Açık / Koyu
+    </button>
+  </header>
+  <main>
+    <section>
+      <h2>Renk belirteçleri</h2>
+      <p class="em-muted">Marka, yüzey ve <strong>risk eşik renkleri</strong>.
+        Risk paleti <code>src/services/fwi.py · RISK_COLORS</code> ile birebir
+        aynıdır ve birim testiyle kilitlenmiştir.</p>
+      <div class="swatches" id="color-swatches"></div>
+    </section>
+
+    <section>
+      <h2>Tipografi ölçeği</h2>
+      <div class="type-scale">
+        <div><span style="font-size:var(--font-size-xs)">xs 0.75rem</span><br>
+             <span style="font-size:var(--font-size-sm)">sm 0.875rem</span><br>
+             <span style="font-size:var(--font-size-md)">md 1rem (gövde)</span><br>
+             <span style="font-size:var(--font-size-lg)">lg 1.25rem</span><br>
+             <span style="font-size:var(--font-size-xl)">xl 1.5rem</span><br>
+             <span style="font-size:var(--font-size-2xl)">2xl 2rem</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Boşluk ölçeği (4px taban)</h2>
+      <div class="space-scale">
+        <div class="swatch"><div class="space-demo" style="width:var(--space-1)"></div>--space-1 · 4px</div>
+        <div class="swatch"><div class="space-demo" style="width:var(--space-2)"></div>--space-2 · 8px</div>
+        <div class="swatch"><div class="space-demo" style="width:var(--space-3)"></div>--space-3 · 12px</div>
+        <div class="swatch"><div class="space-demo" style="width:var(--space-4)"></div>--space-4 · 16px</div>
+        <div class="swatch"><div class="space-demo" style="width:var(--space-5)"></div>--space-5 · 24px</div>
+        <div class="swatch"><div class="space-demo" style="width:var(--space-6)"></div>--space-6 · 32px</div>
+        <div class="swatch"><div class="space-demo" style="width:var(--space-7)"></div>--space-7 · 48px</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Butonlar</h2>
+      <div class="em-row">
+        <button class="em-btn" type="button">Birincil</button>
+        <button class="em-btn em-btn--secondary" type="button">İkincil</button>
+        <button class="em-btn em-btn--ghost" type="button">Hayalet</button>
+        <button class="em-btn em-btn--sm" type="button">Küçük</button>
+        <button class="em-btn" type="button" disabled>Pasif</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Kart ve Panel</h2>
+      <div class="em-stack">
+        <div class="em-card">
+          <h3 class="em-card__title">Kart — olay özeti</h3>
+          <div class="em-card__body">Kart içerik blokları için yükseltilmiş yüzey.</div>
+        </div>
+        <div class="em-panel">
+          <div class="em-panel__header">
+            <h3 class="em-panel__title">Panel — bölüm başlığı</h3>
+            <span class="em-badge em-badge--risk-high">high</span>
+          </div>
+          <div class="em-muted">Paneller harita kenar çubuğu ve komuta ekranı bloklarıdır.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Rozetler</h2>
+      <div class="em-row" id="badge-row">
+        <span class="em-badge">nötr</span>
+        <span class="em-badge em-badge--success">müsait</span>
+        <span class="em-badge em-badge--warning">ikaz</span>
+        <span class="em-badge em-badge--danger">kapatma</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tablo</h2>
+      <table class="em-table">
+        <thead><tr><th>bölge</th><th>FWI</th><th>eşik rengi</th><th>ilk aşım</th></tr></thead>
+        <tbody>
+          <tr><td>MTZ-07</td><td class="td--num">41.2</td>
+              <td><span class="em-badge em-badge--risk-very_high">very_high</span></td>
+              <td>2026-07-10</td></tr>
+          <tr><td>MTZ-08</td><td class="td--num">33.9</td>
+              <td><span class="em-badge em-badge--risk-high">high</span></td>
+              <td>2026-07-11</td></tr>
+          <tr><td>MTZ-09</td><td class="td--num">12.0</td>
+              <td><span class="em-badge em-badge--risk-low">low</span></td>
+              <td>—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Form</h2>
+      <form class="em-form" onsubmit="return false" style="max-width:420px">
+        <div class="em-form__field">
+          <label class="em-form__label" for="f-wind">Rüzgâr (km/h)</label>
+          <input class="em-input" id="f-wind" type="number" value="25">
+          <span class="em-form__hint">what-if girdi override'ının örneği</span>
+        </div>
+        <div class="em-form__field">
+          <label class="em-form__label" for="f-fuel">Yakıt sınıfı</label>
+          <select class="em-select" id="f-fuel">
+            <option>FM10_RedPine</option><option>FM4_Maquis</option>
+          </select>
+        </div>
+        <label class="em-switch"><input type="checkbox" checked> kümülatif göster</label>
+        <div class="em-row"><button class="em-btn" type="submit">Hesapla</button>
+        <button class="em-btn em-btn--secondary" type="reset">Temizle</button></div>
+      </form>
+    </section>
+
+    <section class="em-muted">
+      Diğer ekranlar: <a href="/ui">operatör haritası</a> ·
+      <a href="/panel">komutan paneli</a> · <a href="/docs">API</a>
+    </section>
+  </main>
+  <script>
+    // Risk renkleri ve rozetleri JS ile de üretilir: token'lar ile aynı liste
+    const RISK = ["very_low", "low", "moderate", "high", "very_high", "extreme"];
+    const sw = document.getElementById("color-swatches");
+    const br = document.getElementById("badge-row");
+    for (const key of RISK) {
+      const div = document.createElement("div");
+      div.className = "swatch";
+      div.innerHTML = `<i style="background:var(--risk-${key.replace(/_/g, '-')})"></i>` +
+        `--risk-${key.replace(/_/g, '-')}<br>${key}`;
+      sw.appendChild(div);
+      const badge = document.createElement("span");
+      badge.className = `em-badge em-badge--risk-${key}`;
+      badge.textContent = key;
+      br.appendChild(badge);
+    }
+    // Tema anahtarı: localStorage'a yazılır; yoksa OS tercihi zaten CSS'te
+    const toggle = document.getElementById("theme-toggle");
+    const stored = localStorage.getItem("embermind-theme");
+    if (stored) document.documentElement.dataset.theme = stored;
+    toggle.addEventListener("click", () => {
+      const now = new Date().toTimeString().slice(0, 8);
+      const root = document.documentElement;
+      const dark = root.dataset.theme
+        ? root.dataset.theme !== "dark"
+        : !window.matchMedia("(prefers-color-scheme: dark)").matches;
+      root.dataset.theme = dark ? "dark" : "light";
+      localStorage.setItem("embermind-theme", root.dataset.theme);
+      toggle.textContent = `🌓 Tema: ${root.dataset.theme} (${now})`;
+    });
+  </script>
+</body>
+</html>

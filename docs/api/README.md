@@ -94,6 +94,19 @@ sınıfı paleti), `RISK_PANEL_THRESHOLD` (vars. 30) değerine ulaşan ilk gün 
 türü ve müsaitlik bazlı müdahale üsleri, aktif yangın olayları, aktif yol
 kapatmaları). Operatör haritasındaki lejanttan `/panel`'e geçilir.
 
+### Tasarım Sistemi ve Bileşen Kütüphanesi (EM-075)
+```
+GET /styleguide        # bileşen vitrini (renk/tipografi/boşluk + buton, kart, panel, rozet, tablo, form)
+GET /static/tokens.css # tasarım belirteçleri (risk eşik paleti dahil)
+GET /static/components.css # paylaşılan bileşen sınıfları (em-*)
+```
+Tüm arayüzler tek belirteç setini kullanır: `tokens.css` renk, tipografi ve
+boşluk ölçeklerini tanımlar; **risk eşik renkleri** `fwi.py · RISK_COLORS` ile
+birebir eşleşir (birim testiyle kilitli). **Açık/koyu tema** `data-theme`
+niteliği ve `prefers-color-scheme` ile desteklenir; `/ui` ve `/panel` bu
+sisteme bağlıdır, `/panel`'de tema anahtarı bulunur. `/static` yalnızca
+beyaz-listedeki CSS dosyalarını sunar (keyfi dosya okuma yok).
+
 ### Tahmin
 ```
 POST /api/v1/predictions

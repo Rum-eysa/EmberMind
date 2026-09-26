@@ -5,6 +5,16 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-075: Tasarım sistemi ve UI bileşen kütüphanesi (`/styleguide`)
+  - Renk (risk eşik paleti dahil), tipografi ve boşluk belirteçleri
+    `src/static/tokens.css` içinde CSS custom property olarak tanımlandı;
+    risk renkleri `src/services/fwi.py · RISK_COLORS` ile birim testine bağlandı
+  - Buton, kart, panel, rozet, tablo ve form bileşenleri
+    `src/static/components.css` (`em-*` sınıfları); risk rozetleri her FWI
+    sınıfı için ayrı varyant üretir
+  - Açık/koyu tema: `data-theme` niteliği + `prefers-color-scheme` medya sorgusu;
+    operatör haritası ve komutan paneli token'lara bağlandı, panele tema anahtarı eklendi
+  - `GET /styleguide` (bileşen vitrini) ve beyaz-listeli `GET /static/{css}` sunumu
 - EM-074: Operatör arayüzü wireframe ve kullanıcı akışları doküman seti
   - `docs/wireframes/`: ekran envanteri + API eşlemesi, ana harita / risk
     paneli / öneri paneli / what-if akışı wireframe'leri

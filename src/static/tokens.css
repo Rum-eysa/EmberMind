@@ -1,0 +1,115 @@
+/*
+ * EmberMind design system — design tokens (EM-075).
+ *
+ * Single source of truth for colours, typography, spacing and radii.
+ * Light theme is the default; the dark theme activates either via
+ * <html data-theme="dark"> (manual switch) or the OS preference when no
+ * manual choice is stored.
+ *
+ * The --risk-* block mirrors RISK_COLORS in src/services/fwi.py; the unit
+ * test tests/unit/test_design_system.py fails the build if they drift.
+ */
+:root {
+  /* Brand and semantic colours (light theme) */
+  --color-primary: #c0392b;
+  --color-primary-strong: #96281b;
+  --color-accent: #2f6f8f;
+  --color-success: #1e8449;
+  --color-warning: #b9770e;
+  --color-danger: #d0111d;
+
+  /* Surfaces and text */
+  --bg-page: #f4f6f8;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #ffffff;
+  --bg-inset: #eceff1;
+  --border-color: #d5dbe0;
+  --text-primary: #22303c;
+  --text-secondary: #5b6b79;
+  --text-inverse: #ffffff;
+
+  /* Risk threshold palette — MUST equal RISK_COLORS in src/services/fwi.py */
+  --risk-very-low: #ffffff;
+  --risk-low: #98eb18;
+  --risk-moderate: #ffc616;
+  --risk-high: #f98313;
+  --risk-very-high: #d0111d;
+  --risk-extreme: #77279d;
+
+  /* Typography scale */
+  --font-family-base: "Segoe UI", system-ui, Arial, sans-serif;
+  --font-family-mono: "Cascadia Mono", Consolas, monospace;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+
+  /* Spacing scale (4 px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Radii, shadows, misc */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.18);
+  --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --panel-max-width: 320px;
+}
+
+/* Manual dark theme switch */
+html[data-theme="dark"] {
+  --color-primary: #e74c3c;
+  --color-primary-strong: #ff6b5b;
+  --color-accent: #6fa8c9;
+  --color-success: #2ecc71;
+  --color-warning: #f1c40f;
+  --color-danger: #ff5252;
+
+  --bg-page: #14181f;
+  --bg-surface: #1d232c;
+  --bg-surface-raised: #232b36;
+  --bg-inset: #171c23;
+  --border-color: #2c3540;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-inverse: #14181f;
+
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.7);
+  /* risk threshold palette is inherited unchanged: those colours are
+     semantic, not thematic */
+}
+
+/* Automatic dark theme when the OS prefers it and no manual choice exists */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    --color-primary: #e74c3c;
+    --color-primary-strong: #ff6b5b;
+    --color-accent: #6fa8c9;
+    --color-success: #2ecc71;
+    --color-warning: #f1c40f;
+    --color-danger: #ff5252;
+
+    --bg-page: #14181f;
+    --bg-surface: #1d232c;
+    --bg-surface-raised: #232b36;
+    --bg-inset: #171c23;
+    --border-color: #2c3540;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-inverse: #14181f;
+
+    --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.6);
+    --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.7);
+  }
+}

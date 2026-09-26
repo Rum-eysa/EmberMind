@@ -6,27 +6,33 @@
   <title>EmberMind — Operatör Haritası</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="/static/tokens.css">
+  <link rel="stylesheet" href="/static/components.css">
   <style>
-    html, body { margin: 0; height: 100%; font-family: "Segoe UI", Arial, sans-serif; }
+    /* EM-075 design system: shared tokens; map keeps its own layout rules */
+    html, body { margin: 0; height: 100%; font-family: var(--font-family-base); }
     #map { position: absolute; inset: 0; }
     .panel {
-      background: rgba(255, 255, 255, 0.95); border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); padding: 10px 12px; color: #222;
+      background: var(--bg-surface-raised); border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card); padding: 10px 12px; color: var(--text-primary);
+      border: 1px solid var(--border-color);
     }
     #horizon-bar {
       position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
       z-index: 1000; display: flex; align-items: center; gap: 12px;
     }
-    #horizon-bar .ticks { display: flex; gap: 18px; font-size: 12px; }
+    #horizon-bar .ticks { display: flex; gap: 18px; font-size: var(--font-size-xs); }
     #horizon-bar .ticks span { cursor: pointer; }
-    #horizon-bar .ticks span.active { font-weight: 700; color: #c0392b; }
-    #horizon-slider { width: 220px; accent-color: #c0392b; }
-    #legend { position: absolute; bottom: 24px; right: 12px; z-index: 1000; font-size: 12px; }
+    #horizon-bar .ticks span.active { font-weight: 700; color: var(--color-primary); }
+    #horizon-slider { width: 220px; accent-color: var(--color-primary); }
+    #legend { position: absolute; bottom: 24px; right: 12px; z-index: 1000;
+              font-size: var(--font-size-xs); }
     #legend .row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
     #legend .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
-    #status { position: absolute; bottom: 24px; left: 12px; z-index: 1000; font-size: 12px; max-width: 320px; }
-    h1 { font-size: 14px; margin: 0 0 6px; }
-    label { font-size: 12px; }
+    #status { position: absolute; bottom: 24px; left: 12px; z-index: 1000;
+              font-size: var(--font-size-xs); max-width: var(--panel-max-width); }
+    h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
+    label { font-size: var(--font-size-xs); }
   </style>
 </head>
 <body>
@@ -52,6 +58,7 @@
     <div class="row"><span class="swatch" style="background:#1565c0"></span> Müdahale kaynağı</div>
     <div class="row"><span class="swatch" style="background:#6d4c41"></span> Yol ağı</div>
     <div class="row"><a href="/panel" style="color:#c0392b;font-weight:700">→ Komutan Kapasite &amp; Risk Paneli</a></div>
+    <div class="row"><a href="/styleguide">→ Tasarım Sistemi (styleguide)</a></div>
   </div>
 
   <div id="status" class="panel" aria-live="polite">Katmanlar yükleniyor…</div>
