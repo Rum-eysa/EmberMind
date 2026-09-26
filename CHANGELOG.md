@@ -5,6 +5,14 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-073: Komutan kapasite ve risk paneli (`/panel`)
+  - Tek panelde bölge **risk indeksi** (günlük FWI), **eşik rengi** (CFS risk
+    sınıfı renkleri), bölge bazında **ilk aşım zamanı** ve **kapasite kırılımı**
+    (ekip türü/müsaitlik bazlı üsler, aktif olaylar, aktif yol kapatmaları)
+  - `GET /api/v1/panel/capacity-risk` (?day=YYYY-MM-DD) tek bakışta komuta
+    görünümü; 60 sn'de bir kendini yenileyen koyu temalı komutan arayüzü
+  - Operatör haritasından (`/ui`) paneline bağlantı; `RISK_PANEL_THRESHOLD`
+    konfigürasyon değişkeni (vars. FWI 30)
 - EM-072: Operatör ana haritası ve yangın katmanları (`/ui`)
   - Leaflet tabanlı operatör arayüzü FastAPI tarafından sunulur (`src/static/operator_map.html`)
   - Altı açılıp kapanabilir GeoJSON katmanı: aktif yangınlar (uydu kümesi + olaylar),

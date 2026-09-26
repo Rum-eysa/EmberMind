@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EmberMind — Komutan Kapasite &amp; Risk Paneli</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #14181f; color: #e8eaed;
+           font-family: "Segoe UI", Arial, sans-serif; }
+    header { display: flex; justify-content: space-between; align-items: baseline;
+             padding: 14px 20px 6px; }
+    header h1 { font-size: 18px; margin: 0; }
+    #meta { font-size: 12px; color: #9aa0a6; }
+    main { display: grid; grid-template-columns: 320px 1fr 320px; gap: 14px;
+           padding: 10px 20px 24px; align-items: start; }
+    .card { background: #1d232c; border: 1px solid #2c3540; border-radius: 10px;
+            padding: 14px 16px; margin-bottom: 14px; }
+    .card h2 { font-size: 13px; margin: 0 0 10px; color: #9aa0a6;
+               text-transform: uppercase; letter-spacing: .06em; }
+    #risk-hero { text-align: center; padding: 22px 14px; border-radius: 10px;
+                 border: 1px solid #2c3540; }
+    #risk-hero .value { font-size: 56px; font-weight: 800; line-height: 1.05; }
+    #risk-hero .label { font-size: 13px; opacity: .9; }
+    .kv { display: flex; justify-content: space-between; font-size: 13px;
+          padding: 4px 0; border-bottom: 1px dashed #2c3540; }
+    .kv:last-child { border-bottom: 0; }
+    #legend { display: flex; flex-wrap: wrap; gap: 6px; }
+    #legend span { display: inline-flex; align-items: center; gap: 5px;
+                   font-size: 11px; padding: 3px 8px; border-radius: 20px;
+                   background: #232a34; }
+    #legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #262e39; }
+    th { color: #9aa0a6; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .chip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+    .bar { background: #2c3540; border-radius: 4px; height: 8px; overflow: hidden; }
+    .bar i { display: block; height: 100%; }
+    .over { color: #ff6b6b; font-weight: 700; }
+    #status { font-size: 12px; color: #9aa0a6; }
+    @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Komutan Paneli — Kapasite ve Risk</h1>
+    <div id="meta">
+      <span id="panel-day"></span> · eşik <span id="panel-threshold"></span>
+      · <span id="status">yükleniyor…</span>
+    </div>
+  </header>
+  <main>
+    <section>
+      <div id="risk-hero" class="card">
+        <div class="value" id="max-risk">–</div>
+        <div class="label">Bölge Risk İndeksi (FWI) · <span id="max-zone"></span></div>
+      </div>
+      <div class="card">
+        <h2>Eşik &amp; Aşım</h2>
+        <div class="kv"><span>Eşik değeri</span><b id="k-threshold"></b></div>
+        <div class="kv"><span>Eşiği aşan bölge</span><b id="k-over"></b></div>
+        <div class="kv"><span>İlk aşım zamanı</span><b id="k-first"></b></div>
+      </div>
+      <div class="card">
+        <h2>Eşik Renkleri</h2>
+        <div id="legend"></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Bölgeler — Risk İndeksi ve İlk Aşım</h2>
+      <table id="zones">
+        <thead><tr>
+          <th>Renk</th><th>Bölge</th><th>Risk İndeksi</th><th style="width:26%">Seviye</th>
+          <th>İlk Aşım</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+    <section>
+      <div class="card">
+        <h2>Müdahale Kapasitesi</h2>
+        <div class="kv"><span>Toplam ekip üssü</span><b id="c-total"></b></div>
+        <div class="kv"><span>Müsait</span><b id="c-available"></b></div>
+        <div class="kv"><span>Müsait değil</span><b id="c-unavailable"></b></div>
+        <div class="kv"><span>Aktif yangın olayı</span><b id="c-incidents"></b></div>
+        <div class="kv"><span>Aktif yol kapaması</span><b id="c-closures"></b></div>
+      </div>
+      <div class="card">
+        <h2>Kapasite Kırılımı (ekip türü)</h2>
+        <table id="capacity">
+          <thead><tr><th>Tür</th><th class="num">Müsait</th><th class="num">Toplam</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Kaynak</h2>
+        <div id="attribution" style="font-size:11px;color:#9aa0a6"></div>
+      </div>
+    </section>
+  </main>
+  <script>
+  "use strict";
+  const FEED = "/api/v1/panel/capacity-risk";
+  const CATEGORY_TR = {
+    very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
+    high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
+  };
+
+  function setText(id, value) { document.getElementById(id).textContent = value; }
+
+  function render(data) {
+    setText("panel-day", data.day || "veri yok");
+    setText("panel-threshold", data.risk_threshold);
+    setText("status", "son güncelleme: " + new Date().toLocaleTimeString("tr-TR"));
+
+    const hero = document.getElementById("risk-hero");
+    const s = data.summary;
+    setText("max-risk", s.max_risk_index ?? "–");
+    setText("max-zone", s.max_risk_zone || "-");
+    hero.style.background = s.max_risk_color
+      ? s.max_risk_color + "33" : "#1d232c";
+    hero.style.borderColor = s.max_risk_color || "#2c3540";
+    document.getElementById("max-risk").style.color =
+      s.max_risk_color || "#e8eaed";
+
+    setText("k-threshold", data.risk_threshold);
+    setText("k-over", s.zones_over_threshold + " / " + s.zones_reported);
+    setText("k-first", s.first_exceedance_day || "aşılmadı");
+
+    const legend = document.getElementById("legend");
+    legend.innerHTML = "";
+    for (const cat of data.risk_order) {
+      const el = document.createElement("span");
+      el.innerHTML = `<i style="background:${data.legend[cat]}"></i>${CATEGORY_TR[cat] || cat}`;
+      legend.appendChild(el);
+    }
+
+    const tbody = document.querySelector("#zones tbody");
+    tbody.innerHTML = "";
+    for (const z of data.zones) {
+      const tr = document.createElement("tr");
+      const pct = Math.min(100, (z.risk_index / 50) * 100);
+      tr.innerHTML = `
+        <td><span class="chip" style="background:${z.threshold_color}"></span></td>
+        <td>${z.zone_key}<br><small style="color:#9aa0a6">${z.region_name || ""}</small></td>
+        <td class="num ${z.over_threshold ? "over" : ""}">${z.risk_index}</td>
+        <td><span class="bar"><i style="width:${pct}%;background:${z.threshold_color}"></i></span></td>
+        <td>${z.first_exceedance_day || "—"}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    const c = data.capacity.crew_bases;
+    setText("c-total", c.total);
+    setText("c-available", c.available);
+    setText("c-unavailable", c.unavailable);
+    setText("c-incidents", data.capacity.active_incidents);
+    setText("c-closures", data.capacity.active_road_closures);
+    const capBody = document.querySelector("#capacity tbody");
+    capBody.innerHTML = "";
+    for (const [type, bucket] of Object.entries(c.by_crew_type)) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${type}</td><td class="num">${bucket.available}</td><td class="num">${bucket.total}</td>`;
+      capBody.appendChild(tr);
+    }
+    setText("attribution", data.attribution || "FWI: OpenWeather · Kapasite: EmberMind");
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch(FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      render(await res.json());
+    } catch (err) {
+      setText("status", "panel verisi alınamadı: " + err.message);
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 60000);
+  </script>
+</body>
+</html>

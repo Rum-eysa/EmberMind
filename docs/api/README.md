@@ -83,6 +83,17 @@ Katmanlar: `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
 **zaman kaydırıcısı** ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
 Her yanıtta kaynak lisansı gereği `attribution` alanı döner (EM-013).
 
+### Komutan Kapasite ve Risk Paneli (EM-073)
+```
+GET /panel                       # tek panel komuta arayüzü (koyu tema, 60 sn otomatik yenileme)
+GET /api/v1/panel/capacity-risk  # panel beslemesi (?day=YYYY-MM-DD, vars. son FWI günü)
+```
+Panel tek ekranda: bölge **risk indeksi** (FWI) ve **eşik rengi** (CFS risk
+sınıfı paleti), `RISK_PANEL_THRESHOLD` (vars. 30) değerine ulaşan ilk gün olarak
+**ilk aşım zamanı** (bölge ve bölge geneli), **kapasite kırılımı** (ekip
+türü ve müsaitlik bazlı müdahale üsleri, aktif yangın olayları, aktif yol
+kapatmaları). Operatör haritasındaki lejanttan `/panel`'e geçilir.
+
 ### Tahmin
 ```
 POST /api/v1/predictions

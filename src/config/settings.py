@@ -86,6 +86,11 @@ class Config:
     # Model label stored with every generated forecast.
     SPREAD_MODEL_NAME = os.getenv("SPREAD_MODEL_NAME", "rothermel_v1")
 
+    # Commander capacity & risk panel (EM-073)
+    # FWI value at which a zone is considered to have breached the risk
+    # threshold; the panel reports the first day each zone crossed it.
+    RISK_PANEL_THRESHOLD = float(os.getenv("RISK_PANEL_THRESHOLD", "30.0"))
+
     # USGS / SRTM Topography
     USGS_SRTM_BASE_URL = os.getenv(
         "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"

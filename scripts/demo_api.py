@@ -1,9 +1,10 @@
-"""Gelistirme yardimcisi: API'yi EM-012/EM-015/EM-072 demo verisiyle yerelde calistirir.
+"""Gelistirme yardimcisi: API'yi EM-012/015/072/073 demo verisiyle yerelde calistirir.
 
 Kullanim:
     python scripts/demo_api.py
-    -> http://127.0.0.1:8000/ui    (operator map, EM-072)
-    -> http://127.0.0.1:8000/docs  (Swagger UI)
+    -> http://127.0.0.1:8000/ui      (operator map, EM-072)
+    -> http://127.0.0.1:8000/panel   (commander panel, EM-073)
+    -> http://127.0.0.1:8000/docs    (Swagger UI)
      -> http://127.0.0.1:8000/api/v1/fires (birlestirilmis VIIRS/MODIS kumeleri)
 """
 import os
@@ -15,9 +16,11 @@ import uvicorn  # noqa: E402
 
 from src.fastapi_app import create_fastapi_app  # noqa: E402
 from src.models.fire import FireCluster, FireObservation, FirmsSyncStatus  # noqa: E402
+from src.models.fwi import FireWeatherIndex  # noqa: E402
 from src.models.land_cover import LandCoverDataPoint  # noqa: E402
-from src.models.road_network import CrewBase, RoadSegment  # noqa: E402
+from src.models.road_network import CrewBase, RoadSegment, RoadClosure  # noqa: E402
 from src.models.spatial import SilentRegion  # noqa: E402
+from src.services.fwi import fwi_risk_category  # noqa: E402
 from src.services.spread import predict_spread  # noqa: E402
 from src.utils.timeutils import utc_now  # noqa: E402
 
