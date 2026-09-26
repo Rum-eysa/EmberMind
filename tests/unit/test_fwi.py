@@ -166,6 +166,17 @@ def test_compute_region_fwi_persists_and_upserts(session):
     assert row.risk_category == fwi_risk_category(row.fwi)
 
 
+def test_wind_observation_converted_to_kmh(session):
+    """Stored m/s wind must feed FWI in km/h (matches the spread engine)."""
+    day = date(2026, 7, 17)
+    _seed_weather(session, day, 38.0, 27.5, 30.0, 30.0, 5.0)  # 5 m/s
+    compute_region_fwi(session, FwiSettings(), day)
+    session.commit()
+    row = session.scalar(select(FireWeatherIndex).where(FireWeatherIndex.day == day))
+    assert row is not None
+    assert float(row.wind_speed) == pytest.approx(18.0)  # 5 m/s -> 18 km/h
+
+
 def test_compute_skips_zones_without_weather(session):
     day = date(2026, 7, 16)
     result = compute_region_fwi(session, FwiSettings(), day)

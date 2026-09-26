@@ -74,6 +74,18 @@ class Config:
     # FWI is a daily indicator; recomputed once per day by default.
     FWI_SYNC_INTERVAL_MINUTES = int(os.getenv("FWI_SYNC_INTERVAL_MINUTES", "1440"))
 
+    # Rothermel spread engine (EM-015)
+    # Prediction horizons in minutes for a spread forecast run.
+    SPREAD_HORIZON_MINUTES = [
+        int(minutes.strip())
+        for minutes in os.getenv("SPREAD_HORIZON_MINUTES", "30,60,120").split(",")
+        if minutes.strip()
+    ]
+    # Vertices used for the elliptical risk-zone polygons.
+    SPREAD_POLYGON_VERTICES = int(os.getenv("SPREAD_POLYGON_VERTICES", "36"))
+    # Model label stored with every generated forecast.
+    SPREAD_MODEL_NAME = os.getenv("SPREAD_MODEL_NAME", "rothermel_v1")
+
     # USGS / SRTM Topography
     USGS_SRTM_BASE_URL = os.getenv(
         "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"

@@ -5,6 +5,20 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-015: Rothermel tabanlı temel yangın yayılım tahmin motoru
+  - Rothermel (1972) yüzey yayılım modeli + Albini (1976) düzeltmeleri, 13 standart
+    USDA yakıt modeliyle (`src/services/spread.py`); girdiler: yangın konumu, rüzgâr,
+    sıcaklık/nem (Van Wagner denge nemi), eğim/bakı ve yakıt sınıfı
+  - Her ufuk (30/60/120 dk) için odak noktası ignition noktasında olan eliptik risk
+    bölgesi poligonu (GeoJSON + WKT), yayılım hızı (m/dk) ve yayılım yönü (derece)
+  - `POST /api/v1/spread/predict`, `GET /api/v1/spread/fuel-models`,
+    `GET /api/v1/spread/forecasts?event_key=` endpoint'leri
+  - Girdi çözümleme zinciri: açık istek > en yakın kayıtlı gözlem (hava/topo/yakıt)
+    > deterministik varsayılan; sonuç sabit referans senaryoda tekrarlanabilir (birim test)
+  - `SPREAD_HORIZON_MINUTES`, `SPREAD_POLYGON_VERTICES`, `SPREAD_MODEL_NAME`
+    konfigürasyon değişkenleri
+  - V007 migration: `fire_forecasts` tablosuna ufuk/yayılım kolonları
+    (`horizon_minutes`, `rate_of_spread_m_per_min`, `spread_direction_deg`, `inputs_json`)
 - EM-014: Yangın Hava İndeksi (FWI) ve kuraklık göstergesi
   - Kanonik Kanada FWI sistemi (Van Wagner & Pickett 1985) bölge bazında hesaplanır
     (FFMC/DMC/DC/ISI/BUI/FWI + günlük taşıma/zincirleme kod geçmişi)
@@ -26,6 +40,12 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - Uzamsal-zamansal örtüşen yinelenen tespitler tekilleştirilir (VIIRS > MODIS önceliği)
   - `FIRMS_SOURCES` ve `SATELLITE_DEDUP_TIME_WINDOW_MINUTES` konfigürasyon değişkenleri
   - V005 migration: tespit/gecikme/tekilleştirme alanları
+
+### Fixed
+- FWI rüzgâr birimi tutarsızlığı giderildi: hava durumu gözlemi `m/s` olarak
+  saklanırken FWI denklemleri `km/h` bekliyordu; toplama (aggregation) sınırında
+  `× 3.6` dönüşümü eklendi (yayılım motoru ile tutarlı, düşük rüzgârlı günlerde
+  hafif düşük çıkan ISI/FWI değerleri düzeltildi)
 
 ## [1.0.0] - 2024-01-01
 

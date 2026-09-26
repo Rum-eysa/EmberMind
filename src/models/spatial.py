@@ -1,7 +1,7 @@
 """Spatial database models for events, forecasts, sources, silent regions, and scenarios."""
 from typing import Any
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Index, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String, Text
 
 from ..utils.timeutils import to_utc_iso
 from .base import BaseModel
@@ -74,8 +74,14 @@ class FireForecast(BaseModel):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     predicted_area_ha = Column(Float, nullable=False, default=0.0)
-    geometry_wkt = Column(String(512), nullable=False)
+    # Text: EM-015 elliptical horizon polygons exceed the legacy 512-char cap.
+    geometry_wkt = Column(Text, nullable=False)
     forecast_for = Column(DateTime, nullable=False)
+    # EM-015 spread-engine extras (see scripts/migration/V007).
+    horizon_minutes = Column(Integer, nullable=False, default=0)
+    rate_of_spread_m_per_min = Column(Float, nullable=False, default=0.0)
+    spread_direction_deg = Column(Float, nullable=False, default=0.0)
+    inputs_json = Column(Text, nullable=True)
 
     __table_args__ = (Index("idx_fire_forecasts_spatial", "latitude", "longitude"),)
 
@@ -91,6 +97,10 @@ class FireForecast(BaseModel):
             "predicted_area_ha": self.predicted_area_ha,
             "geometry_wkt": self.geometry_wkt,
             "forecast_for": to_utc_iso(self.forecast_for),
+            "horizon_minutes": self.horizon_minutes,
+            "rate_of_spread_m_per_min": self.rate_of_spread_m_per_min,
+            "spread_direction_deg": self.spread_direction_deg,
+            "inputs_json": self.inputs_json,
         }
 
 

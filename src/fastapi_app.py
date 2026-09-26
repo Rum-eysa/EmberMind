@@ -19,6 +19,7 @@ from src.routes.data_quality import register_data_quality_routes
 from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.road_network import register_road_network_routes
+from src.routes.spread import register_spread_routes
 from src.services.data_governance import attribution_for
 from src.services.effis import EffisSourceError, import_effis_perimeters
 from src.services.fire_sync import sync_firms, sync_status
@@ -320,8 +321,9 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
             "data-quality/freshness monitoring with operator staleness warnings, "
             "EFFIS historical fire perimeters for model calibration/validation, "
             "per-source license/attribution/quota governance with cache plans, "
-            "and a daily zone Fire Weather Index (FWI) with drought indicator, "
-            "map layer and high-risk daily summary."
+            "a daily zone Fire Weather Index (FWI) with drought indicator, "
+            "map layer and high-risk daily summary, and a Rothermel-based "
+            "spread engine producing 30/60/120-minute risk-zone polygons."
         ),
         lifespan=lifespan,
     )
@@ -333,6 +335,7 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     register_historical_fire_routes(api, database, settings)
     register_data_governance_routes(api, database, settings)
     register_fwi_routes(api, database, settings)
+    register_spread_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:

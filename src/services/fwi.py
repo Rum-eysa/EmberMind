@@ -42,6 +42,11 @@ DROUGHT_ORDER = [
 ]
 DROUGHT_WATCH_CATEGORIES = ("high", "very_high", "extreme")
 
+# Stored weather observations (OpenWeather, units=metric) keep wind speed in
+# m/s, but the canonical FWI equations expect the 10 m open wind in km/h.
+# Convert once at the aggregation boundary (matches the spread engine).
+MS_TO_KMH = 3.6
+
 # Monthly effective day-length factors (Le) for the Duff Moisture Code and
 # monthly seasonal adjustment (Lf) for the Drought Code, from the Canadian
 # Forest Fire Danger Rating System weather guide (reference latitudes).
@@ -111,7 +116,7 @@ class ZoneWeather:
 
     temperature: float
     humidity: float
-    wind_speed: float
+    wind_speed: float  # km/h at 10 m (converted from the stored m/s obs)
     rain_mm: float
     point_count: int
 
@@ -429,7 +434,7 @@ def aggregate_zone_weather(
         )
         bucket["temps"].append(float(point.temperature))
         bucket["rhums"].append(min(max(float(point.humidity), 0.0), 100.0))
-        bucket["winds"].append(max(float(point.wind_speed), 0.0))
+        bucket["winds"].append(max(float(point.wind_speed), 0.0) * MS_TO_KMH)
         slot = bucket["rain_slots"].setdefault(point.forecast_time, [])
         slot.append(max(float(getattr(point, "rain", 0.0) or 0.0), 0.0))
         bucket["count"] += 1

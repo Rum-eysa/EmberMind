@@ -54,6 +54,22 @@ Hesap, bir önceki günün yakıt-nem kodlarını taşımalı (carry-over) zinci
 ve Celery beat ile günde bir kez (`FWI_SYNC_INTERVAL_MINUTES`, vars. 1440 dk)
 otomatik çalışır. Kaynak: OpenWeather (attribution yanıtlarda döner).
 
+### Yangın Yayılım Tahmini (EM-015)
+```
+POST /api/v1/spread/predict          # 30/60/120 dk risk bölgesi poligonları
+GET  /api/v1/spread/fuel-models       # 13 standart USDA yakıt modeli kataloğu
+GET  /api/v1/spread/forecasts         # bir olay için saklanan tahminler (?event_key=)
+```
+Rothermel (1972) yüzey yayılım motoru; girdiler: `latitude`, `longitude`,
+`wind_speed_kmh`, `wind_from_deg`, `air_temp_c`, `relative_humidity_pct`,
+`fuel_moisture_pct`, `slope_deg`, `aspect_deg`, `fuel_model`. Girdi verilmezse
+en yakın kayıtlı hava/topografya/yakıt gözlemi, o da yoksa deterministik
+varsayılan kullanılır (`input_provenance` alanında kaynak belirtilir). Her ufuk
+için odak noktası ignition noktasında olan eliptik risk bölgesi (GeoJSON + WKT),
+yayılım hızı (`rate_of_spread_m_min`, m/dk) ve yönü (`spread_direction_deg`, °)
+üretilir. `event_key` verilirse `FireForecast` satırlarına kalıcı yazılır.
+Sabit bir referans senaryoda sonuç birim testlerle tekrarlanabilir.
+
 ### Tahmin
 ```
 POST /api/v1/predictions
