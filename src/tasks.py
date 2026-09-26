@@ -12,6 +12,7 @@ from src.services.grid_standard import PilotRegionGridService
 from src.services.land_cover import sync_land_cover_for_clusters
 from src.services.pipeline_tracker import PipelineTracker
 from src.services.road_network import sync_road_network as import_road_network
+from src.services.spread_trigger import auto_trigger_forecasts
 from src.services.topography import sync_topography_for_clusters
 from src.services.weather import sync_weather_for_clusters
 
@@ -49,6 +50,10 @@ celery_app.conf.update(
         "compute-fire-weather-index": {
             "task": "src.tasks.compute_fire_weather_index",
             "schedule": config.FWI_SYNC_INTERVAL_MINUTES * 60,
+        },
+        "trigger-spread-forecasts": {
+            "task": "src.tasks.trigger_spread_forecasts",
+            "schedule": config.SPREAD_TRIGGER_INTERVAL_MINUTES * 60,
         },
     },
     timezone="UTC",
@@ -237,6 +242,41 @@ def import_historical_fire_data(self: Any) -> dict[str, Any]:
                 session,
                 job,
                 records_processed=records,
+                attempt_count=self.request.retries + 1,
+            )
+            return {"status": "ok", **res}
+        except Exception as exc:
+            PipelineTracker.fail_job(
+                session,
+                job,
+                error_message=str(exc),
+                attempt_count=self.request.retries + 1,
+            )
+            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
+            raise self.retry(exc=exc, countdown=countdown) from exc
+
+
+@celery_app.task(
+    name="src.tasks.trigger_spread_forecasts",
+    bind=True,
+    max_retries=config.PIPELINE_MAX_RETRIES,
+)
+def trigger_spread_forecasts(self: Any) -> dict[str, Any]:
+    """EM-018: refresh spread forecasts for active events (debounced sweep)."""
+    if not config.SPREAD_AUTO_TRIGGER_ENABLED:
+        return {"status": "disabled"}
+    database = Database(config.DATABASE_URL)
+    with database.session() as session:
+        database.create_all()
+        job = PipelineTracker.start_job(
+            session, "trigger_spread_forecasts", "Rothermel/EM-018"
+        )
+        try:
+            res = auto_trigger_forecasts(session, config)
+            PipelineTracker.complete_job(
+                session,
+                job,
+                records_processed=res["triggered_count"],
                 attempt_count=self.request.retries + 1,
             )
             return {"status": "ok", **res}

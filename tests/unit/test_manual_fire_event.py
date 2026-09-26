@@ -5,9 +5,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from src.config.settings import get_config
 from src.fastapi_app import create_fastapi_app
 from src.models.fire import FireCluster
-from src.models.spatial import FireEvent
+from src.models.spatial import FireEvent, FireForecast
 from src.services.manual_fire_event import (
     DuplicateFireEventError,
     ManualFireEventError,
@@ -202,7 +203,7 @@ def test_create_manual_fire_event_skip_duplicate_check(session):
 
 
 def test_trigger_prediction_for_event(session):
-    """Test prediction triggering for an event."""
+    """EM-018: triggering prediction runs the real spread engine."""
     event = FireEvent(
         event_key="test_event_pred",
         name="Test Event",
@@ -220,12 +221,19 @@ def test_trigger_prediction_for_event(session):
     session.add(event)
     session.flush()
 
-    result = trigger_prediction_for_event(session, event)
+    settings = get_config("testing")()
+    result = trigger_prediction_for_event(session, settings, event)
 
     assert result["status"] == "triggered"
     assert result["event_key"] == "test_event_pred"
-    assert result["model_name"] == "default"
-    assert "message" in result
+    assert result["model_name"] == settings.SPREAD_MODEL_NAME
+    assert result["forecast_count"] == 3
+    assert result["horizon_minutes"] == [30, 60, 120]
+    # The horizon polygons are persisted for the event
+    rows = session.scalars(
+        select(FireForecast).where(FireForecast.event_key == "test_event_pred")
+    ).all()
+    assert len(rows) == 3
 
 
 def test_api_create_manual_event(client):

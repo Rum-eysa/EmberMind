@@ -95,6 +95,34 @@ class Config:
         "yes",
     )
 
+    # EM-018: Automatic spread-forecast triggering with debounce.
+    # Master switch for the periodic Celery sweep over active events.
+    SPREAD_AUTO_TRIGGER_ENABLED = os.getenv(
+        "SPREAD_AUTO_TRIGGER_ENABLED", "true"
+    ).lower() in ("1", "true", "yes")
+    # How often the sweep runs (minutes).
+    SPREAD_TRIGGER_INTERVAL_MINUTES = int(
+        os.getenv("SPREAD_TRIGGER_INTERVAL_MINUTES", "10")
+    )
+    # Hard rate limit: the same event is never re-forecast automatically
+    # within this window, even if inputs changed (anti-flap debounce).
+    SPREAD_TRIGGER_DEBOUNCE_MINUTES = float(
+        os.getenv("SPREAD_TRIGGER_DEBOUNCE_MINUTES", "15")
+    )
+    # Input deltas that count as a "meaningful change" worth a re-forecast.
+    SPREAD_TRIGGER_WIND_SPEED_KMH_THRESHOLD = float(
+        os.getenv("SPREAD_TRIGGER_WIND_SPEED_KMH_THRESHOLD", "10.0")
+    )
+    SPREAD_TRIGGER_WIND_DIR_DEG_THRESHOLD = float(
+        os.getenv("SPREAD_TRIGGER_WIND_DIR_DEG_THRESHOLD", "30.0")
+    )
+    SPREAD_TRIGGER_HUMIDITY_PCT_THRESHOLD = float(
+        os.getenv("SPREAD_TRIGGER_HUMIDITY_PCT_THRESHOLD", "10.0")
+    )
+    SPREAD_TRIGGER_TEMP_C_THRESHOLD = float(
+        os.getenv("SPREAD_TRIGGER_TEMP_C_THRESHOLD", "5.0")
+    )
+
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
     # threshold; the panel reports the first day each zone crossed it.

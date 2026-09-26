@@ -4,8 +4,10 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import select
 
 from src.database import Database
+from src.models.spatial import FireEvent
 from src.services.spread import (
     SpreadError,
     fuel_model_catalog,
@@ -17,6 +19,10 @@ from src.services.spread_metrics import (
     evaluate_forecast_against_actual,
     list_evaluation_metrics,
     version_summary,
+)
+from src.services.spread_trigger import (
+    auto_trigger_forecasts,
+    evaluate_trigger,
 )
 
 
@@ -147,4 +153,37 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
             return {
                 "count": len(summaries),
                 "versions": summaries,
+            }
+
+    # --- EM-018: automatic forecast trigger endpoints ----------------------
+
+    @api.get("/api/v1/spread/trigger-status", tags=["spread-trigger"])
+    def spread_trigger_status(event_key: str = Query(...)) -> dict[str, Any]:
+        """Debounced trigger decision for one event (would a sweep re-run?)."""
+        with database.session() as session:
+            event = session.scalar(
+                select(FireEvent).where(FireEvent.event_key == event_key)
+            )
+            if event is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"status": "error", "error": f"event {event_key} not found"},
+                )
+            return {
+                "auto_trigger_enabled": bool(
+                    getattr(settings, "SPREAD_AUTO_TRIGGER_ENABLED", True)
+                ),
+                **evaluate_trigger(session, settings, event),
+            }
+
+    @api.post("/api/v1/spread/trigger-sweep", tags=["spread-trigger"])
+    def spread_trigger_sweep(
+        event_key: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        """Run the debounced auto-trigger sweep on demand (ops/demo aid)."""
+        with database.session() as session:
+            keys = [event_key] if event_key else None
+            return {
+                "status": "ok",
+                **auto_trigger_forecasts(session, settings, event_keys=keys),
             }

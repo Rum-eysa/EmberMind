@@ -50,6 +50,7 @@ from src.services.spatial_db import (
     SpatialQueryError,
     execute_polygon_intersection_query,
 )
+from src.services.spread import SpreadError
 from src.services.topography import (
     TopographySourceError,
     sync_topography_for_clusters,
@@ -618,10 +619,20 @@ def create_fastapi_app(config_name: str = "testing") -> FastAPI:
                     duplicate_threshold_km=req.duplicate_threshold_km,
                 )
 
-                # Trigger prediction if requested
+                # Trigger prediction if requested (EM-018: on by default,
+                # a failed forecast run must not roll back event creation)
                 prediction_result = None
                 if req.trigger_prediction:
-                    prediction_result = trigger_prediction_for_event(session, event)
+                    try:
+                        prediction_result = trigger_prediction_for_event(
+                            session, settings, event
+                        )
+                    except SpreadError as exc:
+                        prediction_result = {
+                            "status": "error",
+                            "event_key": event.event_key,
+                            "error": str(exc),
+                        }
 
                 return {
                     "status": "created",

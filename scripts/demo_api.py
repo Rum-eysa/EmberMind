@@ -1,4 +1,4 @@
-"""Gelistirme yardimcisi: API'yi EM-012/015/017/072/073/103/104 demo verisiyle yerelde calistirir.
+"""Gelistirme yardimcisi: API'yi EM-012/015/017/018/072/073/103/104 demo verisiyle yerelde calistirir.
 
 Kullanim:
     python scripts/demo_api.py                  # sentetik senaryo tohumi 7
@@ -37,6 +37,7 @@ from src.services.spread import predict_spread  # noqa: E402
 from src.services.spread_metrics import (  # noqa: E402
     evaluate_forecast_against_actual,
 )
+from src.services.spread_trigger import auto_trigger_forecasts  # noqa: E402
 from src.services.synthetic import (  # noqa: E402
     PRESETS,
     SyntheticError,
@@ -320,6 +321,14 @@ def seed_demo_data() -> None:
             actual_perimeter_wkt=actual_poly.wkt,
             actual_area_ha=round(actual_poly.area * dlat_m * dlon_m / 10000.0, 2),
             actual_arrival_time=now + timedelta(minutes=95),
+        )
+        # EM-018 otomatik tetikleme: forecastsız aktif olaylara (demo-event-001)
+        # debounce korumalı taramayla ilk yayılım tahmini üretilir.
+        sweep = auto_trigger_forecasts(session, api.state.settings)
+        print(
+            f"[EM-018] tetikleme taraması: kontrol={sweep['checked']} "
+            f"çalışan={sweep['triggered_count']} "
+            f"olaylar={[t['event_key'] for t in sweep['triggered']]}"
         )
 
 

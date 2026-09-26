@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.models.fire import FireCluster
 from src.models.spatial import FireEvent
+from src.services.spread_trigger import run_spread_forecast
 from src.utils.timeutils import utc_now
 
 
@@ -196,33 +197,33 @@ def create_manual_fire_event(
 
 def trigger_prediction_for_event(
     session: Session,
+    settings: object,
     event: FireEvent,
-    model_name: str = "default",
 ) -> dict:
     """
-    Trigger automatic prediction for a fire event.
+    Trigger the spread prediction engine for a fire event (EM-018).
 
-    This is a placeholder for the actual prediction service integration.
-    In a full implementation, this would:
-    1. Call the ML prediction service
-    2. Store the forecast in fire_forecasts table
-    3. Return prediction results
+    Runs the Rothermel engine (EM-015) immediately for a freshly created
+    event and persists the horizon polygons as FireForecast rows. The
+    new-event path bypasses debounce by design: an event with no stored
+    forecast always deserves a first run (see spread_trigger.evaluate_trigger
+    for the re-trigger rules on condition changes).
 
     Args:
         session: Database session
+        settings: App config (spread engine + trigger settings)
         event: FireEvent to generate prediction for
-        model_name: Name of the prediction model to use
 
     Returns:
-        Dictionary with prediction status and results
+        Dictionary with prediction status and generated forecast summary
     """
-    # Placeholder: In a real implementation, this would call the prediction service
-    # For now, we'll simulate a successful trigger
-
+    summary = run_spread_forecast(session, settings, event)
     return {
         "status": "triggered",
         "event_key": event.event_key,
-        "model_name": model_name,
-        "message": "Prediction job queued for processing",
-        "forecast_id": None,  # Would be populated when forecast is created
+        "model_name": summary["model_name"],
+        "message": "Spread forecast generated for all horizons",
+        "forecast_count": summary["forecast_count"],
+        "horizon_minutes": summary["horizons"],
+        "generated_at": summary["generated_at"],
     }
