@@ -482,6 +482,130 @@ def fire_ellipse_polygon(
     return points
 
 
+# ---------------------------------------------------------------------------
+# EM-016: Fuel-transition-sensitive spread (heterogeneous vegetation)
+# ---------------------------------------------------------------------------
+
+# Maximum number of vertices used for the fuel-sensitive polygon.
+FUEL_TRANSITION_VERTICES = 72  # 5° resolution for smooth boundary
+
+
+def _fuel_number_at_offset(
+    session: Session,
+    lat: float,
+    lon: float,
+    east_m: float,
+    north_m: float,
+    default_number: int,
+) -> int:
+    """Resolve the fuel model number at a local-metric offset from ignition."""
+    meters_per_lon = METERS_PER_DEGREE_LAT * max(math.cos(math.radians(lat)), 0.1)
+    target_lat = lat + north_m / METERS_PER_DEGREE_LAT
+    target_lon = lon + east_m / meters_per_lon
+    cover = _nearest_row(session, LandCoverDataPoint, target_lat, target_lon)
+    if cover is not None:
+        try:
+            return resolve_fuel_model_number(str(cover.fuel_model))
+        except SpreadError:
+            pass
+    return default_number
+
+
+def fuel_transition_polygon(
+    session: Session,
+    head_m: float,
+    back_m: float,
+    direction_deg: float | None,
+    base_fuel_number: int,
+    ignition_lat: float = 0.0,
+    ignition_lon: float = 0.0,
+    vertices: int = FUEL_TRANSITION_VERTICES,
+) -> tuple[list[list[float]], list[dict[str, Any]]]:
+    """Generate a fuel-sensitive irregular risk-zone polygon.
+
+    For each vertex along the nominal ellipse boundary, the local fuel model
+    is sampled and the radius is scaled by the ratio of the local ROS to the
+    base ROS.  Returns (local_metric_points, fuel_zone_metadata).
+
+    When the fire front reaches a less-flammable zone (e.g. agriculture from
+    pine), the polygon is pinched inward; toward more-flammable vegetation
+    (e.g. grass from chaparral), it bulges outward.
+    """
+    if head_m <= 0 or back_m <= 0:
+        return [], []
+
+    # Pre-compute base rate for the ignition-point fuel (reference).
+    base_rates = spread_rates(base_fuel_number, 8.0, 0.0, 0.0)  # calm, flat
+    base_ros = base_rates.head_m_min if base_rates.head_m_min > 0 else 1.0
+
+    semi_major = (head_m + back_m) / 2.0
+    eccentricity = (
+        0.0 if direction_deg is None else (head_m - back_m) / (head_m + back_m)
+    )
+    latus = 2.0 * head_m * back_m / (head_m + back_m)
+
+    points: list[list[float]] = []
+    zones: list[dict[str, Any]] = []
+    seen_fuel: dict[int, int] = {}  # fuel_number -> vertex count
+
+    for step in range(vertices):
+        theta = 2.0 * math.pi * step / vertices
+        # Nominal ellipse radius at this angle
+        nominal_r = (
+            semi_major
+            if eccentricity == 0.0
+            else latus / (1.0 - eccentricity * math.cos(theta))
+        )
+        bearing = (direction_deg or 0.0) + math.degrees(theta)
+        east, north = _compass_vector(bearing)
+
+        # Sample fuel at the nominal front position
+        sample_east = nominal_r * east
+        sample_north = nominal_r * north
+        local_fuel_num = _fuel_number_at_offset(
+            session,
+            ignition_lat,
+            ignition_lon,
+            sample_east,
+            sample_north,
+            base_fuel_number,
+        )
+        # Compute local ROS ratio (calm, flat — same weather, different fuel)
+        if local_fuel_num != base_fuel_number:
+            local_rates = spread_rates(local_fuel_num, 8.0, 0.0, 0.0)
+            local_ros = local_rates.head_m_min if local_rates.head_m_min > 0 else 0.0
+            # Scale factor: ratio of local to base fuel ROS (capped 0.2..3.0)
+            scale = max(0.2, min(3.0, local_ros / base_ros)) if base_ros > 0 else 1.0
+        else:
+            scale = 1.0
+            local_rates = base_rates
+            local_ros = base_ros
+
+        adjusted_r = nominal_r * scale
+        points.append([round(adjusted_r * east, 2), round(adjusted_r * north, 2)])
+
+        seen_fuel[local_fuel_num] = seen_fuel.get(local_fuel_num, 0) + 1
+
+    points.append(list(points[0]))  # close ring
+
+    # Build zone metadata
+    for fuel_num, count in sorted(seen_fuel.items()):
+        try:
+            bed = compute_fuel_bed(fuel_num)
+            zones.append(
+                {
+                    "fuel_model_number": fuel_num,
+                    "fuel_model_name": bed.name,
+                    "vertex_count": count,
+                    "percentage": round(100.0 * count / vertices, 1),
+                }
+            )
+        except SpreadError:
+            pass
+
+    return points, zones
+
+
 def polygon_area_m2(points: list[list[float]]) -> float:
     """Shoelace area of a closed local-metric ring [m2]."""
     total = 0.0
@@ -640,6 +764,7 @@ def predict_spread(
     horizons = _horizon_minutes(settings, req.get("horizon_minutes"))
     vertices = int(getattr(settings, "SPREAD_POLYGON_VERTICES", 36))
     model_name = str(getattr(settings, "SPREAD_MODEL_NAME", "rothermel_v1"))
+    fuel_transition = bool(getattr(settings, "FUEL_TRANSITION_ENABLED", True))
 
     rates = spread_rates(
         inputs["fuel_model_number"],
@@ -658,10 +783,28 @@ def predict_spread(
     started = utc_now()
     forecasts: list[dict[str, Any]] = []
     event_key = req.get("event_key")
+    all_fuel_zones: list[dict[str, Any]] = []
     for minutes in horizons:
         head_m = rates.head_m_min * minutes
         back_m = rates.base_m_min * minutes
-        local = fire_ellipse_polygon(head_m, back_m, direction, vertices)
+
+        if fuel_transition:
+            # EM-016: fuel-sensitive irregular polygon
+            local, zones = fuel_transition_polygon(
+                session,
+                head_m,
+                back_m,
+                direction,
+                inputs["fuel_model_number"],
+                ignition_lat=lat,
+                ignition_lon=lon,
+                vertices=FUEL_TRANSITION_VERTICES,
+            )
+            if zones and not all_fuel_zones:
+                all_fuel_zones = zones
+        else:
+            local = fire_ellipse_polygon(head_m, back_m, direction, vertices)
+
         ring = project_polygon(local, lat, lon)
         area_ha = round(polygon_area_m2(local) / 10000.0, 3) if local else 0.0
         geometry_wkt = ""
@@ -732,6 +875,8 @@ def predict_spread(
         "slope_factor": rates.slope_factor,
         "reaction_intensity_btu_ft2_min": rates.reaction_intensity,
         "spread_direction_deg": direction,
+        "fuel_transition": fuel_transition,
+        "fuel_zones": all_fuel_zones,
         "forecasts": forecasts,
     }
 

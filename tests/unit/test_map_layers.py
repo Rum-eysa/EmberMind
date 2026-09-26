@@ -22,6 +22,7 @@ class SpreadSettings:
     SPREAD_HORIZON_MINUTES = [30, 60, 120]
     SPREAD_POLYGON_VERTICES = 36
     SPREAD_MODEL_NAME = "rothermel_v1"
+    FUEL_TRANSITION_ENABLED = False
 
 
 REFERENCE = {

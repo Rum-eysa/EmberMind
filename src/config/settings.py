@@ -87,6 +87,13 @@ class Config:
     SPREAD_POLYGON_VERTICES = int(os.getenv("SPREAD_POLYGON_VERTICES", "36"))
     # Model label stored with every generated forecast.
     SPREAD_MODEL_NAME = os.getenv("SPREAD_MODEL_NAME", "rothermel_v1")
+    # EM-016: Fuel-transition-sensitive spread — when enabled, the horizon
+    # polygon is reshaped per-vertex based on local land cover fuel models.
+    FUEL_TRANSITION_ENABLED = os.getenv("FUEL_TRANSITION_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
