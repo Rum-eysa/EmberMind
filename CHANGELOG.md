@@ -5,6 +5,14 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-072: Operatör ana haritası ve yangın katmanları (`/ui`)
+  - Leaflet tabanlı operatör arayüzü FastAPI tarafından sunulur (`src/static/operator_map.html`)
+  - Altı açılıp kapanabilir GeoJSON katmanı: aktif yangınlar (uydu kümesi + olaylar),
+    30/60/120 dk ufuk poligonları, yakıt sınıfı, sessiz bölgeler, müdahale kaynakları, yollar
+  - Zaman kaydırıcısı ile ufuklar arasında gezinme (kümülatif gösterim seçeneği) + lejant
+  - `GET /api/v1/map/layers` (katman kataloğu) ve `GET /api/v1/map/layers/{katman}`
+    (GeoJSON; `horizon_minutes` ve `event_key` filtresi) endpoint'leri
+  - Her katman yanıtında kaynak lisansı gereği `attribution` alanı (EM-013 ile tutarlı)
 - EM-015: Rothermel tabanlı temel yangın yayılım tahmin motoru
   - Rothermel (1972) yüzey yayılım modeli + Albini (1976) düzeltmeleri, 13 standart
     USDA yakıt modeliyle (`src/services/spread.py`); girdiler: yangın konumu, rüzgâr,

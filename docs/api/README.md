@@ -70,6 +70,19 @@ yayılım hızı (`rate_of_spread_m_min`, m/dk) ve yönü (`spread_direction_deg
 üretilir. `event_key` verilirse `FireForecast` satırlarına kalıcı yazılır.
 Sabit bir referans senaryoda sonuç birim testlerle tekrarlanabilir.
 
+### Operatör Haritası ve Katmanları (EM-072)
+```
+GET /ui                              # Leaflet tabanlı operatör ana haritası
+GET /api/v1/map/layers               # açılıp kapanabilir katman kataloğu
+GET /api/v1/map/layers/{katman}      # GeoJSON FeatureCollection
+```
+Katmanlar: `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
+(30/60/120 dk risk bölgesi poligonları), `fuel` (yakıt sınıfı), `silent-regions`
+(sessiz bölgeler), `resources` (müdahale kaynakları/ekip üsleri), `roads` (yol ağı).
+`forecasts` katmanı `?horizon_minutes=` ve `?event_key=` ile filtrelenebilir; arayüzdeki
+**zaman kaydırıcısı** ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
+Her yanıtta kaynak lisansı gereği `attribution` alanı döner (EM-013).
+
 ### Tahmin
 ```
 POST /api/v1/predictions
