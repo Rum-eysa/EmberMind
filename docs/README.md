@@ -5,6 +5,7 @@ Yangın İzleme Sistemi detaylı dokümantasyonu.
 ## İçindekiler
 
 - [API Dokümantasyonu](api/)
+- [Wireframe ve Kullanıcı Akışları](wireframes/)
 - [Mimari Rehberi](architecture/)
 - [Kurulum Rehberi](guides/INSTALLATION.md)
 - [Katkı Rehberi](../CONTRIBUTING.md)

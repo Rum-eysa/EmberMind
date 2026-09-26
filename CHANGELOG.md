@@ -5,6 +5,14 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-074: Operatör arayüzü wireframe ve kullanıcı akışları doküman seti
+  - `docs/wireframes/`: ekran envanteri + API eşlemesi, ana harita / risk
+    paneli / öneri paneli / what-if akışı wireframe'leri
+  - Operatör ve saha akışları ayrı ayrı çizildi; her adımda hangi uç noktanın
+    çağrıldığı tablolandı; canlı ekranlar mevcut API'ye, planlanan ekranlar
+    `ÖNERİLEN API` sözleşmesine bağlandı
+  - Ekip + en az bir alan uzmanı gözden geçirme protokolü ve bulgu/katılımcı
+    kayıt formu (`03-review-checklist.md`)
 - EM-073: Komutan kapasite ve risk paneli (`/panel`)
   - Tek panelde bölge **risk indeksi** (günlük FWI), **eşik rengi** (CFS risk
     sınıfı renkleri), bölge bazında **ilk aşım zamanı** ve **kapasite kırılımı**
