@@ -1,4 +1,5 @@
-.PHONY: help install dev test lint format clean docker-build docker-up docker-down
+.PHONY: help install dev test lint format clean docker-build docker-up docker-down \
+        demo-up demo-down demo-seed ci-check env-check
 
 help:
 	@echo "Kullanılabilir komutlar:"
@@ -50,3 +51,22 @@ docker-logs:
 
 api-docs:
 	@echo "FastAPI docs: http://localhost:8000/docs"
+
+# ─── EM-109: Ortam hedefleri ────────────────────────────────────────────────────
+
+demo-seed:
+	APP_ENV=demo python scripts/demo_seed.py
+
+demo-up:
+	docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+
+demo-down:
+	docker compose -f docker-compose.yml -f docker-compose.demo.yml down
+
+ci-check: lint test
+	@echo "✓ CI gates passed"
+
+env-check:
+	@echo "APP_ENV=$${APP_ENV:-not set}"
+	@echo "DATABASE_URL=$${DATABASE_URL:-not set}"
+	@python -c "from src.config.settings import get_config; c=get_config(); print('Config:', c.__name__)"

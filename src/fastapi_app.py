@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from src.config.settings import ProductionConfig, TestingConfig
+from src.config.settings import get_config
 from src.database import Database
 from src.models.fire import FireCluster
 from src.models.land_cover import LandCoverDataPoint
@@ -55,6 +55,7 @@ from src.services.topography import (
     sync_topography_for_clusters,
 )
 from src.services.weather import WeatherSourceError, sync_weather_for_clusters
+from src.services.observability import setup_logging
 
 
 class PipelineJobResponse(BaseModel):
@@ -306,11 +307,13 @@ def parse_datetime(dt_str: str | None) -> datetime | None:
 
 def create_fastapi_app(config_name: str = "testing") -> FastAPI:
     """Create the FastAPI application and its database lifecycle."""
-    settings = TestingConfig if config_name == "testing" else ProductionConfig
+    config_cls = get_config(config_name)
+    settings = config_cls()
     database = Database(settings.DATABASE_URL)
 
     @asynccontextmanager
     async def lifespan(_api: FastAPI):
+        setup_logging(getattr(settings, "LOG_LEVEL", None))
         database.create_all()
         yield
 

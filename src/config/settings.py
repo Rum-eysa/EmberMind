@@ -12,6 +12,8 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///wildfire.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    APP_ENV = os.getenv("APP_ENV", "development")
 
     # Cache
     CACHE_TYPE = "redis"
@@ -157,3 +159,44 @@ class ProductionConfig(Config):
 
     DEBUG = False
     TESTING = False
+
+
+class DemoConfig(Config):
+    """Demo / sunum ortamı konfigürasyonu (EM-109).
+
+    Harici API anahtarı gerektirmez; SQLite ve sentetik veriyle çalışır.
+    CI'da veya canlı sunucuda API key olmadan tam fonksiyonel demo sunar.
+    """
+
+    DEBUG = False
+    TESTING = False
+    DATABASE_URL = os.getenv("DEMO_DATABASE_URL", "sqlite:///instance/wildfire-demo.db")
+    CACHE_TYPE = "SimpleCache"
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"
+    FIRMS_API_KEY = ""
+    OPENWEATHER_API_KEY = ""
+
+
+# ---------------------------------------------------------------------------
+# Ortam fabrikası — FLASK_ENV / APP_ENV değişkenine göre konfigürasyon seçer
+# ---------------------------------------------------------------------------
+_CONFIG_MAP = {
+    "development": DevelopmentConfig,
+    "dev": DevelopmentConfig,
+    "testing": TestingConfig,
+    "test": TestingConfig,
+    "demo": DemoConfig,
+    "production": ProductionConfig,
+    "prod": ProductionConfig,
+}
+
+
+def get_config(env: str | None = None) -> type[Config]:
+    """Return the config class for the given environment name.
+
+    Falls back to APP_ENV / FLASK_ENV environment variable, defaulting to
+    'development'.
+    """
+    key = env or os.getenv("APP_ENV") or os.getenv("FLASK_ENV") or "development"
+    return _CONFIG_MAP.get(key.lower().strip(), DevelopmentConfig)

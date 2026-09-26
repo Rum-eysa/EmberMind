@@ -1,0 +1,36 @@
+# EM-109: Demo ortamı — harici API key gerektirmez, SQLite + sentetik veri
+# Kullanım: docker compose -f docker-compose.yml -f docker-compose.demo.yml up
+services:
+  db:
+    profiles: ["prod-only"]
+
+  redis:
+    profiles: ["prod-only"]
+
+  app:
+    build: .
+    container_name: wildfire_demo_api
+    command: >
+      sh -c "python scripts/demo_seed.py &&
+             uvicorn src.fastapi_app:app --host 0.0.0.0 --port 8000"
+    environment:
+      - APP_ENV=demo
+      - DATABASE_URL=sqlite:///instance/wildfire-demo.db
+      - DEMO_SYNTHETIC_SEED=7
+      - DEMO_SYNTHETIC_PRESET=standart
+    ports:
+      - "8000:8000"
+    volumes:
+      - demo_data:/app/instance
+    depends_on: []
+    networks:
+      - wildfire_network
+
+  celery:
+    profiles: ["prod-only"]
+
+  celery-beat:
+    profiles: ["prod-only"]
+
+volumes:
+  demo_data:
