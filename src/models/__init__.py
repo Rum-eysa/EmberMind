@@ -6,6 +6,7 @@ from .inventory import SuppressionResource
 from .land_cover import LandCoverDataPoint
 from .pipeline import PipelineJobHistory
 from .road_network import CrewBase, RoadClosure, RoadSegment
+from .spread_metrics import SpreadEvaluationMetric
 from .spatial import (
     FireEvent,
     FireForecast,
@@ -34,6 +35,7 @@ __all__ = [
     "SilentRegion",
     "SimulationScenario",
     "SpatialSource",
+    "SpreadEvaluationMetric",
     "SuppressionResource",
     "TopographyDataPoint",
     "WeatherDataPoint",
