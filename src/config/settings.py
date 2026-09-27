@@ -212,6 +212,25 @@ class Config:
         os.getenv("EXPOSURE_POPULATION_REFERENCE", "100000")
     )
 
+    # --- EM-090: WebSocket live updates -------------------------------------
+    # A monotonic change feed (fire_event / forecast / alert) streamed to
+    # connected operator clients so the map refreshes without a page reload.
+    LIVE_UPDATES_ENABLED = os.getenv("LIVE_UPDATES_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    # How often each WebSocket polls the change feed (seconds). The DB is the
+    # source of truth so updates written by a separate Celery worker process
+    # still reach clients; this interval only bounds delivery latency.
+    LIVE_POLL_INTERVAL_SECONDS = float(os.getenv("LIVE_POLL_INTERVAL_SECONDS", "2.0"))
+    # Keepalive frame sent when the feed is idle, so a dead connection is
+    # detected and the client can reconnect (0 disables the heartbeat).
+    LIVE_HEARTBEAT_SECONDS = float(os.getenv("LIVE_HEARTBEAT_SECONDS", "15"))
+    # Upper bound on how many missed updates a reconnecting client may catch up
+    # in one request (older backlog is trimmed to keep frames small).
+    LIVE_MAX_CATCHUP = int(os.getenv("LIVE_MAX_CATCHUP", "100"))
+
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
     # threshold; the panel reports the first day each zone crossed it.
@@ -279,6 +298,9 @@ class TestingConfig(Config):
     # EM-022: keep the scalar (uncached) engine path so endpoint tests stay
     # deterministic; the benchmark overrides this per measurement mode.
     SPREAD_PERF_ENABLED = False
+    # EM-090: fast feed poll so WebSocket push tests are not timing-sensitive.
+    LIVE_POLL_INTERVAL_SECONDS = 0.05
+    LIVE_HEARTBEAT_SECONDS = 0.0
 
 
 class ProductionConfig(Config):

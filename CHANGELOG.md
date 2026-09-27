@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-090: WebSocket ile canlı güncelleme — Entegrasyon API (E9)
+  - `src/models/live.py` → `LiveUpdate` (V014 migration): olay/tahmin/uyarı
+    değişikliklerinin **monoton akışı** (id = sıra numarası); `kind`,
+    `event_key`, `title`/`message`, `payload_json`, `source`
+  - `src/services/live.py`: `record_update` (kind doğrular; kapalıyken no-op),
+    `recent_updates`/`feed` (`since` imleciyle telafi), `latest_id` ve
+    best-effort `safe_record_update` (akış hatası tetikleyiciyi asla düşürmez)
+  - `src/routes/live.py`: **`WS /ws/live`** — bağlantıda `?since=<id>` ile
+    yakalanan **snapshot** çerçevesi, ardından kısa aralıklı yoklama ile yeni
+    değişiklikleri `update` olarak iter; boşta `ping` keepalive. REST yedeği
+    **`GET /api/v1/live/updates?since=<id>`**. Tek kaynak veritabanı olduğu
+    için ayrı Celery sürecinin yazdığı güncellemeler de istemciye ulaşır
+  - Yayınma noktaları: `POST /api/v1/events/manual` ve fires/sync → `fire_event`,
+    `POST /api/v1/spread/predict` → `forecast`, `POST /api/v1/fwi/compute`
+    (eşik üstü bölge varsa) → `alert`
+  - Operatör haritası (`operator_map.html`): sayfa yenilemeden canlı akış —
+    WebSocket istemcisi, **otomatik yeniden bağlanma** (üstel geri çekilme,
+    son imleci koruyarak kaçırılanları telafi), canlı durum rozeti, güncelleme
+    bildirimi (flash) ve aktif katmanların debounce'lu yeniden yüklenmesi;
+    WebSocket yoksa REST yoklamasına düşer
+  - Yapılandırma: `LIVE_UPDATES_ENABLED`, `LIVE_POLL_INTERVAL_SECONDS`,
+    `LIVE_HEARTBEAT_SECONDS`, `LIVE_MAX_CATCHUP` (testte hızlı yoklama)
 - EM-023: Tehdit altındaki yerleşim, yol ve altyapı analizi — maruziyet (E2)
   - `src/models/exposure.py` → `ExposedAsset` (V013 migration): OSM'den alınan
     yerleşim (`settlement`) ve enerji hattı (`power_line`) varlıkları; örnek

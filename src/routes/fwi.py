@@ -12,6 +12,7 @@ from src.services.fwi import (
     fwi_map_layer,
     list_fwi_rows,
 )
+from src.services.live import safe_record_update
 
 
 def _parse_day(day: str | None) -> date | None:
@@ -61,4 +62,21 @@ def register_fwi_routes(api: FastAPI, database: Database, settings: Any) -> None
         """Compute (or recompute) the FWI layer for one day from stored weather."""
         with database.session() as session:
             result = compute_region_fwi(session, settings, _parse_day(day))
+            if result.get("high_risk_zones", 0) > 0:
+                safe_record_update(
+                    session,
+                    settings,
+                    "alert",
+                    title="Yüksek yangın riski",
+                    message=(
+                        f"{result['high_risk_zones']} bölge eşik üstü "
+                        f"(maks FWI {result.get('max_fwi')})"
+                    ),
+                    payload={
+                        "day": result.get("day"),
+                        "high_risk_zones": result.get("high_risk_zones"),
+                        "max_fwi": result.get("max_fwi"),
+                    },
+                    source="FWI/EM-014",
+                )
             return {"status": "ok", **result}

@@ -117,6 +117,26 @@ dışındaki isimsiz yerleşimler elenir, `EXPOSURE_IMPORT_MAX_ASSETS` üzerinde
 Overpass erişilemezse **502** döner. Aynı varlıklar haritada **`exposure`**
 katmanı olarak da çizilir ve `?event_key=` ile filtrelenebilir (aşağıda).
 
+### Canlı Güncelleme — WebSocket (EM-090)
+```
+WS   /ws/live?since=<id>             # olay/tahmin/uyarı akışını canlı iter
+GET  /api/v1/live/updates?since=<id> # REST yedeği (aynı imleç semantiği)
+```
+Operatör, güncellemeleri sayfa yenilemeden alır. Değişiklikler `live_updates`
+(V014) tablosunda **monoton bir akış** olarak tutulur (`id` = sıra numarası);
+kaynak veritabanı olduğu için ayrı bir Celery sürecinin yazdığı güncelleme de
+tüm bağlantılara ulaşır. Bağlantı kurulunca `since` imlecinden itibaren bir
+**snapshot** çerçevesi (`{"type":"snapshot","last_id","count","updates"}`) gönderilir,
+ardından kısa aralıklı yoklamayla (`LIVE_POLL_INTERVAL_SECONDS`) yeni değişiklikler
+`{"type":"update", ...}` olarak itilir; boşta `{"type":"ping"}` keepalive gider
+(`LIVE_HEARTBEAT_SECONDS`). Her öğe `kind` (`fire_event`/`forecast`/`alert`),
+`event_key`, `title`/`message`, `payload` ve `source` taşır. **Bağlantı koparsa**
+istemci son imleci koruyarak üstel geri çekilmeyle yeniden bağlanır ve
+`?since=<id>` ile **kaçırılanları telafi** eder. Yayınma noktaları: manuel olay
+ve FIRMS senkronu → `fire_event`, `spread/predict` → `forecast`, `fwi/compute`
+(eşik üstü bölge varsa) → `alert`. Operatör haritası canlı durum rozeti, güncelleme
+bildirimi ve aktif katmanların otomatik yeniden yüklenmesiyle bunu gösterir.
+
 ### Tarihsel Yangın Çevreleri (EM-011)
 ```
 GET  /api/v1/historical-fires         # EFFIS içe aktarılan çevreler (yıl/ülke filtresi)

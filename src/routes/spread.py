@@ -19,6 +19,7 @@ from src.services.barriers import (
 )
 from src.services.fuel_moisture import FuelMoistureError, dead_fuel_moisture
 from src.services.layer_cache import layer_cache
+from src.services.live import safe_record_update
 from src.services.spread import (
     SpreadError,
     effective_dead_fuel_moisture,
@@ -97,7 +98,25 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
         """Run the Rothermel engine for 30/60/120-minute risk-zone polygons."""
         try:
             with database.session() as session:
-                return predict_spread(session, settings, req.model_dump())
+                result = predict_spread(session, settings, req.model_dump())
+                forecasts = result.get("forecasts") or []
+                safe_record_update(
+                    session,
+                    settings,
+                    "forecast",
+                    event_key=result.get("event_key"),
+                    title="Yeni yayılım tahmini",
+                    message=(
+                        f"{len(forecasts)} ufik poligonu uretildi "
+                        f"({result.get('model_name')})"
+                    ),
+                    payload={
+                        "model": result.get("model_name"),
+                        "horizons": [f.get("horizon_minutes") for f in forecasts],
+                    },
+                    source="Rothermel/EM-015",
+                )
+                return result
         except SpreadError as exc:
             raise HTTPException(
                 status_code=400,

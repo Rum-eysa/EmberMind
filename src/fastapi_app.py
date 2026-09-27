@@ -21,6 +21,7 @@ from src.routes.exposure import register_exposure_routes
 from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.inventory import register_inventory_routes
+from src.routes.live import register_live_routes
 from src.routes.map_layers import register_map_layer_routes
 from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
@@ -39,6 +40,7 @@ from src.services.land_cover import (
     LandCoverSourceError,
     sync_land_cover_for_clusters,
 )
+from src.services.live import safe_record_update
 from src.services.manual_fire_event import (
     DuplicateFireEventError,
     ManualFireEventError,
@@ -368,6 +370,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_design_system_routes(api, database, settings)
     register_inventory_routes(api, database, settings)
     register_synthetic_routes(api, database, settings)
+    register_live_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -403,7 +406,23 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
         try:
             with database.session() as session:
                 result = sync_firms(session, settings)
-                return {"status": "ok", **result, **sync_status(session)}
+                status = sync_status(session)
+                safe_record_update(
+                    session,
+                    settings,
+                    "fire_event",
+                    title="Uydu tespiti güncellendi",
+                    message=(
+                        f"{result.get('clusters', 0)} küme / "
+                        f"{result.get('observations', 0)} gözlem senkronize edildi"
+                    ),
+                    payload={
+                        "clusters": result.get("clusters"),
+                        "observations": result.get("observations"),
+                    },
+                    source="NASA FIRMS",
+                )
+                return {"status": "ok", **result, **status}
         except FirmsSourceError as exc:
             with database.session() as session:
                 status = sync_status(session)
@@ -641,6 +660,21 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
                             "event_key": event.event_key,
                             "error": str(exc),
                         }
+
+                safe_record_update(
+                    session,
+                    settings,
+                    "fire_event",
+                    event_key=str(event.event_key),
+                    title="Yeni manuel yangın olayı",
+                    message=str(event.name),
+                    payload={
+                        "status": event.status,
+                        "severity": event.severity,
+                        "prediction_triggered": prediction_result is not None,
+                    },
+                    source="manual",
+                )
 
                 return {
                     "status": "created",
