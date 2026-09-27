@@ -54,11 +54,24 @@ Hesap, bir önceki günün yakıt-nem kodlarını taşımalı (carry-over) zinci
 ve Celery beat ile günde bir kez (`FWI_SYNC_INTERVAL_MINUTES`, vars. 1440 dk)
 otomatik çalışır. Kaynak: OpenWeather (attribution yanıtlarda döner).
 
-### Yangın Yayılım Tahmini (EM-015)
+### Yangın Yayılım Tahmini (EM-015 + EM-016..EM-022)
 ```
 POST /api/v1/spread/predict          # 30/60/120 dk risk bölgesi poligonları
 GET  /api/v1/spread/fuel-models       # 13 standart USDA yakıt modeli kataloğu
 GET  /api/v1/spread/forecasts         # bir olay için saklanan tahminler (?event_key=)
+GET  /api/v1/spread/fuel-moisture     # 1h/10h/100h ölü yakıt nemi sınıfları (EM-019)
+POST /api/v1/spread/uncertainty       # iyimser/beklenen/kötümser belirsizlik zarfı (EM-020)
+POST /api/v1/spread/barriers          # doğal engel kaydı: su tam, yol/ırmak kısmi (EM-021)
+GET  /api/v1/spread/barriers          # kayıtlı engeller listesi (EM-021)
+DELETE /api/v1/spread/barriers/{key}  # engel kaldırma (EM-021)
+POST /api/v1/spread/evaluate          # tahmin vs gerçek çevre: IoU/alan/varış hatası (EM-017)
+GET  /api/v1/spread/metrics           # saklanan değerlendirme metrikleri (EM-017)
+GET  /api/v1/spread/metrics/summary   # sürüm bazlı ortalama özet (EM-017)
+GET  /api/v1/spread/trigger-status    # olay için debounce'lu tetikleme kararı (EM-018)
+POST /api/v1/spread/trigger-sweep     # otomatik tetikleme taramasını elle çalıştır (EM-018)
+POST /api/v1/spread/performance/benchmark  # optimizasyon öncesi/sonrası ölçüm + kalıcı kayıt (EM-022)
+GET  /api/v1/spread/performance            # saklanan benchmark koşuları + önbellek istatistikleri (EM-022)
+GET  /api/v1/spread/performance/profile    # cProfile sıcak fonksiyon raporu (EM-022)
 ```
 Rothermel (1972) yüzey yayılım motoru; girdiler: `latitude`, `longitude`,
 `wind_speed_kmh`, `wind_from_deg`, `air_temp_c`, `relative_humidity_pct`,
@@ -70,14 +83,37 @@ yayılım hızı (`rate_of_spread_m_min`, m/dk) ve yönü (`spread_direction_deg
 üretilir. `event_key` verilirse `FireForecast` satırlarına kalıcı yazılır.
 Sabit bir referans senaryoda sonuç birim testlerle tekrarlanabilir.
 
+Motor EM-016..EM-022 ile derinleşti: poligon köşe-bazlı **yakıt geçişine**
+duyarlı (`FUEL_TRANSITION_ENABLED`), nem **ölü yakıt nemi** sınıflarından
+koşullandırılır (EM-019), yeni olay/anlamlı girdi değişiminde **otomatik
+tetiklenir** (EM-018, debounce'lu Celery taraması), **belirsizlik zarfı**
+(rüzgâr ansambli) ve **doğal engel kırpması** (kara/deniz maskesi, EM-020/021)
+uygulanır; girdi katmanı okumaları **önbellek + vektörleştirmeyle**
+hızlandırılır (EM-022, `SPREAD_PERF_ENABLED`; 10 sn yeniden hesaplama hedefi
+benchmark uçlarıyla kanıtlanır). Değerlendirme metrikleri (EM-017) sürüm
+karşılaştırması için `spread_evaluation_metrics` tablosunda birikir (V010).
+
+### Tarihsel Yangın Çevreleri (EM-011)
+```
+GET  /api/v1/historical-fires         # EFFIS içe aktarılan çevreler (yıl/ülke filtresi)
+GET  /api/v1/historical-fires/dataset # kalibrasyon/validation bölünmüş dataset
+POST /api/v1/historical-fires/import  # EFFIS'ten yıl bazlı içe aktarma
+POST /api/v1/historical-fires/splits  # kalibrasyon/validation etiketlerini yenileme
+```
+Yayılım motorunun kalibrasyon ve validasyonunda kullanılan tarihsel
+EFFIS çevreleri (`historical_fire_perimeters`, V004); her kayıt `split`
+etiketiyle kalibrasyon veya validation tarafına ayrılır.
+
 ### Operatör Haritası ve Katmanları (EM-072)
 ```
 GET /ui                              # Leaflet tabanlı operatör ana haritası
 GET /api/v1/map/layers               # açılıp kapanabilir katman kataloğu
 GET /api/v1/map/layers/{katman}      # GeoJSON FeatureCollection
 ```
-Katmanlar: `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
-(30/60/120 dk risk bölgesi poligonları), `fuel` (yakıt sınıfı), `silent-regions`
+Katmanlar (8): `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
+(30/60/120 dk risk bölgesi poligonları), `uncertainty` (EM-020 iyimser/kötümser
+belirsizlik bandı), `barriers` (EM-021 doğal engeller: su kütleleri ve
+yavaşlatıcılar), `fuel` (yakıt sınıfı), `silent-regions`
 (sessiz bölgeler), `resources` (müdahale kaynakları: ekip üsleri **ve** EM-103
 koordinatör envanter varlıkları — `kind` alanıyla ayrılır), `roads` (yol ağı).
 `forecasts` katmanı `?horizon_minutes=` ve `?event_key=` ile filtrelenebilir; arayüzdeki

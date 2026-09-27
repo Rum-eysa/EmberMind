@@ -79,6 +79,59 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - `GET /api/v1/map/layers` (katman kataloğu) ve `GET /api/v1/map/layers/{katman}`
     (GeoJSON; `horizon_minutes` ve `event_key` filtresi) endpoint'leri
   - Her katman yanıtında kaynak lisansı gereği `attribution` alanı (EM-013 ile tutarlı)
+- EM-022: Yayılım modeli performans optimizasyonu (vektörleştirme + önbellek)
+  - cProfile ile referans senaryoda sıcak nokta ölçüldü: tahmin başına ~216
+    köşe-bazlı kara örtüsü sorgusu (`fuel_transition_polygon`) süre
+    baskınlığındaydı (~54 ms); `GET /api/v1/spread/performance/profile`
+    en sıcak fonksiyonları canlı raporlar
+  - `src/services/layer_cache.py`: oturum bazlı, zayıf referanslı (sızıntısız)
+    TTL önbelleği — hava/topo/yakıt girdi okumaları ve engel yüklemeleri
+    karelenir (koordinat kuantumu `SPREAD_PERF_CACHE_GRID_DEG`), engel
+    yazmalarında otomatik geçersiz kılınır; `SPREAD_PERF_ENABLED` kapalıysa
+    birebir eski skaler yol çalışır (geri alınabilir)
+  - Vektörleştirme: tek bounding-box sorgusu + numpy `argmax` ile toplu yakıt
+    sınıfı örneklemesi — skaler yolla **bitbir aynı** poligon üretir (birim
+    testle kilitli)
+  - `POST /api/v1/spread/performance/benchmark`: optimizasyon öncesi/sonrası
+    süreleri ölçer, `SpreadPerformanceRun` olarak kalıcılar (V012 migration),
+    10 sn operatör hedefine göre `target_met` işaretler; ölçülen ~9-18x hızlanma
+  - `GET /api/v1/spread/performance` saklanan koşular + canlı önbellek istatistikleri
+- EM-021: Kara/deniz maskesi ve doğal engeller
+  - `natural_barriers` tablosu (V011 migration): deniz/göl/geniş nehir su
+    kütleleri tam engel, yol/ırmak yavaşlatma katsayılı kısmi engel olarak
+    operatör tarafından kaydedilir (`POST/GET/DELETE /api/v1/spread/barriers`)
+  - Ufuk poligonları kıyı hattında kırpılır — su kütlelerine taşmaz; tam
+    engeller yayılımdan tamamen hariç, kısmi engeller katsayıyla yavaşlatır
+    (`SPREAD_BARRIERS_ENABLED`)
+  - EM-020 belirsizlik zarfı da engel kırpmasından geçer; haritaya 8. katman
+    olarak `barriers` eklendi
+- EM-020: Rüzgâr ansambli ile yayılım belirsizliği gösterimi
+  - Her ufuk için iyimser/beklenen/kötümser üçgen poligon: rüzgâr yönü
+    ±`SPREAD_UNCERTAINTY_WIND_DIR_DELTA_DEG`, hızı ±`SPREAD_UNCERTAINTY_WIND_SPEED_FRACTION`
+    bozumlu çoklu çalıştırma (`POST /api/v1/spread/uncertainty`)
+  - Güven bandı genişliğinden türeyen **model güven göstergesi**; operatör
+    haritasında `uncertainty` katmanı (kümülatif 8 katman)
+- EM-019: Ölü yakıt nemi modeli (1h/10h/100h sınıfları)
+  - Hava sıcaklığı + bağıl nemden sentetik günlük döngüyle denge nemi
+    sınıfları üretilir (`src/services/fuel_moisture.py`); yakıt modeline göre
+    etkin nem hesaplanıp yayılım motoruna beslenir
+    (`FUEL_MOISTURE_MODEL_ENABLED`, koşullandırma penceresi ve genlikler
+    konfigürasyonla)
+  - `GET /api/v1/spread/fuel-moisture` uç noktası sınıf nemlerini ve etkin nemi döner
+- EM-018: Yeni olaylarda ve anlamlı girdi değişiminde otomatik tahmin tetikleme
+  - `src/services/spread_trigger.py`: periyodik Celery taraması aktif olayları
+    denetler; rüzgâr hızı/yön, sıcaklık ve nem için "anlamlı değişim"
+    eşikleri, olay başına debounce penceresi (`SPREAD_TRIGGER_DEBOUNCE_MINUTES`)
+  - Manuel olay yazımı da tetiklemeyi çağırır; `GET /api/v1/spread/trigger-status`
+    ve `POST /api/v1/spread/trigger-sweep` operasyon uçları
+- EM-017: Yayılım değerlendirme metrikleri (IoU, alan ve varış zamanı hatası)
+  - Gerçek çevre WKT'si ile saklanan tahmin kıyaslaması: `POST /api/v1/spread/evaluate`,
+    `GET /api/v1/spread/metrics[?event_key=&model_version=]` ve sürüm bazlı
+    ortalama özet `GET /api/v1/spread/metrics/summary` (V010 migration)
+- EM-016: Yakıt geçişine duyarlı yayılım poligonu
+  - Ufuk poligonu köşe-bazlı yeniden şekillendirilir: her köşenin düştüğü
+    arazi örtüsü yakıt modeliyle yerel hız hesaplanır, geçiş zonaları
+    raporlanır (`FUEL_TRANSITION_ENABLED`; kapalıysa saf eliptik EM-015 yolu)
 - EM-015: Rothermel tabanlı temel yangın yayılım tahmin motoru
   - Rothermel (1972) yüzey yayılım modeli + Albini (1976) düzeltmeleri, 13 standart
     USDA yakıt modeliyle (`src/services/spread.py`); girdiler: yangın konumu, rüzgâr,
@@ -114,6 +167,14 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - Uzamsal-zamansal örtüşen yinelenen tespitler tekilleştirilir (VIIRS > MODIS önceliği)
   - `FIRMS_SOURCES` ve `SATELLITE_DEDUP_TIME_WINDOW_MINUTES` konfigürasyon değişkenleri
   - V005 migration: tespit/gecikme/tekilleştirme alanları
+- EM-011: EFFIS tarihsel yangın çevresi içe aktarımı
+  - `HistoricalFirePerimeter` modeli ve `src/services/effis.py` içe aktarıcısı
+    (yıl bazlı sorgu, alan/kenar uzunluğu doğrulama; V004 migration)
+  - Kalibrasyon/validation ayrımı: historical year'ın yangın mevsimine göre
+    `split` etiketiyle saklanması; spread motoru validasyonunda kullanılabilir
+  - `GET /api/v1/historical-fires[/dataset]`, `POST /api/v1/historical-fires/import`
+    ve `POST /api/v1/historical-fires/splits` uç noktaları; Celery beat ile
+    dönemsel senkronizasyon
 
 ### Fixed
 - Demo verisi tamamlandı (`scripts/demo_api.py`): FWI bölge günleri, aktif
