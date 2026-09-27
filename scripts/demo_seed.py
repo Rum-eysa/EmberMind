@@ -162,9 +162,12 @@ def seed_exposure_demo(session, fire: dict) -> dict:
         )
         forecasts += 1
 
-    v1_lat, v1_lon = _offset(lat, lon, 0.5, 0.0)  # inside 30-min disc
-    t1_lat, t1_lon = _offset(lat, lon, 0.0, 1.2)  # inside 60-min disc
-    h1_lat, h1_lon = _offset(lat, lon, -2.4, 0.4)  # inside 120-min disc
+    # Place settlements toward the spread head (south-west for wind_from=45)
+    # and one in the ignition core, so each forecast horizon reaches at least
+    # one settlement regardless of the exact ellipse size.
+    v1_lat, v1_lon = _offset(lat, lon, -0.1, -0.1)  # ignition core -> T+30
+    t1_lat, t1_lon = _offset(lat, lon, -0.5, -0.5)  # near head -> T+30/60
+    h1_lat, h1_lon = _offset(lat, lon, -0.9, -0.9)  # further head -> T+60/120
     _add_settlement(
         session, "demo-exposure-v1", "Çamköy", "village", 420, v1_lat, v1_lon
     )
