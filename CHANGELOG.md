@@ -4,6 +4,21 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 
 ## [Unreleased]
 
+### Fixed
+- Docker/uygulama konfigürasyon tutarsızlıkları (operatör haritası boş kalıyordu)
+  - `create_fastapi_app()` varsayılanı `"testing"` yerine ortamdan türetilen
+    config'e (`APP_ENV`/`FLASK_ENV`, yoksa `development`) bırakıldı: uvicorn
+    artık `DATABASE_URL`'i yok sayıp boş **in-memory SQLite** okumuyor; Docker
+    ve demo profilleri gerçek veritabanını görüyor (harita boş kalmıyor)
+  - `docker-compose.yml` ortak ortamına açık `APP_ENV=${APP_ENV:-production}`
+    eklendi (demo override'ı `APP_ENV=demo` kazanır)
+  - Kalıcı Postgres volume'ünde `create_all()` mevcut tabloyu değiştirmediği ve
+    SQL migration çalıştırıcısı hiç çağrılmadığı için EM-012 kolonları
+    (`fire_clusters.sources/latency_minutes/deduplicated_count` ve
+    `fire_observations.product/published_at/latency_minutes`) eksik kalıyordu;
+    bu kolonlar modele uygun şekilde eklendi — `/api/v1/fires` ve `fires`
+    katmanı 500 yerine gerçek uydu kümelerini döndürüyor
+
 ### Added
 - EM-104: Deterministik sentetik veri üreteci (E11)
   - `src/services/synthetic.py`: tohumdan (`seed` → sha256 → deterministik akış)

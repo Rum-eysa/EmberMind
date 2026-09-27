@@ -5,6 +5,7 @@
 # a non-empty code default (and crash int/bool parsing), so a default is given
 # for every non-string setting here.
 x-app-environment: &app-environment
+  - APP_ENV=${APP_ENV:-production}
   - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
   - REDIS_URL=redis://redis:6379/0
   - FIRMS_API_KEY=${FIRMS_API_KEY:-}

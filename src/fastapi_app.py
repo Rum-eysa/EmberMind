@@ -306,8 +306,14 @@ def parse_datetime(dt_str: str | None) -> datetime | None:
         return None
 
 
-def create_fastapi_app(config_name: str = "testing") -> FastAPI:
-    """Create the FastAPI application and its database lifecycle."""
+def create_fastapi_app(config_name: str | None = None) -> FastAPI:
+    """Create the FastAPI application and its database lifecycle.
+
+    ``config_name`` defaults to the environment-derived config (APP_ENV /
+    FLASK_ENV, falling back to development) so a real deployment honours its
+    ``DATABASE_URL`` instead of silently booting the in-memory testing
+    database; tests and the in-process demo pass an explicit name.
+    """
     config_cls = get_config(config_name)
     settings = config_cls()
     database = Database(settings.DATABASE_URL)
