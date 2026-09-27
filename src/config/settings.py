@@ -152,6 +152,15 @@ class Config:
         os.getenv("SPREAD_UNCERTAINTY_WIND_SPEED_FRACTION", "0.15")
     )
 
+    # --- EM-021: land/sea mask and natural barriers -------------------------
+    # When enabled, horizon polygons are clipped at water bodies (sea, lake,
+    # wide river, non-burnable) and slowed at partial obstacles (road, river).
+    SPREAD_BARRIERS_ENABLED = os.getenv("SPREAD_BARRIERS_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
     # threshold; the panel reports the first day each zone crossed it.

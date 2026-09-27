@@ -38,6 +38,7 @@ from src.models.land_cover import LandCoverDataPoint
 from src.models.spatial import FireForecast
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
+from src.services.barriers import load_active_barriers, mask_local_ring
 from src.services.fuel_moisture import (
     MODEL_NAME as FUEL_MOISTURE_MODEL_NAME,
 )
@@ -827,6 +828,9 @@ def predict_spread(
     vertices = int(getattr(settings, "SPREAD_POLYGON_VERTICES", 36))
     model_name = str(getattr(settings, "SPREAD_MODEL_NAME", "rothermel_v1"))
     fuel_transition = bool(getattr(settings, "FUEL_TRANSITION_ENABLED", True))
+    # EM-021: active natural barriers (water clip / partial slowdown).
+    barriers_enabled = bool(getattr(settings, "SPREAD_BARRIERS_ENABLED", True))
+    barriers = load_active_barriers(session) if barriers_enabled else []
 
     rates = spread_rates(
         inputs["fuel_model_number"],
@@ -866,6 +870,11 @@ def predict_spread(
                 all_fuel_zones = zones
         else:
             local = fire_ellipse_polygon(head_m, back_m, direction, vertices)
+
+        if local and barriers:
+            # EM-021: clip the ring at water bodies, slow it at roads/streams
+            # before projection so risk zones never spill into the sea.
+            local = mask_local_ring(lat, lon, local, barriers)
 
         ring = project_polygon(local, lat, lon)
         area_ha = round(polygon_area_m2(local) / 10000.0, 3) if local else 0.0
@@ -939,6 +948,11 @@ def predict_spread(
         "reaction_intensity_btu_ft2_min": rates.reaction_intensity,
         "spread_direction_deg": direction,
         "fuel_transition": fuel_transition,
+        "natural_barriers": {
+            "enabled": barriers_enabled,
+            "active": len(barriers),
+            "types": sorted({str(b["barrier_type"]) for b in barriers}),
+        },
         "fuel_zones": all_fuel_zones,
         "forecasts": forecasts,
     }

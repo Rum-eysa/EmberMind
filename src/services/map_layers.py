@@ -16,7 +16,18 @@ from src.models.fire import FireCluster
 from src.models.inventory import SuppressionResource
 from src.models.land_cover import LandCoverDataPoint
 from src.models.road_network import CrewBase, RoadSegment
-from src.models.spatial import FireEvent, FireForecast, SilentRegion
+from src.models.spatial import (
+    FireEvent,
+    FireForecast,
+    NaturalBarrier,
+    SilentRegion,
+)
+from src.services.barriers import (
+    BARRIER_GEOMETRY,
+    BarrierError,
+    parse_line_string,
+    parse_polygon_ring,
+)
 from src.services.data_governance import attribution_for
 from src.services.spread import resolve_fuel_model_number
 from src.services.spread_uncertainty import (
@@ -36,6 +47,9 @@ UNCERTAINTY_ATTRIBUTION = (
     "Belirsizlik bandı: EmberMind rüzgâr ansambli, yön/hız bozumları (EM-020)"
 )
 SILENT_REGIONS_ATTRIBUTION = "Sessiz bölgeler: operatör kayıtları (EmberMind)"
+BARRIERS_ATTRIBUTION = (
+    "Doğal engeller: operatör kaydı + OSM/CORINE yüzey sınıfları (EM-021)"
+)
 RESOURCES_ATTRIBUTION = (
     "Müdahale kaynakları: EmberMind crew_bases + koordinatör envanteri (EM-103)"
 )
@@ -264,6 +278,47 @@ def uncertainty_layer(session: Session, settings: Any) -> dict[str, Any]:
     return collection
 
 
+def barriers_layer(session: Session) -> dict[str, Any]:
+    """EM-021 natural barriers: water polygons and road/stream lines.
+
+    Mixed geometry layer: full barriers (sea/lake/wide river/non-burnable)
+    arrive as Polygons, partial obstacles (road/river) as LineStrings; the
+    catalog advertises Polygon as the dominant shape.
+    """
+    features: list[dict[str, Any]] = []
+    rows = session.scalars(
+        select(NaturalBarrier).order_by(NaturalBarrier.id).limit(LAYER_ROW_LIMIT)
+    ).all()
+    for row in rows:
+        kind = BARRIER_GEOMETRY.get(str(row.barrier_type))
+        if kind is None:
+            continue
+        geometry: dict[str, Any]
+        try:
+            if kind == "polygon":
+                ring = parse_polygon_ring(str(row.geometry_wkt))
+                if ring[0] != ring[-1]:
+                    ring.append(list(ring[0]))
+                geometry = {"type": "Polygon", "coordinates": [ring]}
+            else:
+                line = parse_line_string(str(row.geometry_wkt))
+                geometry = {"type": "LineString", "coordinates": line}
+        except BarrierError:  # malformed stored WKT must not break the map
+            continue
+        properties = {
+            "barrier_key": str(row.barrier_key),
+            "name": str(row.name),
+            "barrier_type": str(row.barrier_type),
+            "slowdown_factor": float(row.slowdown_factor),
+            "blocks_spread": float(row.slowdown_factor) <= 0.0,
+            "is_active": bool(row.is_active),
+        }
+        features.append(
+            {"type": "Feature", "geometry": geometry, "properties": properties}
+        )
+    return _collection("barriers", "Doğal Engeller", features, BARRIERS_ATTRIBUTION)
+
+
 def fuel_layer(session: Session, settings: Any) -> dict[str, Any]:
     """CORINE-derived fuel class sampling points around monitored clusters."""
     features: list[dict[str, Any]] = []
@@ -397,6 +452,7 @@ LAYER_KEYS = (
     "fires",
     "forecasts",
     "uncertainty",
+    "barriers",
     "fuel",
     "silent-regions",
     "resources",
@@ -407,6 +463,7 @@ LAYER_GEOMETRIES = {
     "fires": "Point",
     "forecasts": "Polygon",
     "uncertainty": "Polygon",
+    "barriers": "Polygon",  # mixed: partial obstacles are LineStrings
     "fuel": "Point",
     "silent-regions": "Polygon",
     "resources": "Point",
@@ -431,6 +488,7 @@ LAYER_TITLES = {
     "fires": "Aktif Yangınlar",
     "forecasts": "Risk Bölgeleri (30/60/120 dk)",
     "uncertainty": "Belirsizlik Bandı",
+    "barriers": "Doğal Engeller",
     "fuel": "Yakıt Sınıfı",
     "silent-regions": "Sessiz Bölgeler",
     "resources": "Müdahale Kaynakları",
@@ -452,6 +510,8 @@ def build_layer(
         return forecasts_layer(session, horizon_minutes, event_key)
     if name == "uncertainty":
         return uncertainty_layer(session, settings)
+    if name == "barriers":
+        return barriers_layer(session)
     if name == "fuel":
         return fuel_layer(session, settings)
     if name == "silent-regions":

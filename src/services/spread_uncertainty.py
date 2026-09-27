@@ -19,6 +19,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from src.services.barriers import load_active_barriers, mask_local_ring
 from src.services.spread import (
     SpreadError,
     fire_ellipse_polygon,
@@ -213,6 +214,15 @@ def envelope_from_inputs(
         for r in runs
         if r["wind_dir_delta_deg"] == 0.0 and r["wind_speed_factor"] == 1.0
     )
+    # EM-021: the ensemble rings respect active natural barriers as well.
+    barriers_enabled = bool(getattr(settings, "SPREAD_BARRIERS_ENABLED", True))
+    barriers = load_active_barriers(session) if barriers_enabled else []
+
+    def _masked(local: list[list[float]]) -> list[list[float]]:
+        if local and barriers:
+            return mask_local_ring(lat, lon, local, barriers)
+        return local
+
     started = utc_now()
     horizon_bands: list[dict[str, Any]] = []
     for minutes in horizons:
@@ -222,10 +232,11 @@ def envelope_from_inputs(
             expected_run["direction_deg"],
             vertices,
         )
+        expected_local = _masked(expected_local)
         expected_ring = project_polygon(expected_local, lat, lon)
         bands: dict[str, Any] = {"horizon_minutes": minutes}
         for extreme in ("optimistic", "pessimistic"):
-            local = _envelope_ring(runs, minutes, vertices, extreme)
+            local = _masked(_envelope_ring(runs, minutes, vertices, extreme))
             ring = project_polygon(local, lat, lon)
             area_ha = round(polygon_area_m2(local) / 10000.0, 3)
             bands[extreme] = {
@@ -260,6 +271,10 @@ def envelope_from_inputs(
             "wind_dir_delta_deg": dir_delta,
             "wind_speed_fraction": speed_fraction,
             "runs": len(runs),
+        },
+        "natural_barriers": {
+            "enabled": barriers_enabled,
+            "active": len(barriers),
         },
         "horizons": horizon_bands,
     }

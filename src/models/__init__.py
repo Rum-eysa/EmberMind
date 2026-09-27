@@ -10,6 +10,7 @@ from .spread_metrics import SpreadEvaluationMetric
 from .spatial import (
     FireEvent,
     FireForecast,
+    NaturalBarrier,
     SilentRegion,
     SimulationScenario,
     SpatialSource,
@@ -28,6 +29,7 @@ __all__ = [
     "FirmsSyncStatus",
     "HistoricalFirePerimeter",
     "LandCoverDataPoint",
+    "NaturalBarrier",
     "PipelineJobHistory",
     "RoadClosure",
     "RoadSegment",

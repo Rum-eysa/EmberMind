@@ -34,6 +34,7 @@ from src.models.land_cover import LandCoverDataPoint  # noqa: E402
 from src.models.road_network import CrewBase, RoadSegment, RoadClosure  # noqa: E402
 from src.models.spatial import FireEvent, SilentRegion  # noqa: E402
 from src.services.fwi import fwi_risk_category  # noqa: E402
+from src.services.barriers import register_barrier  # noqa: E402
 from src.services.spread import predict_spread  # noqa: E402
 from src.services.spread_metrics import (  # noqa: E402
     evaluate_forecast_against_actual,
@@ -289,6 +290,26 @@ def seed_demo_data() -> None:
         ):
             session.add(asset)
         session.commit()
+        # EM-021 kara/deniz maskesi: yayılma yönündeki (poyraz) deniz kutusu
+        # tam engel, kuzeydeki sahil yolu kısmi engel olarak kayıtlıdır.
+        for barrier in (
+            {
+                "barrier_key": "demo-sea-001",
+                "name": "Demo Deniz (Ege)",
+                "barrier_type": "sea",
+                "geometry_wkt": (
+                    "POLYGON((27.46 38.905, 27.56 38.905, 27.56 38.95,"
+                    " 27.46 38.95, 27.46 38.905))"
+                ),
+            },
+            {
+                "barrier_key": "demo-road-001",
+                "name": "Demo Sahil Yolu",
+                "barrier_type": "road",
+                "geometry_wkt": "LINESTRING(27.46 38.9028, 27.56 38.9028)",
+            },
+        ):
+            register_barrier(session, barrier)
         # EM-015 spread engine: 30/60/120 dk risk poligonlari (demo kumesi icin).
         spread_result = predict_spread(
             session,
@@ -367,6 +388,13 @@ def seed_demo_data() -> None:
             f"kötümser={outer['pessimistic']['head_distance_m']}m "
             f"| model güveni={confidence['band']}"
             f"({confidence['score']})"
+        )
+        # EM-021: engellerle kırpılmış 120 dk risk bölgesi alanı.
+        barrier_types = spread_result["natural_barriers"]["types"]
+        print(
+            f"[EM-021] doğal engeller: {barrier_types} "
+            f"→ 120 dk kırpılmış alan "
+            f"{spread_result['forecasts'][-1]['area_ha']} ha"
         )
 
 

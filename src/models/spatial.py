@@ -1,4 +1,5 @@
-"""Spatial database models for events, forecasts, sources, silent regions, and scenarios."""
+"""Spatial database models for events, forecasts, sources, silent regions,
+scenarios and natural barriers (EM-021)."""
 from typing import Any
 
 from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String, Text
@@ -229,4 +230,39 @@ class SimulationScenario(BaseModel):
             "slope_angle": self.slope_angle,
             "fuel_model": self.fuel_model,
             "simulated_area_ha": self.simulated_area_ha,
+        }
+
+
+class NaturalBarrier(BaseModel):
+    """Water body or partial barrier excluded from spread (EM-021).
+
+    ``slowdown_factor`` 0.0 means the fire cannot cross (sea, lake, wide
+    river, non-burnable surface); 0 < factor < 1 models partial obstacles
+    like roads and small streams that slow the spread down.
+    """
+
+    __tablename__ = "natural_barriers"
+
+    barrier_key = Column(String(64), unique=True, nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    barrier_type = Column(String(32), nullable=False)
+    geometry_wkt = Column(Text, nullable=False)
+    slowdown_factor = Column(Float, nullable=False, default=0.0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    source = Column(String(64), nullable=False, default="operator")
+    notes = Column(Text, nullable=True)
+
+    @property
+    def as_dict(self) -> dict[str, Any]:
+        """Return API-friendly dictionary representation."""
+        return {
+            "id": self.id,
+            "barrier_key": self.barrier_key,
+            "name": self.name,
+            "barrier_type": self.barrier_type,
+            "geometry_wkt": self.geometry_wkt,
+            "slowdown_factor": self.slowdown_factor,
+            "is_active": self.is_active,
+            "source": self.source,
+            "notes": self.notes,
         }

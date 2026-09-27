@@ -1,6 +1,6 @@
 """Rothermel fire spread prediction endpoints (EM-015), evaluation metrics
-(EM-017), dead fuel moisture model endpoints (EM-019) and uncertainty
-envelope endpoints (EM-020)."""
+(EM-017), dead fuel moisture model endpoints (EM-019), uncertainty envelope
+endpoints (EM-020) and natural barrier management (EM-021)."""
 from datetime import datetime
 from typing import Any
 
@@ -10,6 +10,12 @@ from sqlalchemy import select
 
 from src.database import Database
 from src.models.spatial import FireEvent
+from src.services.barriers import (
+    BarrierError,
+    delete_barrier,
+    list_barriers,
+    register_barrier,
+)
 from src.services.fuel_moisture import FuelMoistureError, dead_fuel_moisture
 from src.services.spread import (
     SpreadError,
@@ -59,6 +65,19 @@ class SpreadEvaluateRequest(BaseModel):
     actual_area_ha: float
     actual_arrival_time: str | None = None
     model_version: str | None = None
+
+
+class BarrierRequest(BaseModel):
+    """Request body for registering an EM-021 natural barrier."""
+
+    name: str
+    barrier_type: str
+    geometry_wkt: str
+    barrier_key: str | None = None
+    slowdown_factor: float | None = None
+    is_active: bool = True
+    source: str = "operator"
+    notes: str | None = None
 
 
 def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> None:
@@ -139,6 +158,42 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
                 status_code=400,
                 detail={"status": "error", "error": str(exc)},
             ) from exc
+
+    # --- EM-021: natural barrier management endpoints ------------------------
+
+    @api.post("/api/v1/spread/barriers", tags=["spread-barriers"])
+    def spread_barrier_create(req: BarrierRequest) -> dict[str, Any]:
+        """Register a water body (full barrier) or road/stream (slowdown)."""
+        try:
+            with database.session() as session:
+                return register_barrier(session, req.model_dump())
+        except BarrierError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.get("/api/v1/spread/barriers", tags=["spread-barriers"])
+    def spread_barriers() -> dict[str, Any]:
+        """List registered natural barriers, newest first."""
+        with database.session() as session:
+            rows = list_barriers(session)
+            return {"count": len(rows), "barriers": rows}
+
+    @api.delete("/api/v1/spread/barriers/{barrier_key}", tags=["spread-barriers"])
+    def spread_barrier_delete(barrier_key: str) -> dict[str, Any]:
+        """Remove one natural barrier."""
+        with database.session() as session:
+            removed = delete_barrier(session, barrier_key)
+        if not removed:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "status": "error",
+                    "error": f"barrier {barrier_key} not found",
+                },
+            )
+        return {"status": "deleted", "barrier_key": barrier_key}
 
     @api.get("/api/v1/spread/forecasts", tags=["spread"])
     def spread_forecasts(event_key: str | None = None) -> dict[str, Any]:
