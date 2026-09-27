@@ -6,6 +6,7 @@ silent regions, suppression resources and the road network. Every response is
 a GeoJSON FeatureCollection enriched with the source attribution required by
 the data-governance licenses (EM-013).
 """
+import json
 from typing import Any
 
 from sqlalchemy import select
@@ -17,6 +18,13 @@ from src.models.land_cover import LandCoverDataPoint
 from src.models.road_network import CrewBase, RoadSegment
 from src.models.spatial import FireEvent, FireForecast, SilentRegion
 from src.services.data_governance import attribution_for
+from src.services.spread import resolve_fuel_model_number
+from src.services.spread_uncertainty import (
+    ENSEMBLE_MODEL_NAME,
+    envelope_from_inputs,
+    model_confidence,
+    perturbation_settings,
+)
 from src.utils.timeutils import to_utc_iso
 
 # Upper bound on features returned per layer request (keeps the map payload
@@ -24,6 +32,9 @@ from src.utils.timeutils import to_utc_iso
 LAYER_ROW_LIMIT = 2000
 
 FORECASTS_ATTRIBUTION = "Yayılım tahmini: EmberMind Rothermel motoru (EM-015)"
+UNCERTAINTY_ATTRIBUTION = (
+    "Belirsizlik bandı: EmberMind rüzgâr ansambli, yön/hız bozumları (EM-020)"
+)
 SILENT_REGIONS_ATTRIBUTION = "Sessiz bölgeler: operatör kayıtları (EmberMind)"
 RESOURCES_ATTRIBUTION = (
     "Müdahale kaynakları: EmberMind crew_bases + koordinatör envanteri (EM-103)"
@@ -176,6 +187,83 @@ def forecasts_layer(
     )
 
 
+def uncertainty_layer(session: Session, settings: Any) -> dict[str, Any]:
+    """EM-020 optimistic/pessimistic confidence band around the latest runs.
+
+    Replays the stored resolved inputs (``inputs_json`` including the
+    per-field provenance) of the most recent forecast per event and horizon
+    through the deterministic wind ensemble, so the operator map can draw
+    the band and the model-confidence badge without re-resolving layers.
+    """
+    latest: dict[tuple[str, int], FireForecast] = {}
+    for row in session.scalars(
+        select(FireForecast).order_by(FireForecast.id.desc()).limit(LAYER_ROW_LIMIT)
+    ):
+        key = (str(row.event_key), int(row.horizon_minutes))
+        if key not in latest:
+            latest[key] = row
+    by_event: dict[str, dict[int, FireForecast]] = {}
+    for (event_key, horizon), row in latest.items():
+        by_event.setdefault(event_key, {})[horizon] = row
+
+    dir_delta, speed_fraction = perturbation_settings(settings)
+    features: list[dict[str, Any]] = []
+    confidence_per_event: dict[str, Any] = {}
+    for event_key, rows in sorted(by_event.items()):
+        sample = max(rows.values(), key=lambda row: int(row.id))
+        try:
+            stored = json.loads(str(sample.inputs_json or "{}"))
+        except ValueError:
+            stored = {}
+        if not isinstance(stored, dict) or "fuel_moisture_pct" not in stored:
+            continue
+        inputs = {
+            **stored,
+            "fuel_model_number": resolve_fuel_model_number(stored.get("fuel_model")),
+        }
+        envelope = envelope_from_inputs(session, settings, inputs, sorted(rows))
+        confidence = model_confidence(stored.get("provenance"))
+        confidence_per_event[event_key] = confidence
+        for band in envelope["horizons"]:
+            for extreme in ("optimistic", "pessimistic"):
+                member = band[extreme]
+                coordinates = member["polygon_geojson"]["coordinates"]
+                if not coordinates:
+                    continue
+                features.append(
+                    {
+                        "type": "Feature",
+                        "geometry": {"type": "Polygon", "coordinates": coordinates},
+                        "properties": {
+                            "event_key": event_key,
+                            "model_name": ENSEMBLE_MODEL_NAME,
+                            "horizon_minutes": band["horizon_minutes"],
+                            "band": extreme,
+                            "head_distance_m": member["head_distance_m"],
+                            "area_ha": member["area_ha"],
+                            "model_confidence_band": confidence["band"],
+                            "model_confidence_score": confidence["score"],
+                        },
+                    }
+                )
+    scored = [c for c in confidence_per_event.values() if c["score"] is not None]
+    worst = min(scored, key=lambda c: c["score"]) if scored else model_confidence(None)
+    collection = _collection(
+        "uncertainty",
+        "Belirsizlik Bandı",
+        features,
+        UNCERTAINTY_ATTRIBUTION,
+    )
+    collection["perturbation"] = {
+        "wind_dir_delta_deg": dir_delta,
+        "wind_speed_fraction": speed_fraction,
+        "model": ENSEMBLE_MODEL_NAME,
+    }
+    collection["model_confidence"] = worst
+    collection["confidence_per_event"] = confidence_per_event
+    return collection
+
+
 def fuel_layer(session: Session, settings: Any) -> dict[str, Any]:
     """CORINE-derived fuel class sampling points around monitored clusters."""
     features: list[dict[str, Any]] = []
@@ -305,11 +393,20 @@ def roads_layer(session: Session, settings: Any) -> dict[str, Any]:
     )
 
 
-LAYER_KEYS = ("fires", "forecasts", "fuel", "silent-regions", "resources", "roads")
+LAYER_KEYS = (
+    "fires",
+    "forecasts",
+    "uncertainty",
+    "fuel",
+    "silent-regions",
+    "resources",
+    "roads",
+)
 
 LAYER_GEOMETRIES = {
     "fires": "Point",
     "forecasts": "Polygon",
+    "uncertainty": "Polygon",
     "fuel": "Point",
     "silent-regions": "Polygon",
     "resources": "Point",
@@ -333,6 +430,7 @@ def layer_catalog() -> list[dict[str, Any]]:
 LAYER_TITLES = {
     "fires": "Aktif Yangınlar",
     "forecasts": "Risk Bölgeleri (30/60/120 dk)",
+    "uncertainty": "Belirsizlik Bandı",
     "fuel": "Yakıt Sınıfı",
     "silent-regions": "Sessiz Bölgeler",
     "resources": "Müdahale Kaynakları",
@@ -352,6 +450,8 @@ def build_layer(
         return fires_layer(session, settings)
     if name == "forecasts":
         return forecasts_layer(session, horizon_minutes, event_key)
+    if name == "uncertainty":
+        return uncertainty_layer(session, settings)
     if name == "fuel":
         return fuel_layer(session, settings)
     if name == "silent-regions":

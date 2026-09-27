@@ -1,5 +1,6 @@
 """Rothermel fire spread prediction endpoints (EM-015), evaluation metrics
-(EM-017) and dead fuel moisture model endpoints (EM-019)."""
+(EM-017), dead fuel moisture model endpoints (EM-019) and uncertainty
+envelope endpoints (EM-020)."""
 from datetime import datetime
 from typing import Any
 
@@ -28,6 +29,7 @@ from src.services.spread_trigger import (
     auto_trigger_forecasts,
     evaluate_trigger,
 )
+from src.services.spread_uncertainty import uncertainty_envelope
 
 
 class SpreadPredictRequest(BaseModel):
@@ -122,6 +124,21 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
             "fuel_model_number": number,
             "effective_moisture_pct": effective_dead_fuel_moisture(number, classes),
         }
+
+    # --- EM-020: uncertainty display endpoints ------------------------------
+
+    @api.post("/api/v1/spread/uncertainty", tags=["spread-uncertainty"])
+    def spread_uncertainty(req: SpreadPredictRequest) -> dict[str, Any]:
+        """Optimistic/expected/pessimistic envelope per horizon plus the
+        model-confidence indicator from a wind-perturbed multi-run ensemble."""
+        try:
+            with database.session() as session:
+                return uncertainty_envelope(session, settings, req.model_dump())
+        except SpreadError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
 
     @api.get("/api/v1/spread/forecasts", tags=["spread"])
     def spread_forecasts(event_key: str | None = None) -> dict[str, Any]:

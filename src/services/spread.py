@@ -792,7 +792,7 @@ def resolve_inputs(
     return {"inputs": resolved, "provenance": provenance}
 
 
-def _horizon_minutes(settings: Any, override: list[int] | None) -> list[int]:
+def horizon_minutes(settings: Any, override: list[int] | None) -> list[int]:
     """Resolve the forecast horizons from settings or request override."""
     horizons = (
         override
@@ -823,7 +823,7 @@ def predict_spread(
 
     resolved = resolve_inputs(session, req, settings)
     inputs = resolved["inputs"]
-    horizons = _horizon_minutes(settings, req.get("horizon_minutes"))
+    horizons = horizon_minutes(settings, req.get("horizon_minutes"))
     vertices = int(getattr(settings, "SPREAD_POLYGON_VERTICES", 36))
     model_name = str(getattr(settings, "SPREAD_MODEL_NAME", "rothermel_v1"))
     fuel_transition = bool(getattr(settings, "FUEL_TRANSITION_ENABLED", True))
@@ -891,11 +891,12 @@ def predict_spread(
         )
 
     if event_key:
-        inputs_json = json.dumps(
-            {k: v for k, v in inputs.items() if k != "fuel_model_number"},
-            sort_keys=True,
-            default=str,
-        )
+        # EM-020: the per-field provenance map is stored alongside the inputs
+        # so the uncertainty layer can score model confidence without re-
+        # resolving layers. Debounce comparisons read fixed keys only.
+        stored_inputs = {k: v for k, v in inputs.items() if k != "fuel_model_number"}
+        stored_inputs["provenance"] = resolved["provenance"]
+        inputs_json = json.dumps(stored_inputs, sort_keys=True, default=str)
         for item in forecasts:
             session.add(
                 FireForecast(

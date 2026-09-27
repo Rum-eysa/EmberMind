@@ -142,6 +142,16 @@ class Config:
         os.getenv("FUEL_MOISTURE_CONDITIONING_HOURS", "48")
     )
 
+    # --- EM-020: spread forecast uncertainty display ------------------------
+    # Wind-ensemble perturbation used for the optimistic/pessimistic band:
+    # direction +/- this many degrees and speed +/- this fraction (0.15 = 15%).
+    SPREAD_UNCERTAINTY_WIND_DIR_DELTA_DEG = float(
+        os.getenv("SPREAD_UNCERTAINTY_WIND_DIR_DELTA_DEG", "10.0")
+    )
+    SPREAD_UNCERTAINTY_WIND_SPEED_FRACTION = float(
+        os.getenv("SPREAD_UNCERTAINTY_WIND_SPEED_FRACTION", "0.15")
+    )
+
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
     # threshold; the panel reports the first day each zone crossed it.

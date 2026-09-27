@@ -39,6 +39,7 @@ from src.services.spread_metrics import (  # noqa: E402
     evaluate_forecast_against_actual,
 )
 from src.services.spread_trigger import auto_trigger_forecasts  # noqa: E402
+from src.services.spread_uncertainty import uncertainty_envelope  # noqa: E402
 from src.services.fuel_moisture import dead_fuel_moisture  # noqa: E402
 from src.services.synthetic import (  # noqa: E402
     PRESETS,
@@ -339,6 +340,33 @@ def seed_demo_data() -> None:
             f"[EM-019] yakıt nemi: 1h={moisture['moisture_1h_pct']}% "
             f"10h={moisture['moisture_10h_pct']}% "
             f"100h={moisture['moisture_100h_pct']}%"
+        )
+        # EM-020 belirsizlik gösterimi: rüzgâr ansambli (±10° / ±%15) ile
+        # iyimser/beklenen/kötümser zarf ve model güveni göstergesi.
+        envelope = uncertainty_envelope(
+            session,
+            api.state.settings,
+            {
+                "latitude": 37.75,
+                "longitude": 28.0,
+                "wind_speed_kmh": 20.0,
+                "wind_from_deg": 45.0,
+                "air_temp_c": 31.0,
+                "relative_humidity_pct": 22.0,
+                "slope_deg": 15.0,
+                "aspect_deg": 180.0,
+                "fuel_model": "FM10_RedPine",
+            },
+        )
+        outer = envelope["horizons"][-1]
+        confidence = envelope["model_confidence"]
+        print(
+            f"[EM-020] {outer['horizon_minutes']} dk zarf: "
+            f"iyimser={outer['optimistic']['head_distance_m']}m "
+            f"beklenen={outer['expected']['head_distance_m']}m "
+            f"kötümser={outer['pessimistic']['head_distance_m']}m "
+            f"| model güveni={confidence['band']}"
+            f"({confidence['score']})"
         )
 
 

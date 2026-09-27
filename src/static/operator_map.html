@@ -31,6 +31,10 @@
     #legend .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
     #status { position: absolute; bottom: 24px; left: 12px; z-index: 1000;
               font-size: var(--font-size-xs); max-width: var(--panel-max-width); }
+    /* EM-020: model güveni rozeti — ufuk çubuğunun içinde gösterilir */
+    #confidence-badge { font-size: var(--font-size-xs); font-weight: 700;
+                        padding: 2px 8px; border-radius: 10px;
+                        background: #9e9e9e; color: #fff; white-space: nowrap; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -44,6 +48,7 @@
            aria-label="Yayılım ufku kaydırıcısı">
     <div class="ticks" id="horizon-ticks"></div>
     <label><input type="checkbox" id="horizon-cumulative" checked> kümülatif</label>
+    <span id="confidence-badge" title="EM-020 model güveni — girdi kaynaklarının güvenilirliğinden hesaplanır">Model güveni: —</span>
   </div>
 
   <div id="legend" class="panel">
@@ -53,6 +58,8 @@
     <div class="row"><span class="swatch" style="background:#ffd400"></span> Risk bölgesi — 30 dk</div>
     <div class="row"><span class="swatch" style="background:#ff7f00"></span> Risk bölgesi — 60 dk</div>
     <div class="row"><span class="swatch" style="background:#d62728"></span> Risk bölgesi — 120 dk</div>
+    <div class="row"><span class="swatch" style="background:rgba(214,39,40,.25);border-style:dashed"></span> Belirsizlik bandı — kötümser (EM-020)</div>
+    <div class="row"><span class="swatch" style="background:rgba(46,125,50,.2);border-style:dotted"></span> Belirsizlik bandı — iyimser (EM-020)</div>
     <div class="row"><span class="swatch" style="background:#2e7d32"></span> Yakıt sınıfı noktası</div>
     <div class="row"><span class="swatch" style="background:#9e9e9e"></span> Sessiz bölge</div>
     <div class="row"><span class="swatch" style="background:#1565c0"></span> Ekip / üs (üs = ekip türü)</div>
@@ -92,6 +99,12 @@
         : { radius: 7, color: "#5c5c5c", fillColor: "#9e9e9e", fillOpacity: 0.6 };
     },
     roads: { color: "#6d4c41", weight: 2, opacity: 0.65 },
+    // EM-020: kötümser zarf kesikli kırmızı, iyimser zarf noktalı yeşil.
+    uncertainty: f => f.properties && f.properties.band === "pessimistic"
+      ? { color: "#d62728", weight: 2, dashArray: "6 4",
+          fillColor: "#d62728", fillOpacity: 0.08 }
+      : { color: "#2e7d32", weight: 1, dashArray: "2 4",
+          fillColor: "#2e7d32", fillOpacity: 0.05 },
   };
 
   const map = L.map("map", { zoomControl: true }).setView([37.75, 28.0], 9);
@@ -103,6 +116,7 @@
   const layers = {};        // key -> L.LayerGroup (display layer)
   let forecastByHorizon = {}; // horizon -> L.GeoJSON
   let forecastAll = null;   // raw FeatureCollection cache
+  let uncertaintyAll = null; // EM-020 band FeatureCollection cache
   let sliderIndex = 2;      // 0..2 -> 30/60/120 dk
 
   const statusBox = document.getElementById("status");
@@ -126,6 +140,22 @@
     return typeof s === "function" ? s(feature) : s;
   }
 
+  // EM-020: model güveni rozeti (Yüksek / Orta / Düşük / Bilinmiyor).
+  const CONFIDENCE_COLORS = { high: "#2e7d32", moderate: "#f9a825",
+                              low: "#c62828", unknown: "#9e9e9e" };
+  function renderConfidence(conf) {
+    const badge = document.getElementById("confidence-badge");
+    if (!conf) { badge.textContent = "Model güveni: —"; return; }
+    const band = conf.band || "unknown";
+    const label = conf.label || band;
+    const score = conf.score === null || conf.score === undefined ? "" : ` (${conf.score})`;
+    badge.textContent = `Model güveni: ${label}${score}`;
+    badge.style.background = CONFIDENCE_COLORS[band] || CONFIDENCE_COLORS.unknown;
+    badge.title = conf.inputs_scored
+      ? `EM-020: ${conf.inputs_scored} girdi kaynağından hesaplandı`
+      : "EM-020: girdi kaynağı bilgisi yok";
+  }
+
   function makeGeoJsonLayer(key) {
     return L.geoJSON(null, {
       style: f => styleFor(key, f, key === "forecasts"),
@@ -147,6 +177,12 @@
       forecastAll = data;
       renderHorizons();
       setStatus(`Risk bölgeleri: ${data.count} poligon`);
+    } else if (key === "uncertainty") {
+      // EM-020: bantlar ufuk seçimine göre renderHorizons içinde çizilir.
+      uncertaintyAll = data;
+      renderConfidence(data.model_confidence);
+      renderHorizons();
+      setStatus(`Belirsizlik bandı: ${data.count} poligon — ${data.attribution}`);
     } else {
       layers[key].clearLayers();
       layers[key].addData(data);
@@ -173,6 +209,13 @@
       );
       group.addTo(map);
       forecastByHorizon[h] = group;
+    }
+    // EM-020: güven bandı yalnızca seçili ufkun iyimser/kötümser zarflarıyla.
+    if (uncertaintyAll && layers.uncertainty && map.hasLayer(layers.uncertainty)) {
+      layers.uncertainty.clearLayers();
+      layers.uncertainty.addData({ ...uncertaintyAll,
+        features: uncertaintyAll.features.filter(
+          f => f.properties && f.properties.horizon_minutes === selected)});
     }
     renderTicks();
   }
