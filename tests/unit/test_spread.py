@@ -261,7 +261,20 @@ def test_inputs_resolved_from_stored_layers(session):
     assert inputs["fuel_model"] == "FM10_RedPine"
     assert provenance["wind_speed_kmh"] == "weather_data_points"
     assert provenance["fuel_model"] == "land_cover_data_points"
-    assert provenance["fuel_moisture_pct"] == "van_wagner_emc"
+    # EM-019: moisture comes from the per-class dead fuel model and the
+    # engine value is the load-weighted effective moisture (FM10 dead loads
+    # put it between the 1-h and 100-h class values).
+    assert provenance["fuel_moisture_pct"] == "dead_fuel_moisture_v1"
+    assert (
+        inputs["fuel_moisture_1h_pct"]
+        < inputs["fuel_moisture_10h_pct"]
+        < inputs["fuel_moisture_100h_pct"]
+    )
+    assert (
+        inputs["fuel_moisture_1h_pct"]
+        <= inputs["fuel_moisture_pct"]
+        <= inputs["fuel_moisture_100h_pct"]
+    )
     assert inputs["fuel_model_number"] == 10
     # Wind from the east drives the head west; the N-facing upslope vector
     # (aspect 300) pulls the resultant slightly toward the southeast.

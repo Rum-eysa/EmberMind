@@ -123,6 +123,25 @@ class Config:
         os.getenv("SPREAD_TRIGGER_TEMP_C_THRESHOLD", "5.0")
     )
 
+    # EM-019: Dead fuel moisture model (1h/10h/100h classes from T & RH).
+    # When enabled, spread inputs derive fuel moisture from the per-class
+    # diurnal-conditioning model instead of the plain 1-hour EMC curve.
+    FUEL_MOISTURE_MODEL_ENABLED = os.getenv(
+        "FUEL_MOISTURE_MODEL_ENABLED", "true"
+    ).lower() in ("1", "true", "yes")
+    # Overnight temperature drop of the synthetic diurnal conditioning cycle.
+    FUEL_MOISTURE_DIURNAL_TEMP_AMPLITUDE_C = float(
+        os.getenv("FUEL_MOISTURE_DIURNAL_TEMP_AMPLITUDE_C", "8.0")
+    )
+    # Overnight relative-humidity rise of the synthetic diurnal cycle.
+    FUEL_MOISTURE_DIURNAL_RH_AMPLITUDE_PCT = float(
+        os.getenv("FUEL_MOISTURE_DIURNAL_RH_AMPLITUDE_PCT", "25.0")
+    )
+    # Conditioning window in hours (default two full diurnal cycles).
+    FUEL_MOISTURE_CONDITIONING_HOURS = int(
+        os.getenv("FUEL_MOISTURE_CONDITIONING_HOURS", "48")
+    )
+
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
     # threshold; the panel reports the first day each zone crossed it.

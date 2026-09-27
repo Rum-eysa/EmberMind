@@ -38,6 +38,14 @@ from src.models.land_cover import LandCoverDataPoint
 from src.models.spatial import FireForecast
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
+from src.services.fuel_moisture import (
+    MODEL_NAME as FUEL_MOISTURE_MODEL_NAME,
+)
+from src.services.fuel_moisture import (
+    FuelMoistureError,
+    dead_fuel_moisture,
+    equilibrium_moisture_content,
+)
 from src.services.land_cover import LandCoverFuelService
 from src.utils.timeutils import to_utc_iso, utc_now
 
@@ -329,16 +337,31 @@ def midflame_wind_adjustment_factor(depth_ft: float) -> float:
 def equilibrium_fuel_moisture(air_temp_c: float, rel_humidity_pct: float) -> float:
     """1-hour dead fuel equilibrium moisture content [%] (Van Wagner curves).
 
-    Rothermel et al. 1986 (INT-359) eq 2a: the drying equilibrium curve, used
-    as the instantaneous equilibrium value for afternoon fire-danger weather.
+    Thin re-export of :func:`src.services.fuel_moisture.equilibrium_moisture_content`
+    kept for API compatibility (EM-015 tests); the full per-class model
+    lives in the fuel_moisture module (EM-019).
     """
-    rh = min(max(rel_humidity_pct, 1.0), 100.0)
-    emc_dry = (
-        0.942 * rh**0.679
-        + 11.0 * math.exp((rh - 100.0) / 10.0)
-        + 0.18 * (21.1 - air_temp_c) * (1.0 - math.exp(-0.115 * rh))
+    return equilibrium_moisture_content(air_temp_c, rel_humidity_pct)
+
+
+def effective_dead_fuel_moisture(model_number: int, classes: dict[str, float]) -> float:
+    """Load-weighted effective moisture of the dead fuel classes [%] (EM-019).
+
+    Weights are the 1-h / 10-h / 100-h dead loads of the standard fuel
+    model record, so grass-dominated beds follow the fast (dry) class while
+    slash-heavy beds are pulled towards the wetter coarse classes.
+    """
+    record = FUEL_MODEL_RECORDS[model_number]
+    loads = (record[3], record[4], record[5])  # w1, w10, w100 [lb/ft2]
+    total = sum(loads)
+    if total <= 0:
+        return float(classes["moisture_1h_pct"])
+    weighted = (
+        loads[0] * classes["moisture_1h_pct"]
+        + loads[1] * classes["moisture_10h_pct"]
+        + loads[2] * classes["moisture_100h_pct"]
     )
-    return max(emc_dry, 0.0)
+    return round(weighted / total, 2)
 
 
 def spread_rates(
@@ -350,7 +373,9 @@ def spread_rates(
     """Rothermel head-fire and backing-fire rate of spread (m/min).
 
     All live and dead fuel classes are evaluated at the single supplied dead
-    fuel moisture (fundamental-engine simplification, documented).
+    fuel moisture (fundamental-engine simplification, documented). Since
+    EM-019 the derived default for that value is the load-weighted effective
+    moisture of the 1-h / 10-h / 100-h classes, not the plain 1-hour EMC.
     """
     fuel = compute_fuel_bed(resolve_fuel_model_number(fuel_model))
     if fuel_moisture_pct < 0 or wind_kmh_10m < 0 or not 0.0 <= slope_deg < 90.0:
@@ -642,11 +667,15 @@ def _nearest_row(session: Session, model: Any, lat: float, lon: float) -> Any:
     ).first()
 
 
-def resolve_inputs(session: Session, req: dict[str, Any]) -> dict[str, Any]:
+def resolve_inputs(
+    session: Session, req: dict[str, Any], settings: Any = None
+) -> dict[str, Any]:
     """Fill missing spread inputs from the stored pilot-layer data.
 
     Priority: explicit request value > nearest stored observation >
     deterministic fallback (synthetic CORINE fuel class, calm flat weather).
+    Fuel moisture comes from the EM-019 per-class dead fuel model unless an
+    explicit value is supplied or the model is switched off in settings.
     Returns the merged inputs plus a per-field provenance map.
     """
     lat = float(req["latitude"])
@@ -715,18 +744,51 @@ def resolve_inputs(session: Session, req: dict[str, Any]) -> dict[str, Any]:
             synthetic = LandCoverFuelService().fetch_land_cover_fuel(lat, lon)
             resolved["fuel_model"] = synthetic.fuel_model
             provenance["fuel_model"] = "corine_synthetic"
-
-    # Fuel moisture: explicit or Van Wagner equilibrium from T/RH.
-    if take("fuel_moisture_pct", req.get("fuel_moisture_pct")) is None:
-        resolved["fuel_moisture_pct"] = round(
-            equilibrium_fuel_moisture(
-                float(resolved["air_temp_c"]), float(resolved["relative_humidity_pct"])
-            ),
-            1,
-        )
-        provenance["fuel_moisture_pct"] = "van_wagner_emc"
-
     resolved["fuel_model_number"] = resolve_fuel_model_number(resolved["fuel_model"])
+
+    # Fuel moisture: explicit value, EM-019 per-class dead fuel model, or
+    # the plain Van Wagner 1-hour equilibrium (legacy behaviour).
+    if take("fuel_moisture_pct", req.get("fuel_moisture_pct")) is None:
+        temp = float(resolved["air_temp_c"])
+        rh = float(resolved["relative_humidity_pct"])
+        if bool(getattr(settings, "FUEL_MOISTURE_MODEL_ENABLED", True)):
+            try:
+                classes = dead_fuel_moisture(
+                    temp,
+                    rh,
+                    temp_amplitude_c=float(
+                        getattr(
+                            settings,
+                            "FUEL_MOISTURE_DIURNAL_TEMP_AMPLITUDE_C",
+                            8.0,
+                        )
+                    ),
+                    rh_amplitude_pct=float(
+                        getattr(
+                            settings,
+                            "FUEL_MOISTURE_DIURNAL_RH_AMPLITUDE_PCT",
+                            25.0,
+                        )
+                    ),
+                    conditioning_hours=int(
+                        getattr(settings, "FUEL_MOISTURE_CONDITIONING_HOURS", 48)
+                    ),
+                )
+            except FuelMoistureError as exc:
+                raise SpreadError(f"fuel moisture model: {exc}") from exc
+            resolved["fuel_moisture_1h_pct"] = classes["moisture_1h_pct"]
+            resolved["fuel_moisture_10h_pct"] = classes["moisture_10h_pct"]
+            resolved["fuel_moisture_100h_pct"] = classes["moisture_100h_pct"]
+            resolved["fuel_moisture_pct"] = effective_dead_fuel_moisture(
+                int(resolved["fuel_model_number"]), classes
+            )
+            provenance["fuel_moisture_pct"] = FUEL_MOISTURE_MODEL_NAME
+        else:
+            resolved["fuel_moisture_pct"] = round(
+                equilibrium_moisture_content(temp, rh), 1
+            )
+            provenance["fuel_moisture_pct"] = "van_wagner_emc"
+
     return {"inputs": resolved, "provenance": provenance}
 
 
@@ -759,7 +821,7 @@ def predict_spread(
     if not -90.0 <= lat <= 90.0 or not -180.0 <= lon <= 180.0:
         raise SpreadError(f"coordinate out of range: {lat}, {lon}")
 
-    resolved = resolve_inputs(session, req)
+    resolved = resolve_inputs(session, req, settings)
     inputs = resolved["inputs"]
     horizons = _horizon_minutes(settings, req.get("horizon_minutes"))
     vertices = int(getattr(settings, "SPREAD_POLYGON_VERTICES", 36))

@@ -1,4 +1,5 @@
-"""Rothermel fire spread prediction endpoints (EM-015) and evaluation metrics (EM-017)."""
+"""Rothermel fire spread prediction endpoints (EM-015), evaluation metrics
+(EM-017) and dead fuel moisture model endpoints (EM-019)."""
 from datetime import datetime
 from typing import Any
 
@@ -8,11 +9,14 @@ from sqlalchemy import select
 
 from src.database import Database
 from src.models.spatial import FireEvent
+from src.services.fuel_moisture import FuelMoistureError, dead_fuel_moisture
 from src.services.spread import (
     SpreadError,
+    effective_dead_fuel_moisture,
     fuel_model_catalog,
     list_event_forecasts,
     predict_spread,
+    resolve_fuel_model_number,
 )
 from src.services.spread_metrics import (
     SpreadMetricsError,
@@ -77,6 +81,46 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
             "model": str(getattr(settings, "SPREAD_MODEL_NAME", "rothermel_v1")),
             "count": len(fuel_model_catalog()),
             "fuel_models": fuel_model_catalog(),
+        }
+
+    # --- EM-019: dead fuel moisture model endpoints -------------------------
+
+    @api.get("/api/v1/spread/fuel-moisture", tags=["spread-moisture"])
+    def spread_fuel_moisture(
+        air_temp_c: float = Query(..., ge=-60, le=60, description="Air temp [degC]"),
+        relative_humidity_pct: float = Query(
+            ..., ge=0, le=100, description="Relative humidity [%]"
+        ),
+        fuel_model: str
+        | None = Query(
+            default=None, description="Fuel model label/id for effective moisture"
+        ),
+    ) -> dict[str, Any]:
+        """1h/10h/100h dead fuel moisture classes from temperature and humidity."""
+        try:
+            classes = dead_fuel_moisture(
+                air_temp_c,
+                relative_humidity_pct,
+                temp_amplitude_c=float(
+                    getattr(settings, "FUEL_MOISTURE_DIURNAL_TEMP_AMPLITUDE_C", 8.0)
+                ),
+                rh_amplitude_pct=float(
+                    getattr(settings, "FUEL_MOISTURE_DIURNAL_RH_AMPLITUDE_PCT", 25.0)
+                ),
+                conditioning_hours=int(
+                    getattr(settings, "FUEL_MOISTURE_CONDITIONING_HOURS", 48)
+                ),
+            )
+            number = resolve_fuel_model_number(fuel_model)
+        except (FuelMoistureError, SpreadError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+        return {
+            **classes,
+            "fuel_model_number": number,
+            "effective_moisture_pct": effective_dead_fuel_moisture(number, classes),
         }
 
     @api.get("/api/v1/spread/forecasts", tags=["spread"])

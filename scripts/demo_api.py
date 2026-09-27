@@ -3,6 +3,7 @@
 Kullanim:
     python scripts/demo_api.py                  # sentetik senaryo tohumi 7
     python scripts/demo_api.py --seed 42 --preset firtina
+    python scripts/demo_api.py --port 80        # demo.embermind.local (hosts)
     -> http://127.0.0.1:8000/ui          (operator map, EM-072)
     -> http://127.0.0.1:8000/panel       (commander panel, EM-073)
     -> http://127.0.0.1:8000/inventory   (kaynak envanteri, EM-103)
@@ -38,6 +39,7 @@ from src.services.spread_metrics import (  # noqa: E402
     evaluate_forecast_against_actual,
 )
 from src.services.spread_trigger import auto_trigger_forecasts  # noqa: E402
+from src.services.fuel_moisture import dead_fuel_moisture  # noqa: E402
 from src.services.synthetic import (  # noqa: E402
     PRESETS,
     SyntheticError,
@@ -330,6 +332,14 @@ def seed_demo_data() -> None:
             f"çalışan={sweep['triggered_count']} "
             f"olaylar={[t['event_key'] for t in sweep['triggered']]}"
         )
+        # EM-019 ölü yakıt nemi: demo öğle havasından (31°C / %22 BM) türetilen
+        # 1/10/100 saat sınıf nemleri yayılım motoruna girdi olur.
+        moisture = dead_fuel_moisture(31.0, 22.0)
+        print(
+            f"[EM-019] yakıt nemi: 1h={moisture['moisture_1h_pct']}% "
+            f"10h={moisture['moisture_10h_pct']}% "
+            f"100h={moisture['moisture_100h_pct']}%"
+        )
 
 
 def seed_synthetic_scenario(seed: int, preset: str) -> dict:
@@ -369,6 +379,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no-synthetic", action="store_true", help="sentetik senaryoyu atla"
     )
+    parser.add_argument("--port", type=int, default=8000, help="HTTP port (demo: 8000)")
     args = parser.parse_args()
     # The app defines a custom lifespan, so seed up-front (the in-memory
     # SQLite uses StaticPool, so the data survives across sessions inside
@@ -379,4 +390,4 @@ if __name__ == "__main__":
             seed_synthetic_scenario(args.seed, args.preset)
         except SyntheticError as exc:
             raise SystemExit(f"sentetik senaryo hatasi: {exc}") from exc
-    uvicorn.run(api, host="127.0.0.1", port=8000, log_level="info")
+    uvicorn.run(api, host="127.0.0.1", port=args.port, log_level="info")

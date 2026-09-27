@@ -59,10 +59,12 @@ def _latest_forecast(session: Session, event_key: str) -> FireForecast | None:
     ).first()
 
 
-def _current_inputs(session: Session, event: FireEvent) -> dict[str, Any]:
+def _current_inputs(
+    session: Session, event: FireEvent, settings: Any
+) -> dict[str, Any]:
     """Resolve the spread inputs an auto-run would use for this event now."""
     req = {"latitude": event.latitude, "longitude": event.longitude}
-    return resolve_inputs(session, req)["inputs"]
+    return resolve_inputs(session, req, settings)["inputs"]
 
 
 def inputs_changed_meaningfully(
@@ -141,7 +143,7 @@ def evaluate_trigger(
     """
     clock = now or utc_now()
     last = _latest_forecast(session, str(event.event_key))
-    current = _current_inputs(session, event)
+    current = _current_inputs(session, event, settings)
 
     if last is None:
         return {
