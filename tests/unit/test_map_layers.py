@@ -246,7 +246,7 @@ def test_build_layer_unknown_name_raises(session):
         assert "unknown map layer" in str(exc)
 
 
-def test_layer_catalog_lists_eight_toggleable_layers():
+def test_layer_catalog_lists_nine_toggleable_layers():
     catalog = layer_catalog()
     keys = {item["key"] for item in catalog}
     assert keys == {
@@ -258,6 +258,7 @@ def test_layer_catalog_lists_eight_toggleable_layers():
         "silent-regions",
         "resources",
         "roads",
+        "exposure",
     }
     for item in catalog:
         assert item["url"] == f"/api/v1/map/layers/{item['key']}"
@@ -268,7 +269,7 @@ def test_map_layers_endpoint_catalog(client):
     response = client.get("/api/v1/map/layers")
     assert response.status_code == 200
     body = response.json()
-    assert body["count"] == 8
+    assert body["count"] == 9
 
 
 def test_map_layer_endpoint_and_unknown_layer(client):

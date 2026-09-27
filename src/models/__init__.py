@@ -1,4 +1,5 @@
 """Persisted wildfire models."""
+from .exposure import ExposedAsset
 from .fire import FireCluster, FireObservation, FirmsSyncStatus
 from .fwi import FireWeatherIndex
 from .historical_fire import HistoricalFirePerimeter
@@ -22,6 +23,7 @@ from .weather import WeatherDataPoint
 
 __all__ = [
     "CrewBase",
+    "ExposedAsset",
     "FireCluster",
     "FireEvent",
     "FireForecast",

@@ -31,6 +31,21 @@
     #legend .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
     #status { position: absolute; bottom: 24px; left: 12px; z-index: 1000;
               font-size: var(--font-size-xs); max-width: var(--panel-max-width); }
+    /* EM-023: tehdit altındaki yapılar — etki zamanına göre sıralı liste */
+    #exposure-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 260px; max-height: 46vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #exposure-panel h1 { margin-bottom: 4px; }
+    #exposure-panel .item {
+      display: flex; align-items: center; gap: 6px; padding: 3px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    #exposure-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+                           flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #exposure-panel .t { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #exposure-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     /* EM-020: model güveni rozeti — ufuk çubuğunun içinde gösterilir */
     #confidence-badge { font-size: var(--font-size-xs); font-weight: 700;
                         padding: 2px 8px; border-radius: 10px;
@@ -67,12 +82,20 @@
     <div class="row"><span class="swatch" style="background:#00838f"></span> Envanter — İHA (EM-103)</div>
     <div class="row"><span class="swatch" style="background:#9e9e9e"></span> Müsait / erişilemez kaynak</div>
     <div class="row"><span class="swatch" style="background:#6d4c41"></span> Yol ağı</div>
+    <div class="row"><span class="swatch" style="background:#d62728"></span> Tehdit altındaki yapı — ≤30 dk (EM-023)</div>
+    <div class="row"><span class="swatch" style="background:#ff7f00"></span> Tehdit altındaki yapı — ≤60 dk (EM-023)</div>
+    <div class="row"><span class="swatch" style="background:#ffd400"></span> Tehdit altındaki yapı — ≤120 dk (EM-023)</div>
     <div class="row"><a href="/panel" style="color:#c0392b;font-weight:700">→ Komutan Kapasite &amp; Risk Paneli</a></div>
     <div class="row"><a href="/inventory">→ Kaynak Envanteri (koordinatör)</a></div>
     <div class="row"><a href="/styleguide">→ Tasarım Sistemi (styleguide)</a></div>
   </div>
 
   <div id="status" class="panel" aria-live="polite">Katmanlar yükleniyor…</div>
+
+  <div id="exposure-panel" class="panel" aria-live="polite">
+    <h1>Tehdit Altındaki Yapılar (EM-023)</h1>
+    <div id="exposure-list"></div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -99,6 +122,13 @@
         : { radius: 7, color: "#5c5c5c", fillColor: "#9e9e9e", fillOpacity: 0.6 };
     },
     roads: { color: "#6d4c41", weight: 2, opacity: 0.65 },
+    // EM-023: tehdit altındaki yapı — ilk etki zamanına göre renk.
+    exposure: f => {
+      const t = f.properties.first_impact_minutes;
+      const c = t <= 30 ? "#d62728" : t <= 60 ? "#ff7f00" : "#ffd400";
+      return { radius: 7, weight: 2, color: c, fillColor: c,
+               fillOpacity: 0.85, opacity: 0.9 };
+    },
     // EM-020: kötümser zarf kesikli kırmızı, iyimser zarf noktalı yeşil.
     uncertainty: f => f.properties && f.properties.band === "pessimistic"
       ? { color: "#d62728", weight: 2, dashArray: "6 4",
@@ -187,9 +217,39 @@
       layers[key].clearLayers();
       layers[key].addData(data);
       setStatus(`${data.title}: ${data.count} öge`);
+      if (key === "exposure") renderExposureList(data);
     }
     if (data.attribution) setStatus(`${data.title}: ${data.count} öge — ${data.attribution}`);
     return data;
+  }
+
+  // EM-023: tehdit altındaki yerleşim/yol/altyapı için sıralı öncelik listesi.
+  const ASSET_LABELS = { settlement: "Yerleşim", power_line: "Enerji hattı", road: "Yol" };
+  function impactColor(t) { return t <= 30 ? "#d62728" : t <= 60 ? "#ff7f00" : "#ffd400"; }
+  function renderExposureList(data) {
+    const panel = document.getElementById("exposure-panel");
+    const box = document.getElementById("exposure-list");
+    panel.style.display = "block";
+    box.innerHTML = "";
+    const features = (data.features || []).slice().sort(
+      (a, b) => (a.properties.first_impact_minutes - b.properties.first_impact_minutes));
+    if (!features.length) {
+      box.innerHTML = '<div class="empty">Tahmin poligonları içinde tehdit altındaki yapı yok.</div>';
+      return;
+    }
+    for (const f of features) {
+      const p = f.properties;
+      const row = document.createElement("div");
+      row.className = "item";
+      const label = ASSET_LABELS[p.asset_type] || p.asset_type;
+      const name = p.name || "isimsiz";
+      const pop = p.population ? ` (${p.population} kişi)` : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${impactColor(p.first_impact_minutes)}"></span>` +
+        `<span><b>${label}</b>: ${name}${pop}</span>` +
+        `<span class="t">T+${p.first_impact_minutes} dk</span>`;
+      box.appendChild(row);
+    }
   }
 
   function renderHorizons() {
@@ -271,6 +331,9 @@
             layer._loaded = true;
             try { await loadLayer(meta.key); }
             catch (err) { setStatus(`Hata: ${err.message}`); }
+          }
+          if (!on && meta.key === "exposure") {
+            document.getElementById("exposure-panel").style.display = "none";
           }
         }
       });

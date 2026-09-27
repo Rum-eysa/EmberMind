@@ -93,6 +93,22 @@ hızlandırılır (EM-022, `SPREAD_PERF_ENABLED`; 10 sn yeniden hesaplama hedefi
 benchmark uçlarıyla kanıtlanır). Değerlendirme metrikleri (EM-017) sürüm
 karşılaştırması için `spread_evaluation_metrics` tablosunda birikir (V010).
 
+### Maruziyet — Tehdit Altındaki Yapılar (EM-023)
+```
+POST /api/v1/exposure/import   # OSM'den yerleşim + enerji hattı alımı (ops. bbox)
+GET  /api/v1/exposure          # etki zamanına göre SIRALI tehdit listesi (?event_key=)
+```
+Komutan perspektifi: hangi köy, yol ve altyapı yangın yolunda ve ne zaman
+etkilenecek? `import` OpenStreetMap'ten (Overpass) yerleşim (`settlement`) ve
+enerji hattı (`power_line`) varlıklarını `exposed_assets` (V013) tablosuna
+alır; yollar EM-011 `road_segments`'ten okunur. Analiz, her varlığı EM-015
+ufuk poligonlarıyla **shapely** ile kesiştirir ve **ilk etkilenme zamanı
+`T+dk`**'yı (varlığa ulaşan en küçük ufuk: 30/60/120) hesaplar. Poligon
+dışında kalan varlık listeye girmez. Yanıt: `earliest_impact_minutes`,
+`by_type` özetleri ve `first_impact_minutes`'e göre sıralı `items` listesi.
+Overpass erişilemezse `import` `502` döner. Aynı varlıklar haritada
+**`exposure`** katmanı olarak da çizilir (aşağıda).
+
 ### Tarihsel Yangın Çevreleri (EM-011)
 ```
 GET  /api/v1/historical-fires         # EFFIS içe aktarılan çevreler (yıl/ülke filtresi)
@@ -110,12 +126,14 @@ GET /ui                              # Leaflet tabanlı operatör ana haritası
 GET /api/v1/map/layers               # açılıp kapanabilir katman kataloğu
 GET /api/v1/map/layers/{katman}      # GeoJSON FeatureCollection
 ```
-Katmanlar (8): `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
+Katmanlar (9): `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
 (30/60/120 dk risk bölgesi poligonları), `uncertainty` (EM-020 iyimser/kötümser
 belirsizlik bandı), `barriers` (EM-021 doğal engeller: su kütleleri ve
 yavaşlatıcılar), `fuel` (yakıt sınıfı), `silent-regions`
 (sessiz bölgeler), `resources` (müdahale kaynakları: ekip üsleri **ve** EM-103
-koordinatör envanter varlıkları — `kind` alanıyla ayrılır), `roads` (yol ağı).
+koordinatör envanter varlıkları — `kind` alanıyla ayrılır), `roads` (yol ağı),
+`exposure` (EM-023 tehdit altındaki yerleşim/yol/altyapı; `first_impact_minutes`
+renk kodlu).
 `forecasts` katmanı `?horizon_minutes=` ve `?event_key=` ile filtrelenebilir; arayüzdeki
 **zaman kaydırıcısı** ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
 Her yanıtta kaynak lisansı gereği `attribution` alanı döner (EM-013).

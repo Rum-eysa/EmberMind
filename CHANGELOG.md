@@ -4,6 +4,26 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 
 ## [Unreleased]
 
+### Added
+- EM-023: Tehdit altındaki yerleşim, yol ve altyapı analizi — maruziyet (E2)
+  - `src/models/exposure.py` → `ExposedAsset` (V013 migration): OSM'den alınan
+    yerleşim (`settlement`) ve enerji hattı (`power_line`) varlıkları; örnek
+    nokta + tam WKT geometri (POINT/LINESTRING) ve `population`/`voltage` gibi
+    etiketler. Yollar EM-011 `road_segments` üzerinden okunur (çoğaltılmaz)
+  - `src/services/exposure.py`: (1) Overpass ile yerleşim/enerji hattı alımı
+    (`ExposureOverpassClient`/`sync_exposed_assets`, testte enjekte edilebilir
+    `http_get`), (2) her varlığı EM-015 ufuk poligonlarıyla **shapely**
+    kesiştirip **ilk etkilenme zamanı T+dk**'yı (varlığa ulaşan en küçük ufuk)
+    hesaplar; (3) etki zamanına göre **sıralı** komutan listesi + GeoJSON
+    katmanı üretir. Poligon dışında kalan varlık listeye girmez
+  - Uç noktalar: `POST /api/v1/exposure/import` (ops. bbox; Overpass hatası →
+    502), `GET /api/v1/exposure[?event_key=]` (sıralı maruziyet listesi,
+    `earliest_impact_minutes` + `by_type` özetleri)
+  - Operatör haritasına 9. katman **`exposure`** eklendi (etki zamanına göre
+    renk: ≤30 kırmızı / ≤60 turuncu / ≤120 sarı) + sol üstte sıralı "Tehdit
+    Altındaki Yapılar" paneli; `demo_seed.py` etiketli demo maruziyet verisi
+    üretir (çevrimdışı çalışır)
+
 ### Fixed
 - Docker/uygulama konfigürasyon tutarsızlıkları (operatör haritası boş kalıyordu)
   - `create_fastapi_app()` varsayılanı `"testing"` yerine ortamdan türetilen

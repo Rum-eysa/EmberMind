@@ -29,6 +29,7 @@ from src.services.barriers import (
     parse_polygon_ring,
 )
 from src.services.data_governance import attribution_for
+from src.services.exposure import exposure_layer
 from src.services.spread import resolve_fuel_model_number
 from src.services.spread_uncertainty import (
     ENSEMBLE_MODEL_NAME,
@@ -457,6 +458,7 @@ LAYER_KEYS = (
     "silent-regions",
     "resources",
     "roads",
+    "exposure",
 )
 
 LAYER_GEOMETRIES = {
@@ -468,6 +470,7 @@ LAYER_GEOMETRIES = {
     "silent-regions": "Polygon",
     "resources": "Point",
     "roads": "LineString",
+    "exposure": "Point",  # mixed: settlements are Points, roads/lines LineStrings
 }
 
 
@@ -493,6 +496,7 @@ LAYER_TITLES = {
     "silent-regions": "Sessiz Bölgeler",
     "resources": "Müdahale Kaynakları",
     "roads": "Yol Ağı",
+    "exposure": "Tehdit Altındaki Yapılar",
 }
 
 
@@ -520,6 +524,8 @@ def build_layer(
         return resources_layer(session)
     if name == "roads":
         return roads_layer(session, settings)
+    if name == "exposure":
+        return exposure_layer(session, settings, event_key)
     raise MapLayerError(
         f"unknown map layer '{name}'; expected one of {sorted(LAYER_KEYS)}"
     )
