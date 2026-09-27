@@ -96,18 +96,26 @@ karşılaştırması için `spread_evaluation_metrics` tablosunda birikir (V010)
 ### Maruziyet — Tehdit Altındaki Yapılar (EM-023)
 ```
 POST /api/v1/exposure/import   # OSM'den yerleşim + enerji hattı alımı (ops. bbox)
-GET  /api/v1/exposure          # etki zamanına göre SIRALI tehdit listesi (?event_key=)
+GET  /api/v1/exposure          # öncelik skoruna göre SIRALI tehdit listesi (?event_key=)
 ```
 Komutan perspektifi: hangi köy, yol ve altyapı yangın yolunda ve ne zaman
 etkilenecek? `import` OpenStreetMap'ten (Overpass) yerleşim (`settlement`) ve
 enerji hattı (`power_line`) varlıklarını `exposed_assets` (V013) tablosuna
 alır; yollar EM-011 `road_segments`'ten okunur. Analiz, her varlığı EM-015
 ufuk poligonlarıyla **shapely** ile kesiştirir ve **ilk etkilenme zamanı
-`T+dk`**'yı (varlığa ulaşan en küçük ufuk: 30/60/120) hesaplar. Poligon
-dışında kalan varlık listeye girmez. Yanıt: `earliest_impact_minutes`,
-`by_type` özetleri ve `first_impact_minutes`'e göre sıralı `items` listesi.
-Overpass erişilemezse `import` `502` döner. Aynı varlıklar haritada
-**`exposure`** katmanı olarak da çizilir (aşağıda).
+`T+dk`**'yı hesaplar: varlığa ulaşan en küçük ufuk bulunur, ardından kaydedilen
+ufuk başına **yayılma hızı** ve ateş noktasına uzaklıkla iki ufuk arasında
+**enterpolasyon** yapılır (ör. `T+47`); kovayı aşan uzaklıklar ilgili ufka
+kırpılır. Her öğeye **`priority_score`** (0–100; etki zamanı + varlık kritikliği
++ nüfus log ölçek) atanır ve liste bu skora göre azalan sıralanır. Poligon
+dışında kalan varlık listeye girmez. Yanıt: `earliest_impact_minutes`, `by_type`
+ve `items`. Ölüçek tarafında adaylarda bbox ön-eleme + hazırlanmış geometri +
+tablo parmak izine bağlı kısa ömürlü TTL önbellek kullanılır
+(`EXPOSURE_CACHE_*`). `import` için bbox alanı `EXPOSURE_IMPORT_MAX_BBOX_AREA_DEG2`
+aşılırsa **400**, öncelikli yerleşim sınıfları (`EXPOSURE_IMPORT_PRIORITY_PLACE_CLASSES`)
+dışındaki isimsiz yerleşimler elenir, `EXPOSURE_IMPORT_MAX_ASSETS` üzerinde kesilir;
+Overpass erişilemezse **502** döner. Aynı varlıklar haritada **`exposure`**
+katmanı olarak da çizilir ve `?event_key=` ile filtrelenebilir (aşağıda).
 
 ### Tarihsel Yangın Çevreleri (EM-011)
 ```
@@ -133,9 +141,10 @@ yavaşlatıcılar), `fuel` (yakıt sınıfı), `silent-regions`
 (sessiz bölgeler), `resources` (müdahale kaynakları: ekip üsleri **ve** EM-103
 koordinatör envanter varlıkları — `kind` alanıyla ayrılır), `roads` (yol ağı),
 `exposure` (EM-023 tehdit altındaki yerleşim/yol/altyapı; `first_impact_minutes`
-renk kodlu).
-`forecasts` katmanı `?horizon_minutes=` ve `?event_key=` ile filtrelenebilir; arayüzdeki
-**zaman kaydırıcısı** ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
+mor renk kodlu ve `priority_score` ile sıralı).
+`forecasts` ve `exposure` katmanları `?event_key=` ile tek yangına filtrelenebilir;
+`forecasts` ayrıca `?horizon_minutes=` destekler ve arayüzdeki **zaman kaydırıcısı**
+ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
 Her yanıtta kaynak lisansı gereği `attribution` alanı döner (EM-013).
 
 ### Komutan Kapasite ve Risk Paneli (EM-073)

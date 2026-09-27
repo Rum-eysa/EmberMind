@@ -180,6 +180,38 @@ class Config:
         os.getenv("SPREAD_RECOMPUTE_TARGET_SECONDS", "10.0")
     )
 
+    # --- EM-023: exposure analysis (settlements / roads / energy) ------------
+    # Guard for the OSM ingest endpoint: refuse a bbox larger than this area in
+    # square degrees so an accidental whole-country bbox cannot hammer Overpass
+    # or exhaust memory. The pilot region (~14 deg^2) stays well under this.
+    EXPOSURE_IMPORT_MAX_BBOX_AREA_DEG2 = float(
+        os.getenv("EXPOSURE_IMPORT_MAX_BBOX_AREA_DEG2", "30.0")
+    )
+    # Hard cap on how many elements a single import may return.
+    EXPOSURE_IMPORT_MAX_ASSETS = int(os.getenv("EXPOSURE_IMPORT_MAX_ASSETS", "2000"))
+    # Only settlements carrying a name, or in these priority place classes, are
+    # ingested by default (drops unnamed isolated dwellings that flood the list).
+    EXPOSURE_IMPORT_PRIORITY_PLACE_CLASSES = [
+        klass.strip()
+        for klass in os.getenv(
+            "EXPOSURE_IMPORT_PRIORITY_PLACE_CLASSES", "city,town,village"
+        ).split(",")
+        if klass.strip()
+    ]
+    # The threatened-element analysis is recomputed on every map/list call; a
+    # short TTL cache keyed by the (forecast, asset, road) table fingerprint
+    # keeps the commander view responsive without returning stale data.
+    EXPOSURE_CACHE_ENABLED = os.getenv("EXPOSURE_CACHE_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    EXPOSURE_CACHE_TTL_SECONDS = float(os.getenv("EXPOSURE_CACHE_TTL_SECONDS", "60"))
+    # Population reference for the priority-score normalization (log scale).
+    EXPOSURE_POPULATION_REFERENCE = float(
+        os.getenv("EXPOSURE_POPULATION_REFERENCE", "100000")
+    )
+
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
     # threshold; the panel reports the first day each zone crossed it.

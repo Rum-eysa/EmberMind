@@ -13,16 +13,25 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - `src/services/exposure.py`: (1) Overpass ile yerleşim/enerji hattı alımı
     (`ExposureOverpassClient`/`sync_exposed_assets`, testte enjekte edilebilir
     `http_get`), (2) her varlığı EM-015 ufuk poligonlarıyla **shapely**
-    kesiştirip **ilk etkilenme zamanı T+dk**'yı (varlığa ulaşan en küçük ufuk)
-    hesaplar; (3) etki zamanına göre **sıralı** komutan listesi + GeoJSON
-    katmanı üretir. Poligon dışında kalan varlık listeye girmez
-  - Uç noktalar: `POST /api/v1/exposure/import` (ops. bbox; Overpass hatası →
-    502), `GET /api/v1/exposure[?event_key=]` (sıralı maruziyet listesi,
-    `earliest_impact_minutes` + `by_type` özetleri)
-  - Operatör haritasına 9. katman **`exposure`** eklendi (etki zamanına göre
-    renk: ≤30 kırmızı / ≤60 turuncu / ≤120 sarı) + sol üstte sıralı "Tehdit
-    Altındaki Yapılar" paneli; `demo_seed.py` etiketli demo maruziyet verisi
-    üretir (çevrimdışı çalışır)
+    kesiştirip **ilk etkilenme zamanı T+dk**'yı hesaplar — artık yalnızca
+    {30/60/120} kovası değil, kaydedilen ufuk başına **yayılma hızı** ve
+    ateş noktasına uzaklıkla iki ufuk arasında **enterpolasyon** (ör. T+47);
+    (3) her varlığa **öncelik skoru** (etki zamanı + varlık kritikliği + nüfus,
+    log ölçek) atar ve listeyi bu skora göre sıralar (koruma/tahliye önceliği)
+  - Ölçek & dayanıklılık: adaylarda **bbox ön-eleme**, **shapely hazırlanmış
+    (prepared) geometri** ve tablo parmak izine (girdi içeriği + varlık/yol
+    sayıları) bağlı kısa ömürlü **TTL önbellek**; bozuk geometri loglanır
+  - İçe alma korumaları: bbox alan sınırı (`EXPOSURE_IMPORT_MAX_BBOX_AREA_DEG2`,
+    aşan istek → **400**), öğe sayısı üst sınırı (`EXPOSURE_IMPORT_MAX_ASSETS`),
+    öncelikli yerleşim sınıfları filtresi, kısmi enerji hattı işareti
+  - Uç noktalar: `POST /api/v1/exposure/import` (bbox doğrulama → 400, Overpass
+    hatası → 502), `GET /api/v1/exposure[?event_key=]` (öncelik sıralı liste,
+    `earliest_impact_minutes` + `by_type` özetleri, `priority_score`)
+  - Operatör haritasına 9. katman **`exposure`** eklendi; mor renk ailesi (≤30
+    koyu mor / ≤60 mor / ≤120 açık mor) risk bölgesi renklerinden ayrışır; sol
+    üstteki "Tehdit Altındaki Yapılar" panelinde **olay filtresi**, canlı sayaç,
+    öncelik skoru ve insanîleştirilmiş popup; `demo_seed.py` etiketli demo
+    maruziyet verisi üretir ve sahte demo tahminleri `demo_forecast` ile işaretler
 
 ### Fixed
 - Docker/uygulama konfigürasyon tutarsızlıkları (operatör haritası boş kalıyordu)

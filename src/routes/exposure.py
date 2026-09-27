@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from src.database import Database
 from src.services.exposure import (
     ExposureError,
+    bbox_area_deg2,
     exposure_summary,
     sync_exposed_assets,
 )
@@ -43,6 +44,28 @@ def register_exposure_routes(api: FastAPI, database: Database, settings: Any) ->
     def exposure_import(req: ExposureImportRequest) -> dict[str, Any]:
         """Import settlements and energy lines for a bbox from OpenStreetMap."""
         bbox = _resolve_bbox(req)
+        min_lat, min_lon, max_lat, max_lon = bbox
+        if min_lat > max_lat or min_lon > max_lon:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "error": "min corner must not exceed max corner",
+                },
+            )
+        area = bbox_area_deg2(bbox)
+        limit = float(getattr(settings, "EXPOSURE_IMPORT_MAX_BBOX_AREA_DEG2", 30.0))
+        if area > limit:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "error": (
+                        f"bbox area {area:.2f} deg^2 exceeds the import limit "
+                        f"{limit:.2f} deg^2; narrow the region"
+                    ),
+                },
+            )
         try:
             with database.session() as session:
                 return sync_exposed_assets(session, settings, bbox)

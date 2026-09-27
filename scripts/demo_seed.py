@@ -133,6 +133,8 @@ def seed_exposure_demo(session, fire: dict) -> dict:
             "slope_deg": 12.0,
             "aspect_deg": 180.0,
             "fuel_model": "demo",
+            # P2 marker: these are demo placeholders, not real model output.
+            "demo_forecast": True,
         },
         sort_keys=True,
     )
