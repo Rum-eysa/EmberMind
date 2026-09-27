@@ -215,8 +215,9 @@ def envelope_from_inputs(
         if r["wind_dir_delta_deg"] == 0.0 and r["wind_speed_factor"] == 1.0
     )
     # EM-021: the ensemble rings respect active natural barriers as well.
+    # EM-022: the barrier load goes through the layer cache when enabled.
     barriers_enabled = bool(getattr(settings, "SPREAD_BARRIERS_ENABLED", True))
-    barriers = load_active_barriers(session) if barriers_enabled else []
+    barriers = load_active_barriers(session, settings) if barriers_enabled else []
 
     def _masked(local: list[list[float]]) -> list[list[float]]:
         if local and barriers:

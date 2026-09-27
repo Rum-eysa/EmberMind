@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.spatial import NaturalBarrier
+from src.services.layer_cache import cached_value, layer_cache, perf_enabled
 
 METERS_PER_DEGREE_LAT = 111320.0  # WGS-84 mean Earth meridian circumference
 
@@ -49,6 +50,9 @@ DEFAULT_SLOWDOWN = {
 }
 
 _EPS = 1e-9
+
+# EM-022: cache key prefix for the decoded active-barrier list.
+BARRIER_CACHE_KEY = ("barriers",)
 
 
 class BarrierError(RuntimeError):
@@ -158,10 +162,31 @@ def _line_edges(line: list[list[float]]) -> list[tuple[list[float], list[float]]
     return [(line[i], line[i + 1]) for i in range(len(line) - 1)]
 
 
-def load_active_barriers(session: Session | None) -> list[dict[str, Any]]:
-    """Decode active barrier rows into local-frame-free geographic dicts."""
+def load_active_barriers(
+    session: Session | None, settings: Any = None
+) -> list[dict[str, Any]]:
+    """Decode active barrier rows into local-frame-free geographic dicts.
+
+    With EM-022 (``settings`` given and SPREAD_PERF_ENABLED) the decoded
+    list is served from the layer cache; register/delete invalidate it, so
+    operators still see barrier changes immediately. Treat the returned
+    list as read-only: cached runs share one instance.
+    """
     if session is None:
         return []
+    db_session: Session = session
+    if settings is None or not perf_enabled(settings):
+        return _load_active_barriers(db_session)
+    return cached_value(
+        db_session,
+        BARRIER_CACHE_KEY,
+        lambda: _load_active_barriers(db_session),
+        settings,
+    )
+
+
+def _load_active_barriers(session: Session) -> list[dict[str, Any]]:
+    """Uncached barrier decode (the loader behind the EM-022 cache)."""
     barriers = []
     rows = session.scalars(
         select(NaturalBarrier).where(NaturalBarrier.is_active.is_(True))
@@ -306,6 +331,7 @@ def register_barrier(session: Session, fields: dict[str, Any]) -> dict[str, Any]
     )
     session.add(row)
     session.commit()
+    layer_cache().invalidate(BARRIER_CACHE_KEY)
     return row.as_dict
 
 
@@ -326,4 +352,5 @@ def delete_barrier(session: Session, barrier_key: str) -> bool:
         return False
     session.delete(row)
     session.commit()
+    layer_cache().invalidate(BARRIER_CACHE_KEY)
     return True

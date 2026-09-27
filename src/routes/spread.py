@@ -1,6 +1,7 @@
 """Rothermel fire spread prediction endpoints (EM-015), evaluation metrics
 (EM-017), dead fuel moisture model endpoints (EM-019), uncertainty envelope
-endpoints (EM-020) and natural barrier management (EM-021)."""
+endpoints (EM-020), natural barrier management (EM-021) and performance
+benchmark/profile endpoints (EM-022)."""
 from datetime import datetime
 from typing import Any
 
@@ -17,6 +18,7 @@ from src.services.barriers import (
     register_barrier,
 )
 from src.services.fuel_moisture import FuelMoistureError, dead_fuel_moisture
+from src.services.layer_cache import layer_cache
 from src.services.spread import (
     SpreadError,
     effective_dead_fuel_moisture,
@@ -30,6 +32,13 @@ from src.services.spread_metrics import (
     evaluate_forecast_against_actual,
     list_evaluation_metrics,
     version_summary,
+)
+from src.services.spread_perf import (
+    BENCHMARK_MODEL_NAME,
+    benchmark_reference_scenario,
+    list_performance_runs,
+    profile_reference_scenario,
+    recompute_target_seconds,
 )
 from src.services.spread_trigger import (
     auto_trigger_forecasts,
@@ -194,6 +203,43 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
                 },
             )
         return {"status": "deleted", "barrier_key": barrier_key}
+
+    # --- EM-022: model performance optimization endpoints --------------------
+
+    @api.post("/api/v1/spread/performance/benchmark", tags=["spread-performance"])
+    def spread_performance_benchmark(
+        repeats: int = Query(default=3, ge=1, le=20),
+    ) -> dict[str, Any]:
+        """Benchmark the reference scenario before/after the EM-022
+        optimizations (layer cache + vectorized sampling) and store the run."""
+        with database.session() as session:
+            return benchmark_reference_scenario(session, settings, repeats=repeats)
+
+    @api.get("/api/v1/spread/performance", tags=["spread-performance"])
+    def spread_performance(
+        limit: int = Query(default=20, ge=1, le=100),
+    ) -> dict[str, Any]:
+        """Stored benchmark runs (newest first) plus the live cache stats."""
+        with database.session() as session:
+            runs = list_performance_runs(session, limit)
+        return {
+            "model": BENCHMARK_MODEL_NAME,
+            "target_seconds": recompute_target_seconds(settings),
+            "cache": layer_cache().stats(),
+            "count": len(runs),
+            "runs": runs,
+        }
+
+    @api.get("/api/v1/spread/performance/profile", tags=["spread-performance"])
+    def spread_performance_profile(
+        samples: int = Query(default=5, ge=1, le=50),
+        top: int = Query(default=10, ge=1, le=50),
+    ) -> dict[str, Any]:
+        """cProfile the optimized reference recomputation; hottest functions."""
+        with database.session() as session:
+            return profile_reference_scenario(
+                session, settings, samples=samples, top=top
+            )
 
     @api.get("/api/v1/spread/forecasts", tags=["spread"])
     def spread_forecasts(event_key: str | None = None) -> dict[str, Any]:

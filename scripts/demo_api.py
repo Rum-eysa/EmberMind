@@ -39,6 +39,7 @@ from src.services.spread import predict_spread  # noqa: E402
 from src.services.spread_metrics import (  # noqa: E402
     evaluate_forecast_against_actual,
 )
+from src.services.spread_perf import benchmark_reference_scenario  # noqa: E402
 from src.services.spread_trigger import auto_trigger_forecasts  # noqa: E402
 from src.services.spread_uncertainty import uncertainty_envelope  # noqa: E402
 from src.services.fuel_moisture import dead_fuel_moisture  # noqa: E402
@@ -395,6 +396,16 @@ def seed_demo_data() -> None:
             f"[EM-021] doğal engeller: {barrier_types} "
             f"→ 120 dk kırpılmış alan "
             f"{spread_result['forecasts'][-1]['area_ha']} ha"
+        )
+        # EM-022: referans senaryoyu önbellek/vektörleştirme öncesi/sonrası
+        # ölçülüp spread_performance_runs tablosuna yazılır (10 sn hedefi).
+        perf = benchmark_reference_scenario(session, api.state.settings, repeats=3)
+        print(
+            f"[EM-022] performans: öncesi={perf['baseline_total_ms']}ms "
+            f"sonrası={perf['optimized_total_ms']}ms "
+            f"hızlanma={perf['speedup']}x "
+            f"| hedef={perf['target_seconds']}sn "
+            f"{'TUTTU' if perf['target_met'] else 'AŞILDI'}"
         )
 
 

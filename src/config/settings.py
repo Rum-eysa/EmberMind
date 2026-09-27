@@ -161,6 +161,25 @@ class Config:
         "yes",
     )
 
+    # --- EM-022: model performance optimization ------------------------------
+    # Cache and vectorize input-layer reads so a spread recomputation stays
+    # inside the operator target below. Off switches back to the scalar path.
+    SPREAD_PERF_ENABLED = os.getenv("SPREAD_PERF_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    # TTL of cached weather/topography/land-cover/barrier reads (seconds).
+    SPREAD_PERF_CACHE_TTL_SECONDS = float(
+        os.getenv("SPREAD_PERF_CACHE_TTL_SECONDS", "120")
+    )
+    # Coordinate quantization of the cache grid in degrees (0.001 ~= 111 m).
+    SPREAD_PERF_CACHE_GRID_DEG = float(os.getenv("SPREAD_PERF_CACHE_GRID_DEG", "0.001"))
+    # Recomputation time target the benchmark is graded against (seconds).
+    SPREAD_RECOMPUTE_TARGET_SECONDS = float(
+        os.getenv("SPREAD_RECOMPUTE_TARGET_SECONDS", "10.0")
+    )
+
     # Commander capacity & risk panel (EM-073)
     # FWI value at which a zone is considered to have breached the risk
     # threshold; the panel reports the first day each zone crossed it.
@@ -225,6 +244,9 @@ class TestingConfig(Config):
     TESTING = True
     DATABASE_URL = "sqlite:///:memory:"
     WTF_CSRF_ENABLED = False
+    # EM-022: keep the scalar (uncached) engine path so endpoint tests stay
+    # deterministic; the benchmark overrides this per measurement mode.
+    SPREAD_PERF_ENABLED = False
 
 
 class ProductionConfig(Config):

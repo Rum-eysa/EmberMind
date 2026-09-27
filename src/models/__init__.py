@@ -7,6 +7,7 @@ from .land_cover import LandCoverDataPoint
 from .pipeline import PipelineJobHistory
 from .road_network import CrewBase, RoadClosure, RoadSegment
 from .spread_metrics import SpreadEvaluationMetric
+from .spread_perf import SpreadPerformanceRun
 from .spatial import (
     FireEvent,
     FireForecast,
@@ -38,6 +39,7 @@ __all__ = [
     "SimulationScenario",
     "SpatialSource",
     "SpreadEvaluationMetric",
+    "SpreadPerformanceRun",
     "SuppressionResource",
     "TopographyDataPoint",
     "WeatherDataPoint",

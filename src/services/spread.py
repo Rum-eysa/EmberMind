@@ -31,6 +31,7 @@ import json
 import math
 from typing import Any
 
+import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -48,6 +49,11 @@ from src.services.fuel_moisture import (
     equilibrium_moisture_content,
 )
 from src.services.land_cover import LandCoverFuelService
+from src.services.layer_cache import (
+    RowView,
+    cached_nearest_value,
+    perf_enabled,
+)
 from src.utils.timeutils import to_utc_iso, utc_now
 
 # Unit conversion factors (exact definitions).
@@ -537,6 +543,65 @@ def _fuel_number_at_offset(
     return default_number
 
 
+# Sentinel score for land-cover points outside a sample's search box.
+_NO_MATCH = -(2**62)
+
+
+def _batch_fuel_numbers(
+    session: Session,
+    lat: float,
+    lon: float,
+    samples: list[tuple[float, float]],
+    default_number: int,
+) -> list[int]:
+    """EM-022 vectorized land-cover sampling for the transition polygon.
+
+    One bbox query replaces the per-vertex ``_nearest_row`` round trips: all
+    points inside the union of the sample search boxes are fetched once, then
+    for every sample the most recently fetched point within its own ±0.05°
+    box wins (numpy argmax over datetime64 scores), mirroring the scalar
+    query semantics. Ties on identical ``fetched_at`` resolve to the lowest
+    rowid on both paths.
+    """
+    if not samples:
+        return []
+    max_offset = max(math.hypot(east, north) for east, north in samples)
+    pad = 0.05 + max_offset / METERS_PER_DEGREE_LAT + 0.005
+    rows = session.execute(
+        select(
+            LandCoverDataPoint.latitude,
+            LandCoverDataPoint.longitude,
+            LandCoverDataPoint.fuel_model,
+            LandCoverDataPoint.fetched_at,
+        ).where(
+            LandCoverDataPoint.latitude.between(lat - pad, lat + pad),
+            LandCoverDataPoint.longitude.between(lon - pad, lon + pad),
+        )
+    ).all()
+    numbers = [default_number] * len(samples)
+    if not rows:
+        return numbers
+    point_lat = np.array([float(row[0]) for row in rows])
+    point_lon = np.array([float(row[1]) for row in rows])
+    fetched = np.array([row[3] for row in rows], dtype="datetime64[ns]").astype("int64")
+    meters_per_lon = METERS_PER_DEGREE_LAT * max(math.cos(math.radians(lat)), 0.1)
+    sample_lat = np.array([lat + north / METERS_PER_DEGREE_LAT for _, north in samples])
+    sample_lon = np.array([lon + east / meters_per_lon for east, _ in samples])
+    in_box = (np.abs(sample_lat[:, None] - point_lat[None, :]) <= 0.05) & (
+        np.abs(sample_lon[:, None] - point_lon[None, :]) <= 0.05
+    )
+    scores = np.where(in_box, fetched[None, :], _NO_MATCH)
+    best = scores.argmax(axis=1)
+    for idx, col in enumerate(best):
+        if scores[idx, col] == _NO_MATCH:
+            continue
+        try:
+            numbers[idx] = resolve_fuel_model_number(str(rows[col][2]))
+        except SpreadError:
+            pass  # unknown label: keep the default, like the scalar path
+    return numbers
+
+
 def fuel_transition_polygon(
     session: Session,
     head_m: float,
@@ -546,6 +611,7 @@ def fuel_transition_polygon(
     ignition_lat: float = 0.0,
     ignition_lon: float = 0.0,
     vertices: int = FUEL_TRANSITION_VERTICES,
+    settings: Any = None,
 ) -> tuple[list[list[float]], list[dict[str, Any]]]:
     """Generate a fuel-sensitive irregular risk-zone polygon.
 
@@ -556,6 +622,10 @@ def fuel_transition_polygon(
     When the fire front reaches a less-flammable zone (e.g. agriculture from
     pine), the polygon is pinched inward; toward more-flammable vegetation
     (e.g. grass from chaparral), it bulges outward.
+
+    With EM-022 (SPREAD_PERF_ENABLED) the vertex sampling runs batched and
+    vectorized (one land-cover query per polygon instead of one per vertex);
+    both paths produce identical rings.
     """
     if head_m <= 0 or back_m <= 0:
         return [], []
@@ -570,13 +640,10 @@ def fuel_transition_polygon(
     )
     latus = 2.0 * head_m * back_m / (head_m + back_m)
 
-    points: list[list[float]] = []
-    zones: list[dict[str, Any]] = []
-    seen_fuel: dict[int, int] = {}  # fuel_number -> vertex count
-
+    # Nominal front geometry per vertex: (radius, east unit, north unit).
+    geometry: list[tuple[float, float, float]] = []
     for step in range(vertices):
         theta = 2.0 * math.pi * step / vertices
-        # Nominal ellipse radius at this angle
         nominal_r = (
             semi_major
             if eccentricity == 0.0
@@ -584,18 +651,32 @@ def fuel_transition_polygon(
         )
         bearing = (direction_deg or 0.0) + math.degrees(theta)
         east, north = _compass_vector(bearing)
+        geometry.append((nominal_r, east, north))
 
-        # Sample fuel at the nominal front position
-        sample_east = nominal_r * east
-        sample_north = nominal_r * north
-        local_fuel_num = _fuel_number_at_offset(
-            session,
-            ignition_lat,
-            ignition_lon,
-            sample_east,
-            sample_north,
-            base_fuel_number,
+    if perf_enabled(settings):
+        # EM-022: vectorized batch sampling, one query for all vertices.
+        samples = [(r * e, r * n) for r, e, n in geometry]
+        numbers = _batch_fuel_numbers(
+            session, ignition_lat, ignition_lon, samples, base_fuel_number
         )
+    else:
+        numbers = [
+            _fuel_number_at_offset(
+                session,
+                ignition_lat,
+                ignition_lon,
+                nominal_r * east,
+                nominal_r * north,
+                base_fuel_number,
+            )
+            for nominal_r, east, north in geometry
+        ]
+
+    points: list[list[float]] = []
+    zones: list[dict[str, Any]] = []
+    seen_fuel: dict[int, int] = {}  # fuel_number -> vertex count
+
+    for (nominal_r, east, north), local_fuel_num in zip(geometry, numbers):
         # Compute local ROS ratio (calm, flat — same weather, different fuel)
         if local_fuel_num != base_fuel_number:
             local_rates = spread_rates(local_fuel_num, 8.0, 0.0, 0.0)
@@ -604,8 +685,6 @@ def fuel_transition_polygon(
             scale = max(0.2, min(3.0, local_ros / base_ros)) if base_ros > 0 else 1.0
         else:
             scale = 1.0
-            local_rates = base_rates
-            local_ros = base_ros
 
         adjusted_r = nominal_r * scale
         points.append([round(adjusted_r * east, 2), round(adjusted_r * north, 2)])
@@ -668,6 +747,43 @@ def _nearest_row(session: Session, model: Any, lat: float, lon: float) -> Any:
     ).first()
 
 
+# EM-022: attributes the engine reads from each cached input layer.
+_LAYER_SNAPSHOT_FIELDS = {
+    "WeatherDataPoint": ("wind_speed", "wind_deg", "temperature", "humidity"),
+    "TopographyDataPoint": ("slope", "aspect"),
+    "LandCoverDataPoint": ("fuel_model",),
+}
+
+
+def _nearest_row_view(session: Session, model: Any, lat: float, lon: float) -> Any:
+    """Cache-safe attribute snapshot of the nearest row (None stays None)."""
+    row = _nearest_row(session, model, lat, lon)
+    if row is None:
+        return None
+    fields = _LAYER_SNAPSHOT_FIELDS.get(model.__name__, ())
+    return RowView(**{name: getattr(row, name) for name in fields})
+
+
+def _nearest_row_cached(
+    session: Session, model: Any, lat: float, lon: float, settings: Any
+) -> Any:
+    """Nearest-row lookup behind the EM-022 quantized-grid TTL cache.
+
+    With SPREAD_PERF_ENABLED off (the default for settings stubs) this is
+    the plain scalar query, so engine behaviour is unchanged elsewhere.
+    """
+    if not perf_enabled(settings):
+        return _nearest_row(session, model, lat, lon)
+    return cached_nearest_value(
+        session,
+        model.__name__,
+        lat,
+        lon,
+        lambda: _nearest_row_view(session, model, lat, lon),
+        settings,
+    )
+
+
 def resolve_inputs(
     session: Session, req: dict[str, Any], settings: Any = None
 ) -> dict[str, Any]:
@@ -691,7 +807,7 @@ def resolve_inputs(
         return value
 
     # Wind / temperature / humidity.
-    weather = _nearest_row(session, WeatherDataPoint, lat, lon)
+    weather = _nearest_row_cached(session, WeatherDataPoint, lat, lon, settings)
     if take("wind_speed_kmh", req.get("wind_speed_kmh")) is None:
         if weather is not None:
             # Stored OpenWeather values are metric (m/s) -> km/h.
@@ -723,7 +839,7 @@ def resolve_inputs(
         )
 
     # Slope and aspect.
-    topo = _nearest_row(session, TopographyDataPoint, lat, lon)
+    topo = _nearest_row_cached(session, TopographyDataPoint, lat, lon, settings)
     if take("slope_deg", req.get("slope_deg")) is None:
         resolved["slope_deg"] = float(topo.slope) if topo is not None else 0.0
         provenance["slope_deg"] = "topography_data_points" if topo else "fallback_flat"
@@ -737,7 +853,7 @@ def resolve_inputs(
         resolved["fuel_model"] = fuel_label
         provenance["fuel_model"] = "request"
     else:
-        cover = _nearest_row(session, LandCoverDataPoint, lat, lon)
+        cover = _nearest_row_cached(session, LandCoverDataPoint, lat, lon, settings)
         if cover is not None:
             resolved["fuel_model"] = str(cover.fuel_model)
             provenance["fuel_model"] = "land_cover_data_points"
@@ -830,7 +946,8 @@ def predict_spread(
     fuel_transition = bool(getattr(settings, "FUEL_TRANSITION_ENABLED", True))
     # EM-021: active natural barriers (water clip / partial slowdown).
     barriers_enabled = bool(getattr(settings, "SPREAD_BARRIERS_ENABLED", True))
-    barriers = load_active_barriers(session) if barriers_enabled else []
+    # EM-022: barrier loads go through the layer cache when perf is enabled.
+    barriers = load_active_barriers(session, settings) if barriers_enabled else []
 
     rates = spread_rates(
         inputs["fuel_model_number"],
@@ -865,6 +982,7 @@ def predict_spread(
                 ignition_lat=lat,
                 ignition_lon=lon,
                 vertices=FUEL_TRANSITION_VERTICES,
+                settings=settings,
             )
             if zones and not all_fuel_zones:
                 all_fuel_zones = zones
