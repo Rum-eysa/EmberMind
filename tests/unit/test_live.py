@@ -9,6 +9,7 @@ from src.services.live import (
     latest_id,
     record_update,
     recent_updates,
+    safe_record_update,
 )
 
 MANUAL_EVENT: dict[str, Any] = {
@@ -85,6 +86,35 @@ def test_feed_returns_updates_and_cursor(session: Any, api: Any) -> None:
 
 def test_latest_id_zero_when_empty(session: Any) -> None:
     assert latest_id(session) == 0
+
+
+# ------------------------------------------------- safe_record_update ----
+
+
+def test_safe_record_update_writes_on_its_own_session(api: Any) -> None:
+    """Regression: the feed write must not ride on a caller's transaction."""
+    safe_record_update(
+        api.state.database,
+        api.state.settings,
+        "fire_event",
+        event_key="ISOLOK",
+        title="başlık",
+    )
+    with api.state.database.session() as check:
+        assert latest_id(check) >= 1
+
+
+def test_safe_record_update_swallows_failures(api: Any) -> None:
+    """A bad kind raises inside, but the best-effort wrapper must not bubble."""
+    safe_record_update(  # does not raise
+        api.state.database, api.state.settings, "not-a-real-kind"
+    )
+
+
+def test_safe_record_update_disabled_is_noop(api: Any) -> None:
+    safe_record_update(api.state.database, _DisabledSettings(), "fire_event")
+    with api.state.database.session() as check:
+        assert latest_id(check) == 0
 
 
 # ------------------------------------------------------------------ REST ---

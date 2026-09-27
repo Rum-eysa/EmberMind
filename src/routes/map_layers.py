@@ -24,6 +24,8 @@ def register_map_layer_routes(api: FastAPI, database: Database, settings: Any) -
     def operator_map() -> FileResponse:
         """Main operator map: fires, horizon polygons, fuel, silent zones,
         resources and roads with layer toggles and a 30/60/120-min slider."""
+        if not MAP_PAGE.is_file():
+            raise HTTPException(status_code=404, detail="Operator map page missing")
         return FileResponse(MAP_PAGE, media_type="text/html")
 
     @api.get("/api/v1/map/layers", tags=["map"])

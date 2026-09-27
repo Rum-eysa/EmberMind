@@ -64,7 +64,7 @@ def register_fwi_routes(api: FastAPI, database: Database, settings: Any) -> None
             result = compute_region_fwi(session, settings, _parse_day(day))
             if result.get("high_risk_zones", 0) > 0:
                 safe_record_update(
-                    session,
+                    database,
                     settings,
                     "alert",
                     title="Yüksek yangın riski",

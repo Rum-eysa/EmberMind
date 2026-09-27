@@ -89,6 +89,18 @@ def test_sync_land_cover_for_clusters_persists_to_db(client, api):
         assert points[0].fuel_model != ""
 
 
+def test_synthetic_grid_provenance_is_labelled_honestly():
+    """Regression: a coordinate-hash code must not masquerade as real CORINE."""
+    service = LandCoverFuelService()
+    # No corine_code -> value invented from a coordinate hash.
+    invented = service.fetch_land_cover_fuel(36.85, 28.27)
+    assert invented.source == "CORINE/synthetic-grid"
+    # An explicit code is treated as a real read from the raster.
+    real = service.fetch_land_cover_fuel(36.85, 28.27, corine_code=312)
+    assert real.source == "CORINE/LandCover"
+    assert real.corine_code == 312
+
+
 def test_fastapi_land_cover_endpoints(client):
     # Sync land cover endpoint
     sync_resp = client.post("/api/v1/land-cover/sync")

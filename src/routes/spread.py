@@ -101,7 +101,7 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
                 result = predict_spread(session, settings, req.model_dump())
                 forecasts = result.get("forecasts") or []
                 safe_record_update(
-                    session,
+                    database,
                     settings,
                     "forecast",
                     event_key=result.get("event_key"),

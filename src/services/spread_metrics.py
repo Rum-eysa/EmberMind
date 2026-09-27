@@ -82,13 +82,14 @@ def compute_iou(
 def compute_area_error(
     predicted_area_ha: float,
     actual_area_ha: float,
-) -> float:
+) -> float | None:
     """Percentage area error: |predicted - actual| / actual * 100.
 
-    Returns 0.0 if actual_area is zero (undefined).
+    Returns ``None`` when the actual area is zero: the metric is undefined,
+    which must not be reported as a perfect 0% error.
     """
     if actual_area_ha <= 0:
-        return 0.0
+        return None
     error = abs(predicted_area_ha - actual_area_ha) / actual_area_ha * 100.0
     return round(error, 2)
 
@@ -96,14 +97,14 @@ def compute_area_error(
 def compute_arrival_time_error(
     forecast_for: datetime | None,
     actual_arrival: datetime | None,
-) -> float:
+) -> float | None:
     """Absolute arrival time error in minutes.
 
-    Returns the unsigned deviation between predicted and actual arrival.
-    Returns 0.0 if either timestamp is missing.
+    Returns the unsigned deviation between predicted and actual arrival, or
+    ``None`` when either timestamp is missing (unknown, not zero error).
     """
     if forecast_for is None or actual_arrival is None:
-        return 0.0
+        return None
     # Normalize to naive UTC for subtraction
     pred_ts = forecast_for.replace(tzinfo=None) if forecast_for.tzinfo else forecast_for
     act_ts = (
@@ -184,8 +185,8 @@ def evaluate_forecast_against_actual(  # pylint: disable=too-many-arguments
         # Area error
         area_err = compute_area_error(float(forecast.predicted_area_ha), actual_area_ha)
 
-        # Arrival time error
-        arrival_err = 0.0
+        # Arrival time error (None = unknown, e.g. no actual arrival given)
+        arrival_err: float | None = None
         fc_forecast_for = cast(datetime, forecast.forecast_for)
         if actual_arrival_time and fc_forecast_for:
             arrival_err = compute_arrival_time_error(
@@ -266,16 +267,18 @@ def version_summary(
     return [
         {
             "model_version": row.model_version,
-            "mean_iou": round(float(row.mean_iou), 4) if row.mean_iou else 0.0,
+            "mean_iou": round(float(row.mean_iou), 4)
+            if row.mean_iou is not None
+            else None,
             "mean_area_error_pct": (
                 round(float(row.mean_area_error_pct), 2)
-                if row.mean_area_error_pct
-                else 0.0
+                if row.mean_area_error_pct is not None
+                else None
             ),
             "mean_arrival_time_error_min": (
                 round(float(row.mean_arrival_time_error_min), 2)
-                if row.mean_arrival_time_error_min
-                else 0.0
+                if row.mean_arrival_time_error_min is not None
+                else None
             ),
             "evaluation_count": int(row.evaluation_count),
         }

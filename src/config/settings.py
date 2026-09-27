@@ -309,6 +309,25 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
 
+    @classmethod
+    def ensure_production_safe(cls) -> None:
+        """Refuse to boot production on the inherited development defaults.
+
+        A missing or SQLite ``DATABASE_URL`` means the environment was never
+        configured for production; continuing anyway would silently run the
+        live system on a file database with no server-side guarantees.
+        """
+        url = os.getenv("DATABASE_URL", "")
+        if not url:
+            raise RuntimeError(
+                "DATABASE_URL must be set explicitly when APP_ENV=production"
+            )
+        if url.startswith("sqlite"):
+            raise RuntimeError(
+                "APP_ENV=production refuses a SQLite DATABASE_URL; "
+                "point it at the PostgreSQL server"
+            )
+
 
 class DemoConfig(Config):
     """Demo / sunum ortamı konfigürasyonu (EM-109).
@@ -345,7 +364,11 @@ def get_config(env: str | None = None) -> type[Config]:
     """Return the config class for the given environment name.
 
     Falls back to APP_ENV / FLASK_ENV environment variable, defaulting to
-    'development'.
+    'development'. Selecting production additionally runs the
+    :meth:`ProductionConfig.ensure_production_safe` boot guard.
     """
     key = env or os.getenv("APP_ENV") or os.getenv("FLASK_ENV") or "development"
-    return _CONFIG_MAP.get(key.lower().strip(), DevelopmentConfig)
+    cls = _CONFIG_MAP.get(key.lower().strip(), DevelopmentConfig)
+    if cls is ProductionConfig:
+        ProductionConfig.ensure_production_safe()
+    return cls

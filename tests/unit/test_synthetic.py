@@ -4,6 +4,8 @@ Covers the two acceptance guarantees — same seed yields the same result, and
 every synthetic record is explicitly labelled — plus config validation,
 persistence/cleanup and the HTTP endpoints.
 """
+from datetime import datetime
+
 import pytest
 
 from src.models.inventory import SuppressionResource
@@ -11,6 +13,7 @@ from src.models.road_network import CrewBase
 from src.models.spatial import FireEvent
 from src.models.weather import WeatherDataPoint
 from src.services.synthetic import (
+    DEFAULT_CONFIG,
     PRESETS,
     SYNTHETIC_LABEL,
     SyntheticError,
@@ -99,6 +102,20 @@ def test_hash_helpers_are_canonical():
 # ------------------------------------------------------------- validation ---
 
 
+def test_normalize_config_does_not_mutate_defaults():
+    """Regression: a shallow copy let per-request writes poison DEFAULT_CONFIG."""
+    import copy
+
+    before = copy.deepcopy(DEFAULT_CONFIG)
+    cfg = normalize_config(
+        {"fire_location": {"latitude": 37.5, "longitude": 28.0}}, preset="firtina"
+    )
+    # The returned config is fully populated and independent...
+    assert cfg["fire_location"]["latitude"] == 37.5
+    # ...but the module-level template is untouched.
+    assert DEFAULT_CONFIG == before
+
+
 def test_invalid_config_rejected():
     with pytest.raises(SyntheticError, match="outside bbox"):
         build_dataset(1, config={"fire_location": {"latitude": 10.0}})
@@ -150,6 +167,48 @@ def test_persist_and_cleanup(session):
     assert deleted["suppression_resources"] == len(resources)
     assert session.query(FireEvent).count() == 0
     assert session.query(WeatherDataPoint).count() == 0
+
+
+def test_cleanup_escapes_like_wildcards(session):
+    """Regression: a bare '%' tag must not widen DELETE to every synthetic row."""
+    data = build_dataset(7, config={"outage_zones": {"count": 1}})
+    persist_dataset(session, data)
+    # An unrelated synthetic event that a naive '%...%' LIKE would also match.
+    session.add(
+        FireEvent(
+            event_key="SYN-OTHER-FIRE",
+            name="other",
+            latitude=37.0,
+            longitude=28.0,
+            min_lat=36.9,
+            max_lat=37.1,
+            min_lon=27.9,
+            max_lon=28.1,
+            geometry_wkt="POINT(28.0 37.0)",
+            started_at=datetime(2025, 1, 1),
+            source="synthetic",
+        )
+    )
+    session.commit()
+    # Tag '%bad%' would, unescaped, match every SYNthetic key via the wildcard.
+    deleted = cleanup_scenario(session, "syn-%bad%_")
+    session.commit()
+    assert sum(deleted.values()) == 0
+    # Legit rows survive the escaped delete untouched.
+    assert (
+        session.query(FireEvent)
+        .filter(FireEvent.event_key == "SYN-OTHER-FIRE")  # type: ignore[attr-defined]
+        .count()
+        == 1
+    )
+    assert (
+        session.query(FireEvent)
+        .filter(  # type: ignore[attr-defined]
+            FireEvent.event_key.like(f"%{data['meta']['scenario_tag']}%")  # type: ignore[attr-defined]
+        )
+        .count()
+        == 1
+    )
 
 
 def test_cleanup_rejects_foreign_tags(session):

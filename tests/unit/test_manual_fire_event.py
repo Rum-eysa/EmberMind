@@ -12,6 +12,7 @@ from src.models.spatial import FireEvent, FireForecast
 from src.services.manual_fire_event import (
     DuplicateFireEventError,
     ManualFireEventError,
+    _km_per_deg_longitude,
     check_for_duplicates,
     create_manual_fire_event,
     generate_event_key,
@@ -200,6 +201,126 @@ def test_create_manual_fire_event_skip_duplicate_check(session):
 
     assert event is not None
     assert event.name == "Allowed Duplicate"
+
+
+def test_km_per_deg_longitude_uses_radians():
+    """Regression: cos() used to receive degrees, collapsing the dedup box."""
+    # 40 degrees of longitude at ~38N spans ~9.7 degrees of latitude.
+    assert _km_per_deg_longitude(38.0) == pytest.approx(87.6, abs=1.0)
+    # Equator: full 111 km per degree.
+    assert _km_per_deg_longitude(0.0) == pytest.approx(111.0, abs=0.01)
+    # Pole: floor keeps the division finite instead of blowing up.
+    assert _km_per_deg_longitude(90.0) == pytest.approx(111.0 * 0.05)
+
+
+def test_create_rejects_invalid_severity_and_status(session):
+    """Regression: controlled vocabularies are enforced on create."""
+    with pytest.raises(ManualFireEventError, match="invalid severity"):
+        create_manual_fire_event(
+            session,
+            name="Bad Severity",
+            latitude=41.0,
+            longitude=28.0,
+            min_lat=40.9,
+            max_lat=41.1,
+            min_lon=27.9,
+            max_lon=28.1,
+            geometry_wkt="POINT(28.0 41.0)",
+            severity="mega",
+            check_duplicates=False,
+        )
+    with pytest.raises(ManualFireEventError, match="invalid status"):
+        create_manual_fire_event(
+            session,
+            name="Bad Status",
+            latitude=41.0,
+            longitude=28.0,
+            min_lat=40.9,
+            max_lat=41.1,
+            min_lon=27.9,
+            max_lon=28.1,
+            geometry_wkt="POINT(28.0 41.0)",
+            status="burning",
+            check_duplicates=False,
+        )
+
+
+def test_create_rejects_out_of_bounds_bbox_and_center(session):
+    """Regression: bbox and center coordinates are range/ordering validated."""
+    with pytest.raises(ManualFireEventError, match="bbox latitudes"):
+        create_manual_fire_event(
+            session,
+            name="Inverted bbox",
+            latitude=41.0,
+            longitude=28.0,
+            min_lat=41.1,
+            max_lat=40.9,
+            min_lon=27.9,
+            max_lon=28.1,
+            geometry_wkt="POINT(28.0 41.0)",
+            check_duplicates=False,
+        )
+    with pytest.raises(ManualFireEventError, match="bbox longitudes"):
+        create_manual_fire_event(
+            session,
+            name="Lon out of range",
+            latitude=41.0,
+            longitude=28.0,
+            min_lat=40.9,
+            max_lat=41.1,
+            min_lon=190.0,
+            max_lon=200.0,
+            geometry_wkt="POINT(28.0 41.0)",
+            check_duplicates=False,
+        )
+    with pytest.raises(ManualFireEventError, match="inside its bbox"):
+        create_manual_fire_event(
+            session,
+            name="Center outside bbox",
+            latitude=50.0,
+            longitude=28.0,
+            min_lat=40.9,
+            max_lat=41.1,
+            min_lon=27.9,
+            max_lon=28.1,
+            geometry_wkt="POINT(28.0 50.0)",
+            check_duplicates=False,
+        )
+
+
+def test_create_bumps_key_on_same_second_collision(session):
+    """Regression: same-second key collisions bump instead of IntegrityError."""
+    stamp = datetime(2024, 1, 15, 10, 30, 45, tzinfo=timezone.utc)
+    first = create_manual_fire_event(
+        session,
+        name="Collision First",
+        latitude=41.0,
+        longitude=28.0,
+        min_lat=40.9,
+        max_lat=41.1,
+        min_lon=27.9,
+        max_lon=28.1,
+        geometry_wkt="POINT(28.0 41.0)",
+        started_at=stamp,
+        check_duplicates=False,
+    )
+    second = create_manual_fire_event(
+        session,
+        name="Collision Second",
+        latitude=41.0,
+        longitude=28.0,
+        min_lat=40.9,
+        max_lat=41.1,
+        min_lon=27.9,
+        max_lon=28.1,
+        geometry_wkt="POINT(28.0 41.0)",
+        started_at=stamp,
+        check_duplicates=False,
+    )
+    session.flush()
+    # The collision resolved onto the next second instead of a duplicate key.
+    assert second.event_key == generate_event_key(41.0, 28.0, stamp.replace(second=46))
+    assert first.event_key != second.event_key
 
 
 def test_trigger_prediction_for_event(session):
@@ -503,3 +624,92 @@ def test_api_get_events_by_source(client, session):
     data = response.json()
     assert data["count"] == 1
     assert data["events"][0]["source"] == "manual"
+
+
+def test_api_manual_event_rejects_malformed_datetime(client):
+    """Regression: a bad ISO datetime is a 422, not a silent fallback to 'now'."""
+    response = client.post(
+        "/api/v1/events/manual",
+        json={
+            "name": "Bad Timestamp",
+            "latitude": 41.0,
+            "longitude": 28.0,
+            "min_lat": 40.9,
+            "max_lat": 41.1,
+            "min_lon": 27.9,
+            "max_lon": 28.1,
+            "geometry_wkt": "POINT(28.0 41.0)",
+            "started_at": "not-a-date",
+            "check_duplicates": False,
+        },
+    )
+    assert response.status_code == 422
+    assert "invalid ISO-8601 datetime" in response.json()["detail"]["error"]
+
+
+def test_api_update_event_rejects_invalid_enum(client, session):
+    """Regression: PUT enforces the severity/status vocabularies with a 400."""
+    event = FireEvent(
+        event_key="enum_update_test",
+        name="Enum Update",
+        latitude=41.0,
+        longitude=28.0,
+        min_lat=40.9,
+        max_lat=41.1,
+        min_lon=27.9,
+        max_lon=28.1,
+        geometry_wkt="POINT(28.0 41.0)",
+        severity="medium",
+        status="active",
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        source="manual",
+    )
+    session.add(event)
+    session.commit()
+
+    bad_sev = client.put(
+        "/api/v1/events/enum_update_test", json={"severity": "apocalyptic"}
+    )
+    assert bad_sev.status_code == 400
+    assert "invalid severity" in bad_sev.json()["detail"]["error"]
+
+    bad_status = client.put(
+        "/api/v1/events/enum_update_test", json={"status": "smouldering"}
+    )
+    assert bad_status.status_code == 400
+    assert "invalid status" in bad_status.json()["detail"]["error"]
+
+
+def test_api_delete_event_cascades_forecasts(client, session, api):
+    """Regression: deleting an event must not orphan its stored forecasts."""
+    event = FireEvent(
+        event_key="cascade_test",
+        name="Cascade",
+        latitude=41.0,
+        longitude=28.0,
+        min_lat=40.9,
+        max_lat=41.1,
+        min_lon=27.9,
+        max_lon=28.1,
+        geometry_wkt="POINT(28.0 41.0)",
+        severity="medium",
+        status="active",
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        source="manual",
+    )
+    session.add(event)
+    session.flush()
+    trigger_prediction_for_event(session, api.state.settings, event)
+    session.commit()
+    assert session.scalars(
+        select(FireForecast).where(FireForecast.event_key == "cascade_test")
+    ).all()
+
+    resp = client.delete("/api/v1/events/cascade_test")
+    assert resp.status_code == 200
+
+    session.expire_all()
+    leftovers = session.scalars(
+        select(FireForecast).where(FireForecast.event_key == "cascade_test")
+    ).all()
+    assert leftovers == []

@@ -81,6 +81,10 @@ CSV_HEADER_ALIASES = {
 
 CSV_REQUIRED_COLUMNS = ("resource_key", "resource_type", "latitude", "longitude")
 
+# Hard cap for one bulk import: unbounded CSV bodies would otherwise let a
+# single request balloon transactions, error lists and memory in the worker.
+MAX_CSV_ROWS = 5000
+
 # Turkish letters that break a plain ``str.lower()`` match: the dotted capital
 # "İ" decomposes to "i" + combining dot, and dotless "ı"/accented vowels must
 # fold to the ASCII keys used throughout the alias tables below.
@@ -312,6 +316,10 @@ def parse_resource_csv(text: str) -> list[dict[str, Any]]:
         raise InventoryError(f"CSV missing required column(s): {missing}")
     rows: list[dict[str, Any]] = []
     for line_no, raw in enumerate(reader, start=2):
+        if len(rows) >= MAX_CSV_ROWS:
+            raise InventoryError(
+                f"CSV exceeds the maximum of {MAX_CSV_ROWS} rows; split the import"
+            )
         record = _normalize_csv_row(raw)
         if not _clean_str(record.get("resource_key")):
             raise InventoryError(f"row {line_no}: resource_key is required")

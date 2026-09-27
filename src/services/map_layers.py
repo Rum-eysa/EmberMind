@@ -350,7 +350,10 @@ def silent_regions_layer(session: Session) -> dict[str, Any]:
     """Active silent (detection blackout) zones as risk-map polygons."""
     features: list[dict[str, Any]] = []
     rows = session.scalars(
-        select(SilentRegion).where(SilentRegion.is_active.is_(True))
+        select(SilentRegion)
+        .where(SilentRegion.is_active.is_(True))
+        .order_by(SilentRegion.id)
+        .limit(LAYER_ROW_LIMIT)
     ).all()
     for row in rows:
         ring = parse_polygon_wkt(str(row.geometry_wkt)) or bbox_ring(
@@ -378,7 +381,9 @@ def resources_layer(session: Session) -> dict[str, Any]:
     """Suppression resources: crew bases plus the EM-103 coordinator
     inventory (crew / helicopter / uav assets), distinguished by ``kind``."""
     features: list[dict[str, Any]] = []
-    rows = session.scalars(select(CrewBase).order_by(CrewBase.id)).all()
+    rows = session.scalars(
+        select(CrewBase).order_by(CrewBase.id).limit(LAYER_ROW_LIMIT)
+    ).all()
     for row in rows:
         features.append(
             _point_feature(
@@ -394,7 +399,9 @@ def resources_layer(session: Session) -> dict[str, Any]:
             )
         )
     assets = session.scalars(
-        select(SuppressionResource).order_by(SuppressionResource.resource_key)
+        select(SuppressionResource)
+        .order_by(SuppressionResource.resource_key)
+        .limit(LAYER_ROW_LIMIT)
     ).all()
     for row in assets:
         features.append(

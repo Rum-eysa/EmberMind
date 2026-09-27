@@ -263,7 +263,7 @@ def envelope_from_inputs(
             - bands["optimistic"]["head_distance_m"],
             1,
         )
-        bands["forecast_for"] = (started + timedelta(minutes=minutes)).isoformat()
+        bands["forecast_for"] = to_utc_iso(started + timedelta(minutes=minutes))
         horizon_bands.append(bands)
 
     return {

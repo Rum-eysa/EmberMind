@@ -1002,7 +1002,7 @@ def predict_spread(
         forecasts.append(
             {
                 "horizon_minutes": minutes,
-                "forecast_for": (started + timedelta(minutes=minutes)).isoformat(),
+                "forecast_for": to_utc_iso(started + timedelta(minutes=minutes)),
                 "rate_of_spread_m_min": rates.head_m_min,
                 "base_rate_m_min": rates.base_m_min,
                 "spread_direction_deg": direction,

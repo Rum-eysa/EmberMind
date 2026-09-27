@@ -7,6 +7,7 @@ the same fire — within the cluster radius and the acquisition time window —
 the finer-resolution sensor wins and the redundant detection is dropped and
 counted, so the same fire is never reported twice to operators.
 """
+import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, Iterable, Optional
@@ -21,6 +22,8 @@ from src.services.firms import (
     distance_km,
     persist_observations,
 )
+
+_LOG = logging.getLogger(__name__)
 
 # Lower value = finer resolution = preferred when deduplicating.
 SENSOR_PRIORITY: dict[str, int] = {"VIIRS": 0, "MODIS": 1}
@@ -149,8 +152,10 @@ def fetch_all_sources(
     for client in clients:
         try:
             detections[client.source] = client.fetch()
-        except Exception:  # pylint: disable=broad-exception-caught
-            # Any single product outage must not kill the whole sync.
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # Any single product outage must not kill the whole sync, but it
+            # must leave a trace for the on-call operator.
+            _LOG.warning("satellite product %s fetch failed: %s", client.source, exc)
             failed.append(client.source)
     return detections, failed
 

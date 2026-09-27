@@ -30,6 +30,30 @@ def fixture_client():
         yield test_client
 
 
+class _SharedTestDb:
+    """Route the tasks' per-run Database through the shared in-memory test db.
+
+    The task runner disposes its engine after every execution; disposing the
+    shared StaticPool in-memory engine would wipe the schema between tasks,
+    so the engine handle is inert here.
+    """
+
+    def __init__(self, _url, inner):
+        self._inner = inner
+
+    def create_all(self):
+        self._inner.create_all()
+
+    def session(self):
+        return self._inner.session()
+
+    @property
+    def engine(self):
+        import types
+
+        return types.SimpleNamespace(dispose=lambda: None)
+
+
 def test_pipeline_job_history_model(test_db):
     """Test PipelineJobHistory model creation and dictionary property."""
     with test_db.session() as session:
@@ -105,7 +129,10 @@ def test_celery_tasks_execution(monkeypatch, test_db):
             "land_cover_points_saved": 2,
         },
     )
-    monkeypatch.setattr("src.tasks.Database", lambda url: test_db)
+    monkeypatch.setattr(
+        "src.tasks.Database",
+        lambda url: _SharedTestDb(url, test_db),
+    )
 
     res_firms = sync_nasa_firms()
     assert res_firms["status"] == "ok"

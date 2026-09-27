@@ -20,10 +20,11 @@ class SpreadEvaluationMetric(BaseModel):
     event_key = Column(String(64), nullable=False, index=True)
     model_version = Column(String(64), nullable=False, index=True)
     horizon_minutes = Column(Integer, nullable=False)
-    # Core metrics
+    # Core metrics (iou_score: 0 = no overlap credit; the *_error columns are
+    # nullable because "undefined" must be stored as NULL, not as a fake 0.0)
     iou_score = Column(Float, nullable=False, default=0.0)
-    area_error_pct = Column(Float, nullable=False, default=0.0)
-    arrival_time_error_min = Column(Float, nullable=False, default=0.0)
+    area_error_pct = Column(Float, nullable=True)
+    arrival_time_error_min = Column(Float, nullable=True)
     # Supporting data
     predicted_area_ha = Column(Float, nullable=False, default=0.0)
     actual_area_ha = Column(Float, nullable=False, default=0.0)

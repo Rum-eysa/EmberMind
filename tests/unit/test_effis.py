@@ -181,16 +181,47 @@ def test_bootstrap_then_split_flow_via_api(client):
 
 def test_import_endpoint_uses_service(client, monkeypatch):
     """The import endpoint delegates to the EFFIS import service."""
+    captured: dict = {}
+
+    def fake_import(session, settings, bbox, client=None):
+        captured["client"] = client
+        return {"perimeters_fetched": 3, "perimeters_saved": 3}
+
     monkeypatch.setattr(
-        "src.routes.historical_fire.import_effis_perimeters",
-        lambda session, settings, bbox: {
-            "perimeters_fetched": 3,
-            "perimeters_saved": 3,
-        },
+        "src.routes.historical_fire.import_effis_perimeters", fake_import
+    )
+    response = client.post(
+        "/api/v1/historical-fires/import", json={"years": [2008, 2007, 2008]}
+    )
+    assert response.status_code == 200
+    assert response.json()["perimeters_saved"] == 3
+    # Regression: requested years must reach the client (deduped, sorted),
+    # not be silently dropped in favour of the configured default list.
+    assert response.json()["years"] == [2008, 2007, 2008]
+    assert captured["client"] is not None
+    assert captured["client"].years == [2007, 2008]
+
+
+def test_import_endpoint_without_years_uses_default_client(client, monkeypatch):
+    """No explicit years keeps the service-side default client path."""
+    captured: dict = {}
+
+    def fake_import(session, settings, bbox, client=None):
+        captured["client"] = client
+        return {"perimeters_fetched": 0, "perimeters_saved": 0}
+
+    monkeypatch.setattr(
+        "src.routes.historical_fire.import_effis_perimeters", fake_import
     )
     response = client.post("/api/v1/historical-fires/import", json={})
     assert response.status_code == 200
-    assert response.json()["perimeters_saved"] == 3
+    assert captured["client"] is None
+
+
+def test_import_endpoint_rejects_out_of_range_years(client):
+    response = client.post("/api/v1/historical-fires/import", json={"years": [1700]})
+    assert response.status_code == 400
+    assert "1980" in str(response.json())
 
 
 def test_splits_endpoint_rejects_invalid_request(client):

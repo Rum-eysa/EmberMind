@@ -21,9 +21,10 @@
       position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
       z-index: 1000; display: flex; align-items: center; gap: 12px;
     }
-    #horizon-bar .ticks { display: flex; gap: 18px; font-size: var(--font-size-xs); }
-    #horizon-bar .ticks span { cursor: pointer; }
-    #horizon-bar .ticks span.active { font-weight: 700; color: var(--color-primary); }
+    #horizon-bar .ticks { display: flex; gap: 12px; font-size: var(--font-size-xs); }
+    #horizon-bar .ticks button { background: none; border: none; font: inherit;
+                                 color: inherit; cursor: pointer; padding: 2px 4px; }
+    #horizon-bar .ticks button.active { font-weight: 700; color: var(--color-primary); }
     #horizon-slider { width: 220px; accent-color: var(--color-primary); }
     #legend { position: absolute; bottom: 24px; right: 12px; z-index: 1000;
               font-size: var(--font-size-xs); }
@@ -186,25 +187,36 @@
   const statusBox = document.getElementById("status");
   function setStatus(text) { statusBox.textContent = text; }
 
+  // XSS guard: OSM asset names and live-feed messages are external data and
+  // must never be interpolated raw into innerHTML.
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function popupHtml(feature) {
     const p = feature.properties || {};
     // EM-023: tehdit listesi ögeleri komutan-dili özet; diğerleri ham alan listesi.
     if (p.asset_type) {
       const label = ASSET_LABELS[p.asset_type] || p.asset_type;
       const name = p.name || "isimsiz";
-      const pop = p.population ? ` &bull; ${p.population} kişi` : "";
+      const pop = p.population ? ` &bull; ${escapeHtml(p.population)} kişi` : "";
       const demo = p.source && String(p.source).indexOf("demo") >= 0
         ? ' &bull; <i>demo verisi</i>' : "";
-      const horizon = p.impact_horizon_minutes ? ` (${p.impact_horizon_minutes} dk dilimi)` : "";
+      const horizon = p.impact_horizon_minutes ? ` (${escapeHtml(p.impact_horizon_minutes)} dk dilimi)` : "";
       return `<div style="font-size:12px;line-height:1.4">`
-        + `<b>${label}: ${name}</b><br>`
-        + `İlk etki: <b>T+${p.first_impact_minutes} dk</b>${horizon}<br>`
-        + `Öncelik skoru: <b>${p.priority_score != null ? p.priority_score : "—"}</b>`
+        + `<b>${escapeHtml(label)}: ${escapeHtml(name)}</b><br>`
+        + `İlk etki: <b>T+${escapeHtml(p.first_impact_minutes)} dk</b>${horizon}<br>`
+        + `Öncelik skoru: <b>${p.priority_score != null ? escapeHtml(p.priority_score) : "—"}</b>`
         + `${pop}${demo}</div>`;
     }
     const lines = Object.entries(p)
       .filter(([, v]) => v !== null && v !== undefined)
-      .map(([k, v]) => `<li><b>${k}</b>: ${v}</li>`);
+      .map(([k, v]) => `<li><b>${escapeHtml(k)}</b>: ${escapeHtml(v)}</li>`);
     return `<ul style="margin:0;padding-left:16px;font-size:12px">${lines.join("")}</ul>`;
   }
 
@@ -326,14 +338,14 @@
       row.className = "item";
       const label = ASSET_LABELS[p.asset_type] || p.asset_type;
       const name = p.name || "isimsiz";
-      const pop = p.population ? ` (${p.population} kişi)` : "";
+      const pop = p.population ? ` (${escapeHtml(p.population)} kişi)` : "";
       const demo = p.source && String(p.source).indexOf("demo") >= 0
         ? ' <span class="badge">demo</span>' : "";
       row.innerHTML =
         `<span class="dot" style="background:${impactColor(p.first_impact_minutes)}"></span>` +
-        `<span><b>${label}</b>: ${name}${pop}${demo}</span>` +
-        `<span class="t">T+${p.first_impact_minutes} dk</span>` +
-        `<span class="pri" title="Öncelik skoru (EM-023)">${p.priority_score != null ? p.priority_score : ""}</span>`;
+        `<span><b>${escapeHtml(label)}</b>: ${escapeHtml(name)}${pop}${demo}</span>` +
+        `<span class="t">T+${escapeHtml(p.first_impact_minutes)} dk</span>` +
+        `<span class="pri" title="Öncelik skoru (EM-023)">${p.priority_score != null ? escapeHtml(p.priority_score) : ""}</span>`;
       box.appendChild(row);
     }
   }
@@ -370,9 +382,13 @@
     const box = document.getElementById("horizon-ticks");
     box.innerHTML = "";
     HORIZONS.forEach((h, i) => {
-      const el = document.createElement("span");
+      // Buttons (not spans): keyboard-focusable and operable, with pressed
+      // state exposed to assistive technology.
+      const el = document.createElement("button");
+      el.type = "button";
       el.textContent = `${h} dk`;
       el.className = i === sliderIndex ? "active" : "";
+      el.setAttribute("aria-pressed", i === sliderIndex ? "true" : "false");
       el.addEventListener("click", () => {
         sliderIndex = i;
         document.getElementById("horizon-slider").value = String(i);
@@ -397,7 +413,7 @@
     const lines = updates.slice(-4).map(u => {
       const label = LIVE_KIND_LABELS[u.kind] || u.kind;
       const msg = u.message || u.title || "";
-      return `<div><b>${label}</b>: ${msg}</div>`;
+      return `<div><b>${escapeHtml(label)}</b>: ${escapeHtml(msg)}</div>`;
     });
     box.innerHTML = `<b>Canlı güncelleme</b>${lines.join("")}`;
     box.classList.add("show");

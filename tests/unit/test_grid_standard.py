@@ -55,6 +55,28 @@ def test_resample_raster_layer_to_30m():
     assert resampled[0]["resolution_meters"] == 30
 
 
+def test_resample_uses_unbiased_mean_and_skips_missing_coords():
+    """Regression: repeated running-average skewed toward late samples; null
+    coordinates used to pool at (0, 0)."""
+    service = PilotRegionGridService()
+    raw_points = [
+        {"latitude": 36.85001, "longitude": 28.27001, "value": 10.0},
+        {"latitude": 36.85002, "longitude": 28.27002, "value": 20.0},
+        {"latitude": 36.85003, "longitude": 28.27003, "value": 60.0},
+        {"latitude": None, "longitude": 28.27, "value": 999.0},  # missing lat
+        {"latitude": 36.85, "longitude": None, "value": 999.0},  # missing lon
+    ]
+
+    resampled = service.resample_raster_layer_to_30m(raw_points)
+    # Only the three valid same-cell points form a single bucket.
+    assert len(resampled) == 1
+    cell = resampled[0]
+    assert cell["sample_count"] == 3
+    # True arithmetic mean (10+20+60)/3 = 30, not the order-biased running avg.
+    assert cell["value"] == 30.0
+    assert "_sum" not in cell
+
+
 def test_fastapi_grid_endpoints(client):
     # 1. GET pilot region info
     info_resp = client.get("/api/v1/grid/pilot-region")

@@ -104,12 +104,16 @@ class LandCoverFuelService:
         self, lat: float, lon: float, corine_code: int | None = None
     ) -> NormalizedLandCoverFuel:
         """Fetch land cover and fuel class for lat/lon coordinates."""
+        source = "CORINE/LandCover"
         # Simulated CLC classification for sample coordinates if code is not provided
         if corine_code is None:
             # Synthetic spatial mapping for demonstration/pilot testing
             grid_hash = int(abs(lat * 100 + lon * 100)) % 5
             code_map = {0: 312, 1: 313, 2: 323, 3: 223, 4: 999}
             corine_code = code_map.get(grid_hash, 999)
+            # Honest provenance: the code was invented from a coordinate hash,
+            # not read from the real CORINE raster.
+            source = "CORINE/synthetic-grid"
 
         land_class, fuel_mod, spread_fact = self.map_corine_to_fuel(corine_code)
 
@@ -121,7 +125,7 @@ class LandCoverFuelService:
             fuel_model=fuel_mod,
             spread_factor=spread_fact,
             fetched_at=utc_now(),
-            source="CORINE/LandCover",
+            source=source,
         )
 
 

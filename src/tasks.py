@@ -1,5 +1,17 @@
-"""Celery tasks for the wildfire data pipeline."""
-from typing import Any
+"""Celery tasks for the wildfire data pipeline.
+
+Every task follows the same lifecycle, centralised in :func:`_run_tracked_task`:
+
+* a dedicated :class:`~src.database.Database` per execution whose engine is
+  **always disposed afterwards** (tasks run in long-lived workers, so leaking
+  connection pools would exhaust the database over time);
+* the job is tracked through :class:`~src.services.pipeline_tracker.PipelineTracker`;
+* on failure the aborted transaction is rolled back **before** the failure is
+  recorded, so ``fail_job`` can still persist even on PostgreSQL (where an
+  error poisons the whole transaction);
+* the task is retried with exponential backoff up to the configured maximum.
+"""
+from typing import Any, Callable, Dict
 
 from celery import Celery
 
@@ -60,6 +72,56 @@ celery_app.conf.update(
 )
 
 
+def _run_tracked_task(
+    self: Any,
+    job_name: str,
+    source: str,
+    sync_fn: Callable[[Any, Any], Dict[str, Any]],
+    records_key: str,
+) -> dict[str, Any]:
+    """Run one tracked pipeline job with full transaction/engine hygiene.
+
+    ``sync_fn`` receives ``(session, config)`` and returns the result dict
+    whose ``records_key`` counter is stored on the job row.
+    """
+    database = Database(config.DATABASE_URL)
+    try:
+        database.create_all()
+        with database.session() as session:
+            job = PipelineTracker.start_job(session, job_name, source)
+            try:
+                res = sync_fn(session, config)
+                PipelineTracker.complete_job(
+                    session,
+                    job,
+                    records_processed=int(res.get(records_key, 0)),
+                    attempt_count=self.request.retries + 1,
+                )
+                return {"status": "ok", **res}
+            except Exception as exc:
+                # The failed work poisoned the transaction (PostgreSQL aborts
+                # it); roll back so the failure record below can be committed.
+                session.rollback()
+                PipelineTracker.fail_job(
+                    session,
+                    job,
+                    error_message=str(exc),
+                    attempt_count=self.request.retries + 1,
+                )
+                countdown = int(
+                    config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10
+                )
+                raise self.retry(exc=exc, countdown=countdown) from exc
+    finally:
+        database.engine.dispose()
+
+
+def _pilot_bbox() -> tuple[float, float, float, float]:
+    """Pilot-region bounding box (min_lat, min_lon, max_lat, max_lon)."""
+    grid = PilotRegionGridService()
+    return (grid.min_lat, grid.min_lon, grid.max_lat, grid.max_lon)
+
+
 @celery_app.task(
     name="src.tasks.sync_nasa_firms",
     bind=True,
@@ -67,29 +129,13 @@ celery_app.conf.update(
 )
 def sync_nasa_firms(self: Any) -> dict[str, Any]:
     """Fetch and persist active fire data from NASA FIRMS with tracking and retry."""
-    database = Database(config.DATABASE_URL)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(session, "sync_nasa_firms", "FIRMS")
-        try:
-            res = sync_firms(session, config)
-            records = res.get("observations", 0)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=records,
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    return _run_tracked_task(
+        self,
+        "sync_nasa_firms",
+        "FIRMS",
+        sync_firms,
+        "observations",
+    )
 
 
 @celery_app.task(
@@ -99,29 +145,13 @@ def sync_nasa_firms(self: Any) -> dict[str, Any]:
 )
 def sync_openweather(self: Any) -> dict[str, Any]:
     """Fetch and persist weather forecast data for fire clusters."""
-    database = Database(config.DATABASE_URL)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(session, "sync_openweather", "OpenWeather")
-        try:
-            res = sync_weather_for_clusters(session, config)
-            records = res.get("weather_points_saved", 0)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=records,
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    return _run_tracked_task(
+        self,
+        "sync_openweather",
+        "OpenWeather",
+        sync_weather_for_clusters,
+        "weather_points_saved",
+    )
 
 
 @celery_app.task(
@@ -131,29 +161,13 @@ def sync_openweather(self: Any) -> dict[str, Any]:
 )
 def sync_topography(self: Any) -> dict[str, Any]:
     """Fetch and persist elevation/slope/aspect data for fire clusters."""
-    database = Database(config.DATABASE_URL)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(session, "sync_topography", "USGS/SRTM")
-        try:
-            res = sync_topography_for_clusters(session, config)
-            records = res.get("topography_points_saved", 0)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=records,
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    return _run_tracked_task(
+        self,
+        "sync_topography",
+        "USGS/SRTM",
+        sync_topography_for_clusters,
+        "topography_points_saved",
+    )
 
 
 @celery_app.task(
@@ -163,29 +177,13 @@ def sync_topography(self: Any) -> dict[str, Any]:
 )
 def sync_land_cover(self: Any) -> dict[str, Any]:
     """Fetch and persist CORINE land cover classification data for fire clusters."""
-    database = Database(config.DATABASE_URL)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(session, "sync_land_cover", "Copernicus")
-        try:
-            res = sync_land_cover_for_clusters(session, config)
-            records = res.get("land_cover_points_saved", 0)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=records,
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    return _run_tracked_task(
+        self,
+        "sync_land_cover",
+        "Copernicus",
+        sync_land_cover_for_clusters,
+        "land_cover_points_saved",
+    )
 
 
 @celery_app.task(
@@ -195,31 +193,14 @@ def sync_land_cover(self: Any) -> dict[str, Any]:
 )
 def sync_road_network(self: Any) -> dict[str, Any]:
     """Import and persist the OpenStreetMap road network for the pilot region."""
-    database = Database(config.DATABASE_URL)
-    grid = PilotRegionGridService()
-    bbox = (grid.min_lat, grid.min_lon, grid.max_lat, grid.max_lon)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(session, "sync_road_network", "OpenStreetMap")
-        try:
-            res = import_road_network(session, config, bbox)
-            records = res.get("segments_saved", 0)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=records,
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    bbox = _pilot_bbox()
+    return _run_tracked_task(
+        self,
+        "sync_road_network",
+        "OpenStreetMap",
+        lambda session, settings: import_road_network(session, settings, bbox),
+        "segments_saved",
+    )
 
 
 @celery_app.task(
@@ -229,31 +210,14 @@ def sync_road_network(self: Any) -> dict[str, Any]:
 )
 def import_historical_fire_data(self: Any) -> dict[str, Any]:
     """Import EFFIS historical fire perimeters for the pilot region."""
-    database = Database(config.DATABASE_URL)
-    grid = PilotRegionGridService()
-    bbox = (grid.min_lat, grid.min_lon, grid.max_lat, grid.max_lon)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(session, "import_historical_fire_data", "EFFIS")
-        try:
-            res = import_effis_perimeters(session, config, bbox)
-            records = res.get("perimeters_saved", 0)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=records,
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    bbox = _pilot_bbox()
+    return _run_tracked_task(
+        self,
+        "import_historical_fire_data",
+        "EFFIS",
+        lambda session, settings: import_effis_perimeters(session, settings, bbox),
+        "perimeters_saved",
+    )
 
 
 @celery_app.task(
@@ -265,30 +229,13 @@ def trigger_spread_forecasts(self: Any) -> dict[str, Any]:
     """EM-018: refresh spread forecasts for active events (debounced sweep)."""
     if not config.SPREAD_AUTO_TRIGGER_ENABLED:
         return {"status": "disabled"}
-    database = Database(config.DATABASE_URL)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(
-            session, "trigger_spread_forecasts", "Rothermel/EM-018"
-        )
-        try:
-            res = auto_trigger_forecasts(session, config)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=res["triggered_count"],
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    return _run_tracked_task(
+        self,
+        "trigger_spread_forecasts",
+        "Rothermel/EM-018",
+        auto_trigger_forecasts,
+        "triggered_count",
+    )
 
 
 @celery_app.task(
@@ -298,28 +245,10 @@ def trigger_spread_forecasts(self: Any) -> dict[str, Any]:
 )
 def compute_fire_weather_index(self: Any) -> dict[str, Any]:
     """Compute the daily zone Fire Weather Index and drought indicator layer."""
-    database = Database(config.DATABASE_URL)
-    with database.session() as session:
-        database.create_all()
-        job = PipelineTracker.start_job(
-            session, "compute_fire_weather_index", "FWI/OpenWeather"
-        )
-        try:
-            res = compute_region_fwi(session, config)
-            records = res.get("zones_computed", 0)
-            PipelineTracker.complete_job(
-                session,
-                job,
-                records_processed=records,
-                attempt_count=self.request.retries + 1,
-            )
-            return {"status": "ok", **res}
-        except Exception as exc:
-            PipelineTracker.fail_job(
-                session,
-                job,
-                error_message=str(exc),
-                attempt_count=self.request.retries + 1,
-            )
-            countdown = int(config.PIPELINE_BACKOFF_FACTOR**self.request.retries * 10)
-            raise self.retry(exc=exc, countdown=countdown) from exc
+    return _run_tracked_task(
+        self,
+        "compute_fire_weather_index",
+        "FWI/OpenWeather",
+        compute_region_fwi,
+        "zones_computed",
+    )

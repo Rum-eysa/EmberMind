@@ -161,6 +161,14 @@ def test_predict_spread_is_repeatable(session):
     assert horizons == [30, 60, 120]
 
 
+def test_forecast_for_is_utc_qualified(session):
+    """Regression: horizon timestamps were emitted as naive ISO with no zone."""
+    result = predict_spread(session, SpreadSettings(), dict(REFERENCE))
+    for item in result["forecasts"]:
+        assert item["forecast_for"].endswith("Z")
+    assert result["generated_at"].endswith("Z")
+
+
 def test_wind_and_slope_increase_rate_of_spread():
     calm = spread_rates(4, 15.0, 0.0, 0.0)
     windy = spread_rates(4, 15.0, 25.0, 0.0)

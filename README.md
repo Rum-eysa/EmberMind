@@ -1,149 +1,130 @@
-# Yangın İzleme ve Tahmini Sistemi
+# EmberMind — Wildfire Monitoring & Spread Forecasting System
+# EmberMind — Yangın İzleme ve Yayılım Tahmin Sistemi
 
-🔥 Uydu verisi, hava durumu ve makine öğrenmesi kullanarak yangın olaylarını izleme ve yayılımını tahmin eden kapsamlı sistem.
+[![Python](https://img.shields.io/badge/Python-3.11-7e57c2)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-5e35b1)](https://fastapi.tiangolo.com/)
+[![Celery](https://img.shields.io/badge/Celery-5.3-2b2b2b)](https://celeryproject.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-7e57c2)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-5e35b1)](https://docs.docker.com/compose/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 📋 Proje Özellikleri
-
-- **Gerçek Zamanlı Veri Entegrasyonu**: NASA FIRMS, hava durumu API'leri
-- **Yangın Yayılımı Tahmini**: Makine öğrenmesi modellerine dayalı
-- **Harita Görselleştirmesi**: İnteraktif yangın sahaları ve uyarı sistemi
-- **REST API**: Tüm işlevler için API endpoint'leri
-- **Operatör Paneli**: Yönetici arayüzü ve raporlama
-
-## 🚀 Hızlı Başlangıç
-
-### Gereksinimler
-- Python 3.9+
-- Docker & Docker Compose
-- PostgreSQL 13+
-- Redis 6+
-
-### Kurulum
-
-```bash
-# Repository klonla
-git clone https://github.com/Rum-eysa/EmberMind.git
-cd EmberMind
-
-# Sanal ortamı oluştur
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Bağımlılıkları yükle
-pip install -r requirements.txt
-
-# Docker ile veritabanı, Redis, API ve FIRMS worker'larını başlat
-docker compose up -d --build
-```
-
-### Docker ile Çalıştırma
-
-```bash
-docker compose up -d --build
-```
-
-## 📁 Proje Yapısı
-
-```
-wildfire-monitoring-system/
-├── src/
-│   ├── api/              # REST API endpoint'leri
-│   ├── models/           # ML modelleri ve veri modelleri
-│   ├── data/             # Veri işleme ve ETL
-│   ├── services/         # İş mantığı servisleri
-│   ├── utils/            # Yardımcı fonksiyonlar
-│   └── config/           # Konfigürasyon dosyaları
-├── tests/                # Unit ve integration testler
-├── docs/                 # Dokumentasyon
-├── deployment/           # Docker, K8s, Terraform dosyaları
-├── scripts/              # Yardımcı betikler
-├── notebooks/            # Jupyter notebooks (analiz)
-├── data/                 # Veri dosyaları
-└── config/               # Konfigürasyon dosyaları
-```
-
-## 🔄 Veri Akışı
-
-1. **Veri Kaynakları** → NASA FIRMS, OpenWeatherMap API
-2. **Veri İşleme** → Normalleştirme, temizleme, özellik mühendisliği
-3. **Tahmin Modeli** → Yayılım hesaplaması
-4. **API Katmanı** → GraphQL/REST endpoint'leri
-5. **Arayüz** → Web dashboard ve mobil uygulamalar
-
-### NASA FIRMS kurulumu
-
-1. NASA FIRMS üzerinden bir API anahtarı alın ve `.env.example` dosyasını `.env` olarak kopyalayın.
-2. `FIRMS_BBOX` değerini `minLon,minLat,maxLon,maxLat` formatında izlenecek bölgeye göre ayarlayın.
-3. `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` ve Docker içi `DATABASE_URL` değerlerini `.env` içinde tanımlayın.
-4. Docker ile başlatın: `docker compose up -d --build`.
-
-Celery Beat, FIRMS verisini varsayılan olarak 10 dakikada bir çeker. Veriler normalize edilir ve 2 km içindeki aynı gün gözlemleri tek yangın kümesinde birleştirilir.
-
-Operatör API uçları:
-
-- `GET /api/v1/fires`: Güncel yangın kümeleri
-- `GET /api/v1/fires/status`: Son başarılı veri zamanı, veri yaşı ve kaynak hatası
-- `POST /api/v1/fires/sync`: Manuel senkronizasyon
-
-FastAPI Docker ile `http://localhost:8000` üzerinde çalışır ve interaktif OpenAPI dokümantasyonu `http://localhost:8000/docs` adresindedir.
-
-NASA FIRMS erişilemezse son başarılı veri korunur; veri 20 dakikadan eskiyse status yanıtında `stale: true` döner.
-
-## 📊 Epic'ler ve Sprint Planlaması
-
-- **E1**: Veri Entegrasyonu ve Veri Hattı
-- **E2**: Yangın Yayılımı Tahmini Modeli
-- **E3**: Görselleştirme ve Operatör Paneli
-- **E4**: Ölçeklendirebilirlik ve İzleme
-
-Sprint planlama [Projects](https://github.com/Rum-eysa/EmberMind/projects) sekmesinde.
-
-## 🧪 Test Çalıştırma
-
-```bash
-# Tüm testleri çalıştır
-pytest
-
-# Kodu kapsam raporuyla test et
-pytest --cov=src tests/
-
-# Belirli bir test dosyasını çalıştır
-pytest tests/unit/test_models.py -v
-```
-
-## 📚 Dokumentasyon
-
-Detaylı dokümantasyon `docs/` klasöründe bulunabilir:
-- [API Dokümantasyonu](docs/api/README.md)
-- [Mimari Rehberi](docs/architecture/README.md)
-- [Kurulum Rehberi](docs/guides/INSTALLATION.md)
-
-## 🔐 Güvenlik
-
-- `.env` dosyasını `.env.example` den kopyala ve gizli anahtarları ekle
-- GitHub secrets'ları CI/CD için yapılandır
-- Production ortamında sadece HTTPS kullan
-
-## 🤝 Katkı Rehberi
-
-1. Fork et
-2. Feature branch'i oluştur (`git checkout -b feature/AmazingFeature`)
-3. Commit et (`git commit -m 'Add some AmazingFeature'`)
-4. Push et (`git push origin feature/AmazingFeature`)
-5. Pull Request aç
-
-Detaylar için [CONTRIBUTING.md](CONTRIBUTING.md) adresine bak.
-
-## 📝 Lisans
-
-Bu proje MIT Lisansı altında lisanslanmıştır - [LICENSE](LICENSE) dosyasına bakın.
-
-## 📧 İletişim
-
-- **Email**: info@example.com
-- **Issues**: GitHub Issues sekmesini kullan
-- **Discussions**: GitHub Discussions sekmesini kullan
+> **EN** — EmberMind turns satellite hotspots (NASA FIRMS), weather, topography and
+> land-cover data into live fire events, Rothermel-based spread forecasts, threatened-asset
+> exposure and risk alerts — streamed to an operator map over **WebSocket**, no page refresh.
+>
+> **TR** — EmberMind; uydu sıcak noktalarını (NASA FIRMS), hava durumu, topografya ve
+> arazi örtüsü verilerini canlı yangın olaylarına, Rothermel tabanlı yayılım tahminlerine,
+> tehdit altındaki varlık analizine ve risk uyarılarına dönüştürür — **WebSocket** ile
+> operatör haritasına, sayfa yenilemeden akar.
 
 ---
 
-⭐ Projeyi beğendiysen, lütfen yıldız ver!
+## 🗺️ Architecture · Mimari
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#ece7f7','primaryBorderColor':'#7e57c2','lineColor':'#7e57c2','clusterBkg':'#f6f3fc','clusterBorder':'#b39ddb','fontFamily':'Segoe UI, Arial'}}}%%
+flowchart LR
+    subgraph Ext["Data Sources · Veri Kaynakları"]
+        FIRMS["NASA FIRMS"]
+        OW["OpenWeather"]
+        SRTM["USGS / SRTM"]
+        COP["Copernicus CORINE"]
+        OSM["Overpass / OSM"]
+    end
+
+    subgraph Async["Pipeline · Celery + Redis"]
+        BEAT["beat scheduler"]
+        WORK["workers · ingest → normalize → cluster"]
+    end
+
+    subgraph Engine["Analysis Services · Analiz"]
+        SPREAD["spread (Rothermel + uncertainty + barriers)"]
+        EXPO["exposure (T+dk, priority score)"]
+        FWI["fire weather (FWI)"]
+    end
+
+    subgraph Api["FastAPI Web API"]
+        REST["REST /api/v1/*"]
+        WS["WebSocket /ws/live"]
+    end
+
+    PG[("PostgreSQL")]
+    UI["Operator Map · Risk Panel · Inventory · /docs"]
+
+    Ext --> Async --> PG
+    PG --> Engine --> Api
+    REST --> UI
+    WS -->|live updates| UI
+    UI -.->|manual events, imports| REST
+```
+
+> Full sequence & component diagrams: [docs/architecture/DIAGRAMS.md](docs/architecture/DIAGRAMS.md).
+
+## ✨ Highlights · Öne Çıkanlar
+
+| EN | TR |
+|---|---|
+| Satellite ingest with dedup & clustering | Uydu verisi alma, tekilleştirme ve kümeleme |
+| Rothermel spread forecast + uncertainty envelope | Rothermel yayılım tahmini + belirsizlik zarfı |
+| Threatened-asset exposure with `T+dk` first impact | `T+dk` ilk etki zamanıyla tehdit altındaki varlıklar |
+| Fire Weather Index & risk alerts | Yangın Hava İndeksi (FWI) ve risk uyarıları |
+| Live updates over WebSocket, auto-reconnect | WebSocket ile canlı güncelleme, otomatik yeniden bağlanma |
+| Operator map, commander panel, resource inventory | Operatör haritası, komutan paneli, kaynak envanteri |
+| Data-quality & governance monitoring | Veri kalitesi ve yönetişim izleme |
+
+## 🚀 Quick Start · Hızlı Başlangıç
+
+```bash
+# EN/TR — copy env, then start the full stack (db, redis, api, celery, beat)
+cp .env.example .env          # set FIRMS_API_KEY etc. / anahtarları girin
+docker compose up -d --build
+```
+
+Open:
+
+- **API docs · API dokümantasyonu** → http://localhost:8000/docs
+- **Operator map · Operatör haritası** → http://localhost:8000/ui
+
+<details>
+<summary>Local / without Docker · Docker olmadan yerel</summary>
+
+```bash
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+make dev                                            # uvicorn on 127.0.0.1:8000
+make test                                           # pytest + coverage
+make ci-check                                       # black + pylint + mypy + pytest
+```
+</details>
+
+## 📁 Layout · Dizin Yapısı
+
+```
+src/
+├── routes/     # FastAPI endpoints (REST + WebSocket)
+├── services/   # business logic (spread, exposure, FWI, ingest…)
+├── models/     # SQLAlchemy ORM
+├── static/     # operator map, risk panel, inventory UI
+└── config/     # settings per environment
+scripts/        # migrations & demo helpers
+tests/          # unit tests
+docs/           # architecture, API and data-source docs
+```
+
+## 📚 Documentation · Dokümantasyon
+
+- [API reference · API referansı](docs/api/README.md)
+- [Architecture · Mimari](docs/architecture/README.md)
+- [Diagrams · Diyagramlar](docs/architecture/DIAGRAMS.md)
+- [Data sources · Veri kaynakları](docs/DATA_SOURCES.md)
+- [Installation guide · Kurulum rehberi](docs/guides/INSTALLATION.md)
+
+## 🤝 Contributing & License · Katkı ve Lisans
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Released under the
+[MIT License](LICENSE). · Katkılara açığız — bkz. [CONTRIBUTING.md](CONTRIBUTING.md).
+[MIT Lisansı](LICENSE) altında yayınlanmıştır.
+
+---
+
+⭐ If this helps, star the repo! · Faydalı olduysa yıldız vermeyi unutmayın!

@@ -1,17 +1,18 @@
 """Single public FastAPI application for wildfire monitoring."""
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from src.config.settings import get_config
 from src.database import Database
 from src.models.fire import FireCluster
 from src.models.land_cover import LandCoverDataPoint
-from src.models.spatial import FireEvent, SilentRegion
+from src.models.spatial import FireEvent, FireForecast, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.routes.data_governance import register_data_governance_routes
@@ -42,6 +43,8 @@ from src.services.land_cover import (
 )
 from src.services.live import safe_record_update
 from src.services.manual_fire_event import (
+    VALID_SEVERITIES,
+    VALID_STATUSES,
     DuplicateFireEventError,
     ManualFireEventError,
     create_manual_fire_event,
@@ -60,6 +63,8 @@ from src.services.topography import (
 )
 from src.services.weather import WeatherSourceError, sync_weather_for_clusters
 from src.services.observability import setup_logging
+
+_LOG = logging.getLogger(__name__)
 
 
 class PipelineJobResponse(BaseModel):
@@ -295,7 +300,11 @@ class ResampleGridRequest(BaseModel):
 
 
 def parse_datetime(dt_str: str | None) -> datetime | None:
-    """Parse an ISO datetime string (optional Z suffix) into a naive UTC datetime."""
+    """Parse an ISO datetime string (optional Z suffix) into a naive UTC datetime.
+
+    Returns ``None`` only for an absent value; a malformed string is rejected
+    with 422 instead of silently falling back to "now".
+    """
     if not dt_str:
         return None
     try:
@@ -305,8 +314,14 @@ def parse_datetime(dt_str: str | None) -> datetime | None:
         parsed = datetime.fromisoformat(dt_str)
         # Remove timezone info for compatibility with database
         return parsed.replace(tzinfo=None)
-    except ValueError:
-        return None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "status": "error",
+                "error": f"invalid ISO-8601 datetime: {dt_str!r}",
+            },
+        ) from exc
 
 
 def create_fastapi_app(config_name: str | None = None) -> FastAPI:
@@ -408,7 +423,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
                 result = sync_firms(session, settings)
                 status = sync_status(session)
                 safe_record_update(
-                    session,
+                    database,
                     settings,
                     "fire_event",
                     title="Uydu tespiti güncellendi",
@@ -662,7 +677,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
                         }
 
                 safe_record_update(
-                    session,
+                    database,
                     settings,
                     "fire_event",
                     event_key=str(event.event_key),
@@ -914,12 +929,34 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
                         },
                     )
 
-                # Update fields if provided
+                # Update fields if provided (controlled vocabularies enforced)
                 if req.name is not None:
                     event.name = req.name  # type: ignore[assignment]
                 if req.severity is not None:
+                    if req.severity not in VALID_SEVERITIES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail={
+                                "status": "error",
+                                "error": (
+                                    f"invalid severity '{req.severity}'; "
+                                    f"expected one of {list(VALID_SEVERITIES)}"
+                                ),
+                            },
+                        )
                     event.severity = req.severity  # type: ignore[assignment]
                 if req.status is not None:
+                    if req.status not in VALID_STATUSES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail={
+                                "status": "error",
+                                "error": (
+                                    f"invalid status '{req.status}'; "
+                                    f"expected one of {list(VALID_STATUSES)}"
+                                ),
+                            },
+                        )
                     event.status = req.status  # type: ignore[assignment]
                 if req.notes is not None:
                     event.notes = req.notes  # type: ignore[assignment]
@@ -932,10 +969,14 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
                 }
         except HTTPException:
             raise
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
+            _LOG.exception("failed to update fire event %s", event_key)
             raise HTTPException(
                 status_code=500,
-                detail={"status": "error", "error": str(exc)},
+                detail={
+                    "status": "error",
+                    "error": "internal server error while updating event",
+                },
             ) from exc
 
     @api.delete(
@@ -959,6 +1000,11 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
                         },
                     )
 
+                # App-level cascade: stored forecasts belong to this event and
+                # must not outlive it as orphans.
+                session.execute(
+                    delete(FireForecast).where(FireForecast.event_key == event_key)
+                )
                 session.delete(event)
 
                 return {
@@ -967,10 +1013,14 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
                 }
         except HTTPException:
             raise
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
+            _LOG.exception("failed to delete fire event %s", event_key)
             raise HTTPException(
                 status_code=500,
-                detail={"status": "error", "error": str(exc)},
+                detail={
+                    "status": "error",
+                    "error": "internal server error while deleting event",
+                },
             ) from exc
 
     return api

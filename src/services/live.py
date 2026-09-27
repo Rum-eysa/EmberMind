@@ -11,12 +11,15 @@ try/except. The function itself is a no-op when the feature is disabled.
 """
 import json
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.models.live import LIVE_KINDS, LiveUpdate
+
+if TYPE_CHECKING:
+    from src.database import Database
 
 _LOG = logging.getLogger(__name__)
 
@@ -91,7 +94,7 @@ def feed(session: Session, settings: Any, since_id: int = 0) -> dict[str, Any]:
 
 
 def safe_record_update(
-    session: Session,
+    database: "Database",
     settings: Any,
     kind: str,
     *,
@@ -103,19 +106,26 @@ def safe_record_update(
 ) -> None:
     """Best-effort :func:`record_update` for pipeline/endpoint call sites.
 
-    A live-feed hiccup must never roll back or fail the change that triggered
-    it, so any error is logged and swallowed here.
+    The write happens on its **own** session/transaction: reusing the caller's
+    session would poison the enclosing transaction on failure (PostgreSQL
+    aborts it, so the caller's final commit would raise even though its own
+    work succeeded). The feed is append-only and referenced by ``event_key``
+    only, so an isolated commit is safe; a stray entry from a later caller
+    rollback is acceptable for a best-effort feed.
     """
+    if not getattr(settings, "LIVE_UPDATES_ENABLED", True):
+        return
     try:
-        record_update(
-            session,
-            settings,
-            kind,
-            event_key=event_key,
-            title=title,
-            message=message,
-            payload=payload,
-            source=source,
-        )
+        with database.session() as session:
+            record_update(
+                session,
+                settings,
+                kind,
+                event_key=event_key,
+                title=title,
+                message=message,
+                payload=payload,
+                source=source,
+            )
     except Exception:  # pylint: disable=broad-except
         _LOG.exception("live feed: failed to record %r update", kind)

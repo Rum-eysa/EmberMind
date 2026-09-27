@@ -28,7 +28,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import nearest_points
 from shapely.prepared import prep
 from shapely.wkt import loads as wkt_loads
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.models.exposure import ASSET_TYPES, SETTLEMENT_PLACE_CLASSES, ExposedAsset
@@ -107,14 +107,19 @@ class ExposureOverpassClient:
 
     @staticmethod
     def build_query(bbox: BoundingBox) -> str:
-        """Overpass QL selecting place nodes and power-line ways inside a bbox."""
+        """Overpass QL selecting place nodes and power-line ways inside a bbox.
+
+        The union block must use parentheses directly — wrapping the
+        sub-statements in quotes turns them into string literals and the
+        live Overpass API rejects the query (regression guard in tests).
+        """
         min_lat, min_lon, max_lat, max_lon = bbox
         bbox_arg = f"{min_lat},{min_lon},{max_lat},{max_lon}"
         return (
-            "[out:json][timeout:25];"
-            f"('node[\"place\"]({bbox_arg});'"
-            f'\'way["power"~"^(line|cable|minor_line)$"]({bbox_arg});\');'
-            "out body;>;out skel qt;"
+            "[out:json][timeout:25];(\n"
+            f'  node["place"]({bbox_arg});\n'
+            f'  way["power"~"^(line|cable|minor_line)$"]({bbox_arg});\n'
+            ");\nout body;>;out skel qt;"
         )
 
     def fetch_assets(self, bbox: BoundingBox) -> list[NormalizedAsset]:
@@ -502,9 +507,20 @@ def _candidate_elements(
                 "source": str(row.source) if row.source else "OpenStreetMap",
             }
         )
-    for row in session.scalars(
-        select(RoadSegment).order_by(RoadSegment.id).limit(ASSET_ROW_LIMIT)
-    ):
+    # Roads: push the bbox overlap into SQL *before* the row limit, otherwise a
+    # large network silently drops threatened segments past the first page.
+    road_query = select(RoadSegment).order_by(RoadSegment.id)
+    if bbox is not None:
+        min_lat, min_lon, max_lat, max_lon = bbox
+        # A segment's endpoint bbox overlaps the window iff both axes overlap;
+        # min/max live in the OR pairs because endpoints are unordered.
+        road_query = road_query.where(
+            or_(RoadSegment.from_lat <= max_lat, RoadSegment.to_lat <= max_lat),
+            or_(RoadSegment.from_lat >= min_lat, RoadSegment.to_lat >= min_lat),
+            or_(RoadSegment.from_lon <= max_lon, RoadSegment.to_lon <= max_lon),
+            or_(RoadSegment.from_lon >= min_lon, RoadSegment.to_lon >= min_lon),
+        )
+    for row in session.scalars(road_query.limit(ASSET_ROW_LIMIT)):
         from_lat = float(row.from_lat)
         from_lon = float(row.from_lon)
         to_lat = float(row.to_lat)

@@ -1,6 +1,7 @@
 """OpenWeather data fetching, caching, retry, and persistence service."""
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import logging
 import time
 from typing import Any
 
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from src.models.fire import FireCluster
 from src.models.weather import WeatherDataPoint
 from src.utils.timeutils import utc_now
+
+_LOG = logging.getLogger(__name__)
 
 
 class WeatherSourceError(RuntimeError):
@@ -248,8 +251,14 @@ def sync_weather_for_clusters(
                 points_saved += 1
             clusters_processed += 1
 
-        except WeatherSourceError:
-            # Log or handle individual cluster weather fetch errors
+        except WeatherSourceError as exc:
+            # One unreachable cluster must not abort the whole sweep, but the
+            # gap needs to show up in the logs (EM-012 observability).
+            _LOG.warning(
+                "weather sync failed for cluster %s: %s",
+                cluster.cluster_key,
+                exc,
+            )
             continue
 
     session.flush()

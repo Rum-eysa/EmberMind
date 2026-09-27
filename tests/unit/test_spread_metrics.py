@@ -127,8 +127,9 @@ class TestComputeAreaError:
         # Predicted 60, actual 100 → 40% error
         assert compute_area_error(60.0, 100.0) == 40.0
 
-    def test_zero_actual_returns_zero(self):
-        assert compute_area_error(50.0, 0.0) == 0.0
+    def test_zero_actual_is_undefined_not_perfect(self):
+        # Regression: 0.0 here would masquerade as a flawless prediction.
+        assert compute_area_error(50.0, 0.0) is None
 
 
 # ---------------------------------------------------------------------------
@@ -153,10 +154,10 @@ class TestComputeArrivalTimeError:
         actual = datetime(2025, 8, 1, 12, 0, tzinfo=timezone.utc)
         assert compute_arrival_time_error(pred, actual) == 15.0
 
-    def test_none_returns_zero(self):
+    def test_none_is_unknown_not_zero(self):
         t = datetime(2025, 8, 1, 12, 0, tzinfo=timezone.utc)
-        assert compute_arrival_time_error(None, t) == 0.0
-        assert compute_arrival_time_error(t, None) == 0.0
+        assert compute_arrival_time_error(None, t) is None
+        assert compute_arrival_time_error(t, None) is None
 
 
 # ---------------------------------------------------------------------------

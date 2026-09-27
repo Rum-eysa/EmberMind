@@ -6,7 +6,7 @@ history). This service builds fully reproducible scenario datasets from a
 ``seed`` plus a configurable scenario (fire location, wind history, outage
 zones, resource distribution).
 
- guarantees:
+Guarantees:
 * **Same seed, same result** — every value is drawn from a seed-derived
   ``random.Random`` and rounded before emission, so re-running a
   (seed, config) pair yields a byte-identical dataset and ``result_hash``.
@@ -16,6 +16,7 @@ zones, resource distribution).
   prefixed keys. ``ScenarioRun`` stores the seed, canonical config/result
   hashes for the audit trail.
 """
+import copy
 import hashlib
 import json
 import math
@@ -205,7 +206,10 @@ def normalize_config(
     config: dict[str, Any] | None, preset: str | None = None
 ) -> dict[str, Any]:
     """Merge defaults + preset + overrides, then validate the scenario."""
-    merged = dict(DEFAULT_CONFIG)
+    # Deep copy: validation below writes into nested blocks (fire_location,
+    # wind, resource_distribution...); a shallow dict() would mutate the
+    # module-level DEFAULT_CONFIG and corrupt every later request.
+    merged = copy.deepcopy(DEFAULT_CONFIG)
     if preset:
         preset_key = str(preset).strip().lower()
         if preset_key not in PRESETS:
@@ -672,24 +676,35 @@ def cleanup_scenario(session: Session, scenario_tag: str) -> dict[str, int]:
     tag = str(scenario_tag).strip()
     if not tag.startswith("syn-"):
         raise SyntheticError("scenario_tag must start with 'syn-'")
-    like = f"%{tag}%"
+    # LIKE wildcards in the tag would widen the DELETE to other scenarios
+    # (a bare '%' would wipe every synthetic row) — escape them literally.
+    escaped = tag.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    like = f"%{escaped}%"
     deleted: dict[str, int] = {}
     deleted["fire_events"] = session.execute(
-        delete(FireEvent).where(FireEvent.event_key.like(like))  # type: ignore[attr-defined]
+        delete(FireEvent).where(
+            FireEvent.event_key.like(like, escape="\\")  # type: ignore[attr-defined]
+        )
     ).rowcount
     deleted["silent_regions"] = session.execute(
-        delete(SilentRegion).where(SilentRegion.region_name.like(like))  # type: ignore[attr-defined]
+        delete(SilentRegion).where(
+            SilentRegion.region_name.like(like, escape="\\")  # type: ignore[attr-defined]
+        )
     ).rowcount
     deleted["weather_points"] = session.execute(
         delete(WeatherDataPoint).where(
-            WeatherDataPoint.cluster_key.like(like)  # type: ignore[attr-defined]
+            WeatherDataPoint.cluster_key.like(like, escape="\\")  # type: ignore[attr-defined]
         )
     ).rowcount
     deleted["crew_bases"] = session.execute(
-        delete(CrewBase).where(CrewBase.base_key.like(like))  # type: ignore[attr-defined]
+        delete(CrewBase).where(
+            CrewBase.base_key.like(like, escape="\\")  # type: ignore[attr-defined]
+        )
     ).rowcount
     deleted["suppression_resources"] = session.execute(
-        delete(SuppressionResource).where(SuppressionResource.resource_key.like(like))  # type: ignore[attr-defined]
+        delete(SuppressionResource).where(
+            SuppressionResource.resource_key.like(like, escape="\\")  # type: ignore[attr-defined]
+        )
     ).rowcount
     session.flush()
     return deleted

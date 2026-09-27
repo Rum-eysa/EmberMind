@@ -9,6 +9,8 @@ from src.database import Database
 from src.models.historical_fire import HistoricalFirePerimeter
 from src.services.data_governance import attribution_for
 from src.services.effis import (
+    DEFAULT_EFFIS_BASE_URL,
+    EffisClient,
     EffisSourceError,
     assign_dataset_splits,
     bootstrap_sample_dataset,
@@ -103,10 +105,25 @@ def register_historical_fire_routes(
     def historical_fires_import(req: EffisImportRequest) -> dict[str, Any]:
         """Import historical fire perimeters from the live EFFIS service."""
         bbox = _resolve_bbox(req)
+        client = None
+        if req.years:
+            if not all(1980 <= y <= 2100 for y in req.years):
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "status": "error",
+                        "error": "years must be between 1980 and 2100",
+                    },
+                )
+            # Honour the requested year list instead of the configured default.
+            client = EffisClient(
+                base_url=getattr(settings, "EFFIS_BASE_URL", DEFAULT_EFFIS_BASE_URL),
+                years=sorted(set(req.years)),
+            )
         try:
             with database.session() as session:
-                result = import_effis_perimeters(session, settings, bbox)
-                return {"status": "ok", "bbox": bbox, **result}
+                result = import_effis_perimeters(session, settings, bbox, client=client)
+                return {"status": "ok", "bbox": bbox, "years": req.years, **result}
         except EffisSourceError as exc:
             raise HTTPException(
                 status_code=503,

@@ -35,8 +35,24 @@ class TestGetConfig:
     def test_returns_development_config(self) -> None:
         assert get_config("development") is DevelopmentConfig
 
-    def test_returns_production_config(self) -> None:
+    def test_returns_production_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Production boot guard requires a real server-side database URL.
+        monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db:5432/wildfire")
         assert get_config("production") is ProductionConfig
+
+    def test_production_guard_rejects_missing_database_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        with pytest.raises(RuntimeError, match="must be set explicitly"):
+            get_config("production")
+
+    def test_production_guard_rejects_sqlite(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DATABASE_URL", "sqlite:///wildfire.db")
+        with pytest.raises(RuntimeError, match="refuses a SQLite"):
+            get_config("production")
 
     def test_unknown_falls_back_to_development(self) -> None:
         assert get_config("nonexistent") is DevelopmentConfig

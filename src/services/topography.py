@@ -1,9 +1,10 @@
 """USGS/SRTM Topography (elevation, slope, aspect) fetching, caching, and persistence service."""
 from dataclasses import dataclass, field
 from datetime import datetime
+import logging
 import math
 import time
-from typing import Any
+from typing import Any, Callable, Optional
 
 import requests  # type: ignore[import-untyped]
 from sqlalchemy import select
@@ -12,6 +13,8 @@ from sqlalchemy.orm import Session
 from src.models.fire import FireCluster
 from src.models.topography import TopographyDataPoint
 from src.utils.timeutils import utc_now
+
+_LOG = logging.getLogger(__name__)
 
 
 class TopographySourceError(RuntimeError):
@@ -41,11 +44,13 @@ class SRTMTopographyClient:
         resolution_meters: int = 30,
         cache_ttl_seconds: int = 86400,
         timeout: int = 10,
+        http_post: Optional[Callable[..., Any]] = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.resolution_meters = resolution_meters
         self.cache_ttl_seconds = cache_ttl_seconds
         self.timeout = timeout
+        self._http_post: Callable[..., Any] = http_post or requests.post
         self._cache: dict[str, tuple[float, NormalizedTopography]] = {}
 
     def _region_key(self, lat: float, lon: float) -> str:
@@ -79,16 +84,14 @@ class SRTMTopographyClient:
         slope_rad = math.atan(math.sqrt(dz_dx**2 + dz_dy**2))
         slope_deg = round(math.degrees(slope_rad), 2)
 
-        # Aspect in degrees (0 = North, 90 = East, 180 = South, 270 = West)
+        # Aspect: the compass bearing of the downslope direction (0 = north
+        # facing, i.e. water drains north). Regressed once by mirroring N/S:
+        # atan2(-dz_dx, -dz_dy) is the exact bearing form, unlike the old
+        # ``90 - atan2(dz_dy, -dz_dx)`` which flipped north and south.
         if dz_dx == 0 and dz_dy == 0:
             aspect_deg = 0.0  # Flat terrain
         else:
-            aspect_rad = math.atan2(dz_dy, -dz_dx)
-            aspect_deg = math.degrees(aspect_rad)
-            aspect_deg = 90.0 - aspect_deg
-            if aspect_deg < 0:
-                aspect_deg += 360.0
-            aspect_deg = round(aspect_deg % 360.0, 2)
+            aspect_deg = round(math.degrees(math.atan2(-dz_dx, -dz_dy)) % 360.0, 2)
 
         return slope_deg, aspect_deg
 
@@ -134,40 +137,35 @@ class SRTMTopographyClient:
 
         elevations: dict[str, float] = {}
 
+        url = f"{self.base_url}/lookup"
+        payload: dict[str, Any] = {
+            "locations": [
+                {"latitude": loc["latitude"], "longitude": loc["longitude"]}
+                for loc in locations
+            ]
+        }
+        # Honest failure: an unreachable or partial DEM service must raise so
+        # the pipeline reports the outage, never invent terrain silently.
         try:
-            url = f"{self.base_url}/lookup"
-            payload: dict[str, Any] = {
-                "locations": [
-                    {"latitude": loc["latitude"], "longitude": loc["longitude"]}
-                    for loc in locations
-                ]
-            }
-            response = requests.post(url, json=payload, timeout=self.timeout)
-            if response.status_code == 200:
-                results = response.json().get("results", [])
-                for idx, loc in enumerate(locations):
-                    if idx < len(results):
-                        elevations[str(loc["key"])] = float(
-                            results[idx].get("elevation", 0.0)
-                        )
-                    else:
-                        elevations[str(loc["key"])] = 0.0
-            else:
-                elevations = {
-                    "center": 150.0,
-                    "north": 160.0,
-                    "south": 140.0,
-                    "east": 155.0,
-                    "west": 145.0,
-                }
-        except Exception:
-            elevations = {
-                "center": 150.0,
-                "north": 160.0,
-                "south": 140.0,
-                "east": 155.0,
-                "west": 145.0,
-            }
+            response = self._http_post(url, json=payload, timeout=self.timeout)
+        except requests.RequestException as exc:
+            _LOG.warning("topography service unreachable: %s", exc)
+            raise TopographySourceError(
+                f"topography service unreachable: {exc}"
+            ) from exc
+        if response.status_code != 200:
+            _LOG.warning("topography lookup failed with HTTP %s", response.status_code)
+            raise TopographySourceError(
+                f"topography lookup failed: HTTP {response.status_code}"
+            )
+        results = response.json().get("results", [])
+        if len(results) < len(locations):
+            raise TopographySourceError(
+                f"topography lookup returned {len(results)}"
+                f"/{len(locations)} grid points; refusing to fabricate terrain"
+            )
+        for idx, loc in enumerate(locations):
+            elevations[str(loc["key"])] = float(results[idx].get("elevation", 0.0))
 
         center_elevation = elevations.get("center", 0.0)
         slope, aspect = self.calculate_slope_and_aspect(elevations)
@@ -187,19 +185,22 @@ class SRTMTopographyClient:
         return item
 
 
-def sync_topography_for_clusters(session: Session, settings: Any) -> dict[str, Any]:
+def sync_topography_for_clusters(
+    session: Session, settings: Any, client: Optional[SRTMTopographyClient] = None
+) -> dict[str, Any]:
     """Fetch and persist 30m resolution topography (slope & aspect) for all active fire clusters."""
     clusters = session.scalars(select(FireCluster)).all()
     if not clusters:
         return {"clusters_processed": 0, "topography_points_saved": 0}
 
-    client = SRTMTopographyClient(
-        base_url=getattr(
-            settings, "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"
-        ),
-        resolution_meters=getattr(settings, "TOPOGRAPHY_RESOLUTION_METERS", 30),
-        cache_ttl_seconds=getattr(settings, "TOPOGRAPHY_CACHE_TTL_SECONDS", 86400),
-    )
+    if client is None:
+        client = SRTMTopographyClient(
+            base_url=getattr(
+                settings, "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"
+            ),
+            resolution_meters=getattr(settings, "TOPOGRAPHY_RESOLUTION_METERS", 30),
+            cache_ttl_seconds=getattr(settings, "TOPOGRAPHY_CACHE_TTL_SECONDS", 86400),
+        )
 
     now = utc_now()
     saved_count = 0

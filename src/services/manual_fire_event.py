@@ -1,6 +1,6 @@
 """Manual fire event creation service with deduplication and prediction triggering."""
-from datetime import datetime
-from math import cos
+import math
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import select
@@ -24,12 +24,28 @@ class DuplicateFireEventError(ManualFireEventError):
     pass
 
 
+# Controlled vocabularies for the operator-facing event fields; enforced on
+# create and update so the API can never persist a status the UI cannot render.
+VALID_SEVERITIES = ("low", "medium", "high", "critical")
+VALID_STATUSES = ("active", "contained", "extinguished")
+
+
 def generate_event_key(latitude: float, longitude: float, timestamp: datetime) -> str:
     """Generate a unique event key from coordinates and timestamp."""
     lat_str = f"{latitude:.4f}".replace(".", "").replace("-", "m")
     lon_str = f"{longitude:.4f}".replace(".", "").replace("-", "m")
     time_str = timestamp.strftime("%Y%m%d%H%M%S")
     return f"manual_{lat_str}_{lon_str}_{time_str}"
+
+
+def _km_per_deg_longitude(latitude: float) -> float:
+    """Ground km per degree of longitude at ``latitude`` (degrees, cos-law).
+
+    ``cos`` must receive radians; feeding it degrees silently distorted the
+    duplicate-detection box across the pilot band. The 0.05 floor keeps the
+    division finite near the poles.
+    """
+    return 111.0 * max(abs(math.cos(math.radians(latitude))), 0.05)
 
 
 def check_for_duplicates(
@@ -54,9 +70,7 @@ def check_for_duplicates(
     """
     # Simple bounding box query for performance
     lat_delta = distance_threshold_km / 111.0  # Approximate km to degrees
-    lon_delta = distance_threshold_km / (
-        111.0 * abs(cos(latitude)) if latitude != 0 else 111.0
-    )
+    lon_delta = distance_threshold_km / _km_per_deg_longitude(latitude)
 
     clusters = session.scalars(
         select(FireCluster).where(
@@ -74,11 +88,7 @@ def check_for_duplicates(
         cluster_lat = float(cluster.latitude)  # type: ignore[arg-type]
         cluster_lon = float(cluster.longitude)  # type: ignore[arg-type]
         lat_diff = (cluster_lat - latitude) * 111.0
-        lon_diff = (
-            (cluster_lon - longitude) * 111.0 * abs(cos(latitude))
-            if latitude != 0
-            else 0
-        )
+        lon_diff = (cluster_lon - longitude) * _km_per_deg_longitude(latitude)
         distance_km = (lat_diff**2 + lon_diff**2) ** 0.5
 
         # Check time threshold
@@ -143,6 +153,25 @@ def create_manual_fire_event(
         DuplicateFireEventError: If duplicate satellite detection found
         ManualFireEventError: For other creation errors
     """
+    if severity not in VALID_SEVERITIES:
+        raise ManualFireEventError(
+            f"invalid severity '{severity}'; expected one of {list(VALID_SEVERITIES)}"
+        )
+    if status not in VALID_STATUSES:
+        raise ManualFireEventError(
+            f"invalid status '{status}'; expected one of {list(VALID_STATUSES)}"
+        )
+    if not -90 <= min_lat <= max_lat <= 90:
+        raise ManualFireEventError(
+            "bbox latitudes must satisfy -90 <= min_lat <= max_lat <= 90"
+        )
+    if not -180 <= min_lon <= max_lon <= 180:
+        raise ManualFireEventError(
+            "bbox longitudes must satisfy -180 <= min_lon <= max_lon <= 180"
+        )
+    if not min_lat <= latitude <= max_lat or not min_lon <= longitude <= max_lon:
+        raise ManualFireEventError("event center must lie inside its bbox")
+
     if started_at is None:
         started_at = utc_now()
 
@@ -160,14 +189,23 @@ def create_manual_fire_event(
                 f"detection {duplicate.cluster_key} last seen at {duplicate.last_seen_at}"
             )
 
-    # Generate unique event key
+    # Generate unique event key; on the (rare) same-second collision keep
+    # bumping the timestamp until the key is free instead of trusting one
+    # regeneration and hitting IntegrityError later on flush.
     event_key = generate_event_key(latitude, longitude, started_at)
-
-    # Check if event_key already exists (should be very rare)
-    existing = session.scalar(select(FireEvent).where(FireEvent.event_key == event_key))
-    if existing:
-        # Regenerate with microseconds if collision
-        event_key = generate_event_key(latitude, longitude, utc_now())
+    bump = started_at
+    for _ in range(10):
+        existing = session.scalar(
+            select(FireEvent).where(FireEvent.event_key == event_key)
+        )
+        if not existing:
+            break
+        bump = bump + timedelta(seconds=1)
+        event_key = generate_event_key(latitude, longitude, bump)
+    else:
+        raise ManualFireEventError(
+            f"could not allocate a unique event key near {started_at}"
+        )
 
     # Create the event
     event = FireEvent(

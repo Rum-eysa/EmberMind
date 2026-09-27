@@ -6,6 +6,7 @@ from sqlalchemy import select
 from src.models.road_network import CrewBase, RoadClosure, RoadSegment
 from src.services.road_network import (
     NormalizedSegment,
+    OverpassClient,
     RoadSegmentNotFoundError,
     compute_arrival_for_event,
     compute_crew_arrival,
@@ -56,6 +57,14 @@ def test_haversine_km_basic():
     assert haversine_km(38.0, 27.0, 38.0, 27.0) == 0.0
     # ~111 km per degree of latitude.
     assert 110.0 < haversine_km(38.0, 27.0, 39.0, 27.0) < 112.0
+
+
+def test_overpass_build_query_pushes_bbox():
+    """Regression: bbox must be pushed into the QL, not filtered client-side."""
+    query = OverpassClient.build_query((36.0, 26.0, 39.5, 30.0))
+    assert "[out:json]" in query
+    assert 'way["highway"](36.0,26.0,39.5,30.0)' in query
+    assert "out body" in query
 
 
 def test_speed_for_highway_mapping():

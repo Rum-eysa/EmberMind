@@ -154,29 +154,39 @@ class PilotRegionGridService:
     def resample_raster_layer_to_30m(
         self, raster_points: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
-        """Resample a spatial raster/point layer to uniform 30m grid cells using nearest neighbor."""
+        """Resample a spatial raster/point layer onto uniform 30m grid cells.
+
+        Points snapping to the same cell are collapsed with a true arithmetic
+        mean over every sample; points missing coordinates are skipped rather
+        than silently pooled at (0, 0) in the Gulf of Guinea.
+        """
         grid_buckets: dict[str, dict[str, Any]] = {}
 
         for pt in raster_points:
-            lat = float(pt.get("latitude", 0.0))
-            lon = float(pt.get("longitude", 0.0))
+            if pt.get("latitude") is None or pt.get("longitude") is None:
+                continue
+            lat = float(pt["latitude"])
+            lon = float(pt["longitude"])
             cell = self.align_to_30m_grid(lat, lon)
+            value = float(pt.get("value", 0.0))
 
-            if cell.cell_id not in grid_buckets:
+            bucket = grid_buckets.get(cell.cell_id)
+            if bucket is None:
                 grid_buckets[cell.cell_id] = {
                     "cell_id": cell.cell_id,
                     "latitude": cell.center_lat,
                     "longitude": cell.center_lon,
                     "resolution_meters": self.resolution_meters,
                     "sample_count": 1,
-                    "value": pt.get("value", 0.0),
+                    "_sum": value,
+                    "value": value,
                 }
             else:
-                bucket = grid_buckets[cell.cell_id]
                 bucket["sample_count"] += 1
-                # Average resampled value
-                bucket["value"] = round(
-                    (bucket["value"] + float(pt.get("value", 0.0))) / 2.0, 3
-                )
+                bucket["_sum"] += value
+                # Unbiased mean across all samples (running sum / count).
+                bucket["value"] = bucket["_sum"] / bucket["sample_count"]
 
+        for bucket in grid_buckets.values():
+            bucket.pop("_sum")
         return list(grid_buckets.values())

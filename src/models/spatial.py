@@ -21,7 +21,8 @@ class FireEvent(BaseModel):
     max_lat = Column(Float, nullable=False)
     min_lon = Column(Float, nullable=False)
     max_lon = Column(Float, nullable=False)
-    geometry_wkt = Column(String(512), nullable=False)
+    # Text: WKT polygons can exceed the legacy 512-char cap (V015).
+    geometry_wkt = Column(Text, nullable=False)
     severity = Column(String(32), nullable=False, default="medium")
     status = Column(String(32), nullable=False, default="active")
     started_at = Column(DateTime, nullable=False)
@@ -116,7 +117,8 @@ class SpatialSource(BaseModel):
     max_lat = Column(Float, nullable=False)
     min_lon = Column(Float, nullable=False)
     max_lon = Column(Float, nullable=False)
-    geometry_wkt = Column(String(512), nullable=False)
+    # Text: WKT polygons can exceed the legacy 512-char cap (V015).
+    geometry_wkt = Column(Text, nullable=False)
     last_synced_at = Column(DateTime, nullable=True)
     status = Column(String(32), nullable=False, default="active")
 
@@ -158,7 +160,8 @@ class SilentRegion(BaseModel):
     max_lat = Column(Float, nullable=False)
     min_lon = Column(Float, nullable=False)
     max_lon = Column(Float, nullable=False)
-    geometry_wkt = Column(String(512), nullable=False)
+    # Text: WKT polygons can exceed the legacy 512-char cap (V015).
+    geometry_wkt = Column(Text, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
 
     __table_args__ = (
@@ -198,7 +201,8 @@ class SimulationScenario(BaseModel):
     max_lat = Column(Float, nullable=False)
     min_lon = Column(Float, nullable=False)
     max_lon = Column(Float, nullable=False)
-    geometry_wkt = Column(String(512), nullable=False)
+    # Text: WKT polygons can exceed the legacy 512-char cap (V015).
+    geometry_wkt = Column(Text, nullable=False)
     wind_speed = Column(Float, nullable=False, default=0.0)
     slope_angle = Column(Float, nullable=False, default=0.0)
     fuel_model = Column(String(64), nullable=False, default="varsayilan")
