@@ -1,4 +1,5 @@
 """Persisted wildfire models."""
+from .capacity import CapacityAssumption
 from .exposure import ExposedAsset
 from .fire import FireCluster, FireObservation, FirmsSyncStatus
 from .fwi import FireWeatherIndex
@@ -23,6 +24,7 @@ from .topography import TopographyDataPoint
 from .weather import WeatherDataPoint
 
 __all__ = [
+    "CapacityAssumption",
     "CrewBase",
     "ExposedAsset",
     "FireCluster",

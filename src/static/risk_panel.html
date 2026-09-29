@@ -43,6 +43,13 @@
     .bar i { display: block; height: 100%; }
     .over { color: var(--color-danger); font-weight: 700; }
     #status { font-size: var(--font-size-xs); color: var(--text-secondary); }
+    .assume-input { width: 76px; background: var(--bg-inset); color: var(--text-primary);
+                    border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+                    padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; }
+    .muted-note { font-size: var(--font-size-xs); color: var(--text-secondary);
+                  margin-bottom: 8px; }
+    .assume-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    #assume-status { font-size: var(--font-size-xs); color: var(--text-secondary); }
     @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -91,6 +98,22 @@
         <div class="kv"><span>Müsait değil</span><b id="c-unavailable"></b></div>
         <div class="kv"><span>Aktif yangın olayı</span><b id="c-incidents"></b></div>
         <div class="kv"><span>Aktif yol kapaması</span><b id="c-closures"></b></div>
+        <div class="kv"><span>Etkin kapasite (ha/saat)</span><b id="c-effective"></b></div>
+      </div>
+      <div class="card">
+        <h2>Kapasite Varsayımları (ha/saat)</h2>
+        <div class="muted-note">Bir birimin etkin müdahale kapasitesi —
+          yönetici düzenleyebilir.</div>
+        <table id="assumptions">
+          <thead><tr><th>Tür</th><th class="num">ha/saat</th>
+            <th class="num">Etkin (müsait×var.)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="assume-actions">
+          <button id="save-assumptions" class="em-btn em-btn--primary em-btn--sm"
+                  type="button">Kaydet</button>
+          <span id="assume-status"></span>
+        </div>
       </div>
       <div class="card">
         <h2>Kapasite Kırılımı (ekip türü)</h2>
@@ -198,6 +221,24 @@
     } else {
       invBody.innerHTML = '<tr><td colspan="5">envanter verisi yok</td></tr>';
     }
+
+    // EM-028: kapasite tek birime (ha/saat) normalize edilir; varsayımlar
+    // yönetici tarafından düzenlenebilir, etkin kapasite canlı hesaplanır.
+    const eff = data.capacity.effective;
+    setText("c-effective",
+      eff ? eff.total_effective_ha_per_hour.toFixed(1) + " ha/saat" : "–");
+    const aBody = document.querySelector("#assumptions tbody");
+    aBody.innerHTML = "";
+    const assumptions = (data.capacity.assumptions || {}).assumptions || [];
+    for (const a of assumptions) {
+      const bt = eff ? eff.by_type[a.resource_type] : null;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${RESOURCE_TR[a.resource_type] || a.resource_type}</td>
+        <td class="num"><input class="assume-input" type="number" min="0"
+          step="0.1" data-type="${a.resource_type}" value="${a.ha_per_hour}"></td>
+        <td class="num">${bt ? bt.effective_ha_per_hour.toFixed(1) : "–"}</td>`;
+      aBody.appendChild(tr);
+    }
     setText("attribution", data.attribution || "FWI: OpenWeather · Kapasite: EmberMind");
   }
 
@@ -213,6 +254,32 @@
 
   refresh();
   setInterval(refresh, 60000);
+
+  // EM-028 yönetici düzenlemesi: ha/saat varsayımlarını kaydet ve paneli tazele.
+  document.getElementById("save-assumptions").addEventListener("click", async () => {
+    const body = {};
+    document.querySelectorAll("#assumptions .assume-input").forEach((inp) => {
+      body[inp.dataset.type] = parseFloat(inp.value);
+    });
+    const status = document.getElementById("assume-status");
+    status.textContent = "kaydediliyor…";
+    try {
+      const res = await fetch("/api/v1/capacity/assumptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err.detail && err.detail.error) || ("HTTP " + res.status));
+      }
+      status.textContent = "kaydedildi";
+      await refresh();
+      status.textContent = "kaydedildi";
+    } catch (err) {
+      status.textContent = "hata: " + err.message;
+    }
+  });
 
   // EM-075 tema anahtarı: panel koyu başlar, kullanıcı tercihi saklanır.
   const themeBtn = document.getElementById("theme-toggle");

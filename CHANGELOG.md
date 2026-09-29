@@ -5,6 +5,26 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-028: Kapasite biriminin tanımı ve normalizasyonu — kapasite açığı ve risk
+  indeksi (E3)
+  - `src/models/capacity.py` → `CapacityAssumption` (V016 migration): her
+    müdahale kaynak tipi (ekip / helikopter / İHA) için yöneticinin
+    düzenleyebildiği **etkin müdahale kapasitesi (ha/saat)** varsayımı; tek
+    satır/tek tip, `resource_type` benzersiz
+  - `src/services/capacity.py`: varsayımları config default'larından
+    tohumlar (`ensure_defaults`), listeler/günceller (Türkçe tip takma
+    adlarını `inventory.normalize_type` ile çözer, negatif/bilinmeyen tip
+    reddedilir) ve envanteri **tek birime (ha/saat) normalize eder** —
+    `effective_capacity` = Σ (müsait kaynak sayısı × tip varsayımı)
+  - `src/routes/capacity.py`: **`GET/PUT /api/v1/capacity/assumptions`**
+    (yönetici düzenlemesi; geçersiz tip 400) ve
+    **`GET /api/v1/capacity/effective`**
+  - Komutan paneli (`risk_panel`): kapasite hesabına `assumptions` ve
+    `effective` (ha/saat) blokları eklendi; panelde **Kapasite Varsayımları
+    (ha/saat)** kartı — tür başına düzenlenebilir input + Kaydet — ve
+    "Etkin kapasite (ha/saat)" satırı; böylece kapasite ile risk aynı
+    birimde okunur
+  - Yapılandırma: `CAPACITY_HA_PER_HOUR_CREW/HELICOPTER/UAV`
 - EM-052: Proaktif kaynak konumlandırma — öneri konumları ve rotalar (E5)
   - `src/services/positioning.py`: bir yangın olayı için **müsait** ekip
     üsleri (`crew_bases`) + müdahale kaynaklarını (`suppression_resources`,

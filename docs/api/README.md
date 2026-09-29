@@ -194,6 +194,22 @@ türü ve müsaitlik bazlı müdahale üsleri, aktif yangın olayları, aktif yo
 kapatmaları) ve **EM-103 kaynak envanteri** toplamı (`capacity.inventory`).
 Operatör haritasındaki lejanttan `/panel`'e geçilir.
 
+### Kapasite Birimi Tanımı ve Normalizasyonu (EM-028)
+```
+GET /api/v1/capacity/assumptions  # kaynak tipi başına etkin müdahale kapasitesi (ha/saat)
+PUT /api/v1/capacity/assumptions  # yönetici düzenlemesi: {"crew":..,"helicopter":..,"uav":..}
+GET /api/v1/capacity/effective    # müsait envanterin tek birime (ha/saat) normalize hali
+```
+Kapasite ile riskin **aynı birimde** ölçülebilmesi için her kaynak tipi
+(ekip / helikopter / İHA) bir **etkin müdahale kapasitesi (ha/saat)**
+varsayımına sahiptir. Varsayımlar `CAPACITY_HA_PER_HOUR_*` config
+default'larından tohumlanır, `capacity_assumptions` tablosunda kalıcıdır ve
+paneldeki **Kapasite Varsayımları (ha/saat)** kartından yönetici tarafından
+düzenlenebilir. `effective_capacity` = Σ (müsait kaynak sayısı × tip
+varsayımı) ile envanter ha/saat cinsinden tek bir rakama indirgenir; panel
+beslemesi `capacity.assumptions` ve `capacity.effective` alanlarını taşır.
+Geçersiz/negatif tip düzenlemesi **400** döner.
+
 ### Tasarım Sistemi ve Bileşen Kütüphanesi (EM-075)
 ```
 GET /styleguide        # bileşen vitrini (renk/tipografi/boşluk + buton, kart, panel, rozet, tablo, form)

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from src.models.fwi import FireWeatherIndex
 from src.models.road_network import CrewBase, RoadClosure
 from src.models.spatial import FireEvent
+from src.services.capacity import effective_capacity, list_assumptions
 from src.services.fwi import RISK_COLORS, RISK_ORDER
 from src.services.inventory import capacity_summary
 from src.utils.timeutils import to_utc_iso, utc_now
@@ -65,12 +66,14 @@ def zone_risk_rows(
     return zones
 
 
-def capacity_breakdown(session: Session) -> dict[str, Any]:
+def capacity_breakdown(session: Session, settings: Any) -> dict[str, Any]:
     """Suppression capacity: crew bases by type, incidents, road closures.
 
     The EM-103 coordinator inventory (crew / helicopter / uav assets) rides
     along in ``inventory`` so the command panel capacity account stays
-    current with what the coordinator manages.
+    current with what the coordinator manages. EM-028 adds the admin-editable
+    per-type ha/hour assumptions and the inventory normalised into a single
+    effective ha/hour figure so capacity and risk share one unit.
     """
     by_type: dict[str, dict[str, int]] = {}
     total_bases = 0
@@ -103,6 +106,8 @@ def capacity_breakdown(session: Session) -> dict[str, Any]:
             "by_crew_type": by_type,
         },
         "inventory": capacity_summary(session),
+        "assumptions": list_assumptions(session, settings),
+        "effective": effective_capacity(session, settings),
         "active_incidents": int(active_incidents or 0),
         "active_road_closures": int(active_closures or 0),
     }
@@ -140,5 +145,5 @@ def build_capacity_risk_panel(
             ),
         },
         "zones": zones,
-        "capacity": capacity_breakdown(session),
+        "capacity": capacity_breakdown(session, settings),
     }

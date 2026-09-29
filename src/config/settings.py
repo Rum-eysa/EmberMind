@@ -236,6 +236,16 @@ class Config:
     # threshold; the panel reports the first day each zone crossed it.
     RISK_PANEL_THRESHOLD = float(os.getenv("RISK_PANEL_THRESHOLD", "30.0"))
 
+    # Capacity unit definition & normalization (EM-028, Epic E3)
+    # Default "effective suppression capacity" (hectare/hour) assumed per unit
+    # of each deployable resource type. These seed the admin-editable
+    # capacity_assumptions table so capacity and risk share one unit (ha/hour).
+    CAPACITY_HA_PER_HOUR_CREW = float(os.getenv("CAPACITY_HA_PER_HOUR_CREW", "2.0"))
+    CAPACITY_HA_PER_HOUR_HELICOPTER = float(
+        os.getenv("CAPACITY_HA_PER_HOUR_HELICOPTER", "12.0")
+    )
+    CAPACITY_HA_PER_HOUR_UAV = float(os.getenv("CAPACITY_HA_PER_HOUR_UAV", "4.0"))
+
     # USGS / SRTM Topography
     USGS_SRTM_BASE_URL = os.getenv(
         "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"

@@ -159,7 +159,7 @@ def test_panel_single_view_fields(session):
 
 def test_capacity_breakdown(session):
     _seed_panel_data(session)
-    capacity = capacity_breakdown(session)
+    capacity = capacity_breakdown(session, PanelSettings())
     bases = capacity["crew_bases"]
     assert bases["total"] == 3
     assert bases["available"] == 2
@@ -198,7 +198,7 @@ def test_panel_capacity_includes_inventory_rollup(session):
         )
     )
     session.commit()
-    inventory = capacity_breakdown(session)["inventory"]
+    inventory = capacity_breakdown(session, PanelSettings())["inventory"]
     assert inventory["total_resources"] == 2
     assert inventory["available_resources"] == 1
     assert inventory["by_type"]["crew"]["capacity"] == 25.0
