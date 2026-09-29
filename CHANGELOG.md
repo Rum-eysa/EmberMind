@@ -5,6 +5,27 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-052: Proaktif kaynak konumlandırma — öneri konumları ve rotalar (E5)
+  - `src/services/positioning.py`: bir yangın olayı için **müsait** ekip
+    üsleri (`crew_bases`) + müdahale kaynaklarını (`suppression_resources`,
+    EM-103) toparlar; her birini EM-011 yol ağı grafiği üzerinden olay
+    konumuna **kapanış-duyarlı en kısa süre** rotasıyla çizer ve **ETA**'ya
+    göre sıralar (en yakın/ulaşılabilir önce). Rota geometrisi,
+    `path_segment_keys` uç uca zincirlenerek LineString olarak geri kurulur;
+    kapanış varsa gecikme (`delay_vs_open_minutes`) için ikinci (açık) grafik
+    yalnızca gerektiğinde kurulur. Öneriler **her istekte canlı** hesaplanır
+    (kalıcı kayıt yok); `positioning_layer` harita için konuşlanma noktası
+    (Point) + rota (LineString) üretir, olay yoksa/ağ boşsa hata yerine boş
+    koleksiyon döner
+  - `src/routes/positioning.py`: **`GET /api/v1/positioning/proposals`**
+    (`event_key` zorunlu, `limit` 1..50) → sıralı öneriler; bilinmeyen olay
+    404, yol ağı yok 409
+  - Operatör haritası: `positioning` katmanı (varsayılan kapalı/tembel) —
+    rota üzerinde sabit **`T+dk` ETA etiketi**, **Konuşlanma Önerileri**
+    paneli; bir öneri seçilince harita rotaya **otomatik odaklanır** ve popup
+    açılır; olay filtresi değişince rota/öneriler yeniden hesaplanır
+  - Yapılandırma: `POSITIONING_MAX_PROPOSALS` (varsayılan 5); erişim hızı
+    `ROAD_ACCESS_SPEED_KMH` yeniden kullanılır
 - EM-090: WebSocket ile canlı güncelleme — Entegrasyon API (E9)
   - `src/models/live.py` → `LiveUpdate` (V014 migration): olay/tahmin/uyarı
     değişikliklerinin **monoton akışı** (id = sıra numarası); `kind`,

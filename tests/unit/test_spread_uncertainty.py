@@ -382,7 +382,7 @@ def test_uncertainty_layer_skips_rows_without_inputs(session):
 def test_uncertainty_in_layer_catalog_and_endpoint(client):
     assert "uncertainty" in LAYER_KEYS
     catalog = layer_catalog()
-    assert len(catalog) == 9
+    assert len(catalog) == 10
     meta = next(item for item in catalog if item["key"] == "uncertainty")
     assert meta["geometry"] == "Polygon"
     assert meta["title"] == "Belirsizlik Bandı"

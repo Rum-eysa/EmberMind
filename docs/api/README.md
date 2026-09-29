@@ -154,18 +154,33 @@ GET /ui                              # Leaflet tabanlı operatör ana haritası
 GET /api/v1/map/layers               # açılıp kapanabilir katman kataloğu
 GET /api/v1/map/layers/{katman}      # GeoJSON FeatureCollection
 ```
-Katmanlar (9): `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
+Katmanlar (10): `fires` (aktif yangınlar: uydu kümeleri + olaylar), `forecasts`
 (30/60/120 dk risk bölgesi poligonları), `uncertainty` (EM-020 iyimser/kötümser
 belirsizlik bandı), `barriers` (EM-021 doğal engeller: su kütleleri ve
 yavaşlatıcılar), `fuel` (yakıt sınıfı), `silent-regions`
 (sessiz bölgeler), `resources` (müdahale kaynakları: ekip üsleri **ve** EM-103
 koordinatör envanter varlıkları — `kind` alanıyla ayrılır), `roads` (yol ağı),
 `exposure` (EM-023 tehdit altındaki yerleşim/yol/altyapı; `first_impact_minutes`
-mor renk kodlu ve `priority_score` ile sıralı).
-`forecasts` ve `exposure` katmanları `?event_key=` ile tek yangına filtrelenebilir;
+mor renk kodlu ve `priority_score` ile sıralı), `positioning` (EM-052 önerilen
+kaynak rotaları (LineString, `T+dk` ETA etiketli) + konuşlanma noktaları (Point)).
+`forecasts`, `exposure` ve `positioning` katmanları `?event_key=` ile tek yangına filtrelenebilir;
 `forecasts` ayrıca `?horizon_minutes=` destekler ve arayüzdeki **zaman kaydırıcısı**
 ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
 Her yanıtta kaynak lisansı gereği `attribution` alanı döner (EM-013).
+
+### Proaktif Kaynak Konumlandırma (EM-052)
+```
+GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri
+```
+`event_key` (zorunlu) ve `limit` (1..50) alır. Bir yangın olayı için **müsait**
+ekip üsleri (`crew_bases`) + müdahale kaynaklarını (`suppression_resources`,
+EM-103) toplar; her birini EM-011 yol ağı grafiği üzerinden olay konumuna
+**kapanış-duyarlı en kısa süre** rotasıyla çizer ve **ETA**'ya göre sıralar.
+Her öneri `deployment_point` (önerilen konuşlanma noktası), `route` (rota
+LineString), `eta_minutes`, `distance_km` ve `delay_vs_open_minutes` taşır.
+Öneriler **her istekte canlı** hesaplanır (kalıcı kayıt yok); yol ağı boşsa
+**409**, olay bulunamazsa **404** döner. Harita gösterimi `positioning` katmanı
+ve **Konuşlanma Önerileri** paneliyle yapılır (öneri seçilince harita odaklanır).
 
 ### Komutan Kapasite ve Risk Paneli (EM-073)
 ```

@@ -53,6 +53,25 @@
     #exposure-panel .pri { color: var(--text-secondary); font-weight: 700; min-width: 34px;
                            text-align: right; }
     #exposure-panel .badge { font-size: 10px; color: #6a1b9a; font-style: italic; }
+        /* EM-052: önerilen konuşlanma ve rotalar — kaynak/ETA listesi */
+    #positioning-panel {
+          position: absolute; top: 70px; left: 284px; z-index: 1000;
+          width: 260px; max-height: 46vh; overflow-y: auto;
+          font-size: var(--font-size-xs); display: none;
+        }
+    #positioning-panel h1 { margin-bottom: 4px; }
+    #positioning-panel .item {
+          display: flex; align-items: center; gap: 6px; padding: 4px 2px;
+          border-bottom: 1px solid var(--border-color); cursor: pointer;
+        }
+    #positioning-panel .item:hover { background: rgba(0,137,123,.08); }
+    #positioning-panel .t { margin-left: auto; font-weight: 700; white-space: nowrap;
+                               color: #00695c; }
+    #positioning-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #positioning-panel .count { color: var(--text-secondary); font-weight: 400; }
+    .route-eta { background: #00695c; color: #fff; border: none; font-weight: 700;
+                   box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+    .route-eta::before { display: none; }
     /* EM-020: model güveni rozeti — ufuk çubuğunun içinde gösterilir */
     #confidence-badge { font-size: var(--font-size-xs); font-weight: 700;
                         padding: 2px 8px; border-radius: 10px;
@@ -105,6 +124,8 @@
     <div class="row"><span class="swatch" style="background:#7b1fa2"></span> Tehdit altındaki yapı — ≤30 dk (EM-023)</div>
     <div class="row"><span class="swatch" style="background:#ab47bc"></span> Tehdit altındaki yapı — ≤60 dk (EM-023)</div>
     <div class="row"><span class="swatch" style="background:#ce93d8"></span> Tehdit altındaki yapı — ≤120 dk (EM-023)</div>
+        <div class="row"><span class="swatch" style="background:#26a69a;border-radius:50%"></span> Konuşlanma noktası (EM-052)</div>
+        <div class="row"><span class="swatch" style="background:#00897b"></span> Önerilen kaynak rotası + ETA (EM-052)</div>
     <div class="row"><a href="/panel" style="color:#c0392b;font-weight:700">→ Komutan Kapasite &amp; Risk Paneli</a></div>
     <div class="row"><a href="/inventory">→ Kaynak Envanteri (koordinatör)</a></div>
     <div class="row"><a href="/styleguide">→ Tasarım Sistemi (styleguide)</a></div>
@@ -120,6 +141,11 @@
       </select>
     </label>
     <div id="exposure-list"></div>
+  </div>
+
+  <div id="positioning-panel" class="panel" aria-live="polite">
+    <h1>Konuşlanma Önerileri <span id="positioning-count" class="count"></span></h1>
+    <div id="positioning-list"></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -154,6 +180,11 @@
       return { radius: 7, weight: 2, color: "#4a148c", fillColor: c,
                fillOpacity: 0.9, opacity: 0.95 };
     },
+    // EM-052: konuşlanma noktası (Point) turkuaz, önerilen rota (LineString) koyu turkuaz.
+    positioning: f => (f.geometry && f.geometry.type === "Point")
+      ? { radius: 8, weight: 2, color: "#004d40", fillColor: "#26a69a",
+          fillOpacity: 0.95, opacity: 0.95 }
+      : { color: "#00897b", weight: 3, opacity: 0.9 },
     // EM-020: kötümser zarf kesikli kırmızı, iyimser zarf noktalı yeşil.
     uncertainty: f => f.properties && f.properties.band === "pessimistic"
       ? { color: "#d62728", weight: 2, dashArray: "6 4",
@@ -175,6 +206,9 @@
   let sliderIndex = 2;      // 0..2 -> 30/60/120 dk
   let fireEvents = [];      // EM-023: {event_key, name} for the exposure filter
   let exposureEventKey = null; // EM-023: current exposure list/layer event filter
+  // EM-052: son konumlandırma katmanı ögeleri ve rota referansları (odaklama için).
+  let positioningFeatures = [];
+  let positioningLayerRefs = {};   // proposal_id -> Leaflet rota katmanı
 
   // EM-090: canlı güncelleme (WebSocket) durumu.
   let catalogLayers = [];      // kataloğun meta listesi (canlı yenileme için)
@@ -200,6 +234,16 @@
 
   function popupHtml(feature) {
     const p = feature.properties || {};
+    // EM-052: konuşlanma noktası ve rota ögeleri komutan-dili özet.
+    if (p.kind === "positioning_route" || p.kind === "deployment_point") {
+      const eta = p.eta_minutes != null ? `T+${escapeHtml(p.eta_minutes)} dk` : "—";
+      const km = p.distance_km != null ? ` &bull; ${escapeHtml(p.distance_km)} km` : "";
+      const head = p.kind === "deployment_point" ? "KONUŞLANMA" : "ROTA";
+      return `<div style="font-size:12px;line-height:1.4">`
+        + `<b>${head}: ${escapeHtml(p.name || "kaynak")}</b><br>`
+        + `Tahmini varış: <b>${eta}</b>${km}<br>`
+        + `<i>${escapeHtml(p.resource_type || "")}</i></div>`;
+    }
     // EM-023: tehdit listesi ögeleri komutan-dili özet; diğerleri ham alan listesi.
     if (p.asset_type) {
       const label = ASSET_LABELS[p.asset_type] || p.asset_type;
@@ -255,13 +299,23 @@
       },
       onEachFeature: (f, layer) => {
         if (f.properties) layer.bindPopup(popupHtml(f));
+        // EM-052: rota çizgisi üzerinde sabit ETA etiketi; odaklama için referans.
+        if (f.properties && f.properties.kind === "positioning_route") {
+          if (f.properties.eta_minutes != null) {
+            layer.bindTooltip(`T+${f.properties.eta_minutes} dk`,
+              { permanent: true, direction: "center", className: "route-eta" });
+          }
+          if (f.properties.proposal_id) {
+            positioningLayerRefs[f.properties.proposal_id] = layer;
+          }
+        }
       },
     });
   }
 
   async function loadLayer(key) {
     let url = `${API}/${key}`;
-    if (key === "exposure" && exposureEventKey) {
+    if ((key === "exposure" || key === "positioning") && exposureEventKey) {
       url += `?event_key=${encodeURIComponent(exposureEventKey)}`;
     }
     const res = await fetch(url);
@@ -291,10 +345,12 @@
       renderHorizons();
       setStatus(`Belirsizlik bandı: ${data.count} poligon — ${data.attribution}`);
     } else {
+      if (key === "positioning") { positioningLayerRefs = {}; }
       layers[key].clearLayers();
       layers[key].addData(data);
       setStatus(`${data.title}: ${data.count} öge`);
       if (key === "exposure") renderExposureList(data);
+      if (key === "positioning") renderPositioningList(data);
     }
     if (data.attribution) setStatus(`${data.title}: ${data.count} öge — ${data.attribution}`);
     return data;
@@ -346,6 +402,55 @@
         `<span><b>${escapeHtml(label)}</b>: ${escapeHtml(name)}${pop}${demo}</span>` +
         `<span class="t">T+${escapeHtml(p.first_impact_minutes)} dk</span>` +
         `<span class="pri" title="Öncelik skoru (EM-023)">${p.priority_score != null ? escapeHtml(p.priority_score) : ""}</span>`;
+      box.appendChild(row);
+    }
+  }
+
+  // EM-052: önerilen konuşlanma listesi + seçilen rotaya otomatik odaklama.
+  function focusProposal(proposalId) {
+    const routeFeature = positioningFeatures.find(
+      f => f.properties && f.properties.kind === "positioning_route"
+         && f.properties.proposal_id === proposalId);
+    if (routeFeature) {
+      const bounds = L.geoJSON(routeFeature).getBounds();
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+    }
+    const layer = positioningLayerRefs[proposalId];
+    if (layer && layer.openPopup) layer.openPopup();
+  }
+  function renderPositioningList(data) {
+    const panel = document.getElementById("positioning-panel");
+    const box = document.getElementById("positioning-list");
+    const countEl = document.getElementById("positioning-count");
+    positioningFeatures = (data.features || []).slice();
+    panel.style.display = "block";
+    box.innerHTML = "";
+    const points = positioningFeatures.filter(
+      f => f.properties && f.properties.kind === "deployment_point");
+    if (countEl) countEl.textContent = points.length ? `(${points.length})` : "(0)";
+    if (!points.length) {
+      box.innerHTML = '<div class="empty">Öneri yok. Yukarıdan bir olay seçin; '
+        + 'seçili olay için müsait kaynak ve yol ağı olmalı.</div>';
+      return;
+    }
+    for (const f of points) {
+      const p = f.properties;
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const eta = p.eta_minutes != null ? `T+${escapeHtml(p.eta_minutes)} dk` : "—";
+      const km = p.distance_km != null ? ` &middot; ${escapeHtml(p.distance_km)} km` : "";
+      const type = p.resource_type ? escapeHtml(p.resource_type) : "";
+      row.innerHTML =
+        `<span><b>${escapeHtml(p.name || "kaynak")}</b>`
+        + `${type ? ` <i>(${type})</i>` : ""}${km}</span>`
+        + `<span class="t">${eta}</span>`;
+      const focus = () => focusProposal(p.proposal_id);
+      row.addEventListener("click", focus);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); focus(); }
+      });
       box.appendChild(row);
     }
   }
@@ -522,6 +627,13 @@
         } else {
           document.getElementById("exposure-panel").style.display = "none";
         }
+        // EM-052: olay değişince konumlandırma katmanı da yeniden hesaplanır.
+        if (layers.positioning && map.hasLayer(layers.positioning)) {
+          try { await loadLayer("positioning"); }
+          catch (err) { setStatus(`Hata: ${err.message}`); }
+        } else {
+          document.getElementById("positioning-panel").style.display = "none";
+        }
       });
     }
 
@@ -540,6 +652,9 @@
           }
           if (!on && meta.key === "exposure") {
             document.getElementById("exposure-panel").style.display = "none";
+          }
+          if (!on && meta.key === "positioning") {
+            document.getElementById("positioning-panel").style.display = "none";
           }
         }
       });

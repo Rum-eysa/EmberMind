@@ -254,6 +254,10 @@ class Config:
     )
     ROAD_ACCESS_SPEED_KMH = float(os.getenv("ROAD_ACCESS_SPEED_KMH", "40"))
 
+    # Proactive resource positioning (EM-052)
+    # How many nearest-resource deployment proposals to surface per event.
+    POSITIONING_MAX_PROPOSALS = int(os.getenv("POSITIONING_MAX_PROPOSALS", "5"))
+
     # EFFIS historical fire perimeters (EM-011)
     EFFIS_BASE_URL = os.getenv(
         "EFFIS_BASE_URL",

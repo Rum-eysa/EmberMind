@@ -30,6 +30,7 @@ from src.services.barriers import (
 )
 from src.services.data_governance import attribution_for
 from src.services.exposure import exposure_layer
+from src.services.positioning import positioning_layer
 from src.services.spread import resolve_fuel_model_number
 from src.services.spread_uncertainty import (
     ENSEMBLE_MODEL_NAME,
@@ -466,6 +467,7 @@ LAYER_KEYS = (
     "resources",
     "roads",
     "exposure",
+    "positioning",
 )
 
 LAYER_GEOMETRIES = {
@@ -478,6 +480,7 @@ LAYER_GEOMETRIES = {
     "resources": "Point",
     "roads": "LineString",
     "exposure": "Point",  # mixed: settlements are Points, roads/lines LineStrings
+    "positioning": "LineString",  # mixed: route lines plus deployment points
 }
 
 
@@ -504,6 +507,7 @@ LAYER_TITLES = {
     "resources": "Müdahale Kaynakları",
     "roads": "Yol Ağı",
     "exposure": "Tehdit Altındaki Yapılar",
+    "positioning": "Önerilen Konuşlanma ve Rotalar",
 }
 
 
@@ -533,6 +537,8 @@ def build_layer(
         return roads_layer(session, settings)
     if name == "exposure":
         return exposure_layer(session, settings, event_key)
+    if name == "positioning":
+        return positioning_layer(session, settings, event_key)
     raise MapLayerError(
         f"unknown map layer '{name}'; expected one of {sorted(LAYER_KEYS)}"
     )
