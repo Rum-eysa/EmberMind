@@ -162,6 +162,28 @@
           <b id="inv-total">–</b></div>
       </div>
       <div class="card">
+        <h2>Kapasite What-If (EM-056)</h2>
+        <div class="muted-note">Ek kaynak gir: sabit EM-029 talebi varsayıms
+          kapasiteye karşı yeniden fiyatlanır; açık değişimi ve çözülen olaylar.
+          Geçici — hiçbir kaynak atanmaz.</div>
+        <div class="kv"><span>Ekip (+)</span>
+          <input id="wi-crew" class="assume-input" type="number" min="0" step="1" value="0"></div>
+        <div class="kv"><span>Helikopter (+)</span>
+          <input id="wi-heli" class="assume-input" type="number" min="0" step="1" value="0"></div>
+        <div class="kv"><span>İHA (+)</span>
+          <input id="wi-uav" class="assume-input" type="number" min="0" step="1" value="0"></div>
+        <div class="kv"><span>Olay</span>
+          <select id="wi-event" class="assume-input" style="width:140px">
+            <option value="">tümü</option>
+          </select></div>
+        <div class="assume-actions">
+          <button id="wi-run" class="em-btn em-btn--primary em-btn--sm"
+                  type="button">Senaryoyu çalıştır</button>
+          <span id="wi-status"></span>
+        </div>
+        <div id="wi-result" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
         <h2>Kaynak</h2>
         <div id="attribution" class="em-muted"></div>
       </div>
@@ -402,10 +424,106 @@
         ? `${s.max_risk_event}: ${s.max_risk_index === null ? "kritik (kapasite sıfır)" : s.max_risk_index.toFixed(2)} (${s.max_risk_level})`
         : "–";
       setText("ri-max", peak);
+      // EM-056: what-if olay seçkini aktif olaylarla besle (mevcut seçimi koru).
+      const sel = document.getElementById("wi-event");
+      const keep = sel.value;
+      sel.innerHTML = '<option value="">tümü</option>';
+      for (const ev of data.events) {
+        const opt = document.createElement("option");
+        opt.value = ev.event_key;
+        opt.textContent = ev.event_key;
+        sel.appendChild(opt);
+      }
+      if (keep) sel.value = keep;
     } catch (err) {
       body.innerHTML = `<tr><td colspan="4">risk indeksi alınamadı</td></tr>`;
     }
   }
+
+  // EM-056: kapasite değişimi what-if — ek kaynakların açık üzerindeki etkisi.
+  const WI_CAP_FEED = "/api/v1/whatif/capacity";
+  const WI_LEVEL_COLOR = RISK_LEVEL_COLOR;
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function renderCapacityWhatIf(data) {
+    const caps = data.capacity;
+    const head = `<div class="kv"><span>Kapasite (ha/saat)</span><b>`
+      + `${caps.current_ha_h.toFixed(1)} → ${caps.scenario_ha_h.toFixed(1)}`
+      + ` <span class="over">(+${caps.delta_ha_h.toFixed(1)})</span></b></div>`
+      + `<div class="muted-note">Ek: ${escapeHtml(JSON.stringify(data.added_resources))}`
+      + ` · çözülen olay: ${data.summary.events_resolved_by_addition}`
+      + ` / ${data.summary.events_scored}</div>`;
+    if (!data.events.length) {
+      return head + '<div class="muted-note">aktif yangın olayı yok</div>';
+    }
+    let rows = "";
+    for (const ev of data.events) {
+      const pk = ev.peak;
+      if (!pk) {
+        rows += `<tr><td>${escapeHtml(ev.event_key)}</td>`
+          + '<td colspan="4">yayılım tahmini yok</td></tr>';
+        continue;
+      }
+      const curColor = WI_LEVEL_COLOR[pk.current_level] || "var(--text-primary)";
+      const scnColor = WI_LEVEL_COLOR[pk.scenario_level] || "var(--text-primary)";
+      const badge = ev.resolved_by_addition
+        ? ' <span style="color:var(--color-success)">✓çözüldü</span>' : "";
+      rows += `<tr><td>${escapeHtml(ev.event_key)}${badge}</td>`
+        + `<td class="num">${pk.current_gap_ha_h.toFixed(1)}</td>`
+        + `<td class="num">${pk.scenario_gap_ha_h.toFixed(1)}</td>`
+        + `<td class="num over">${pk.gap_delta_ha_h.toFixed(1)}</td>`
+        + `<td><b style="color:${curColor}">${pk.current_level}</b> → ` 
+        + `<b style="color:${scnColor}">${pk.scenario_level}</b></td></tr>`;
+    }
+    return head + '<table><thead><tr><th>Olay (T+' + pk_horizon(data) + ')</th>'
+      + '<th class="num">Açık</th><th class="num">Senaryo</th>'
+      + '<th class="num">Δ</th><th>Bant</th></tr></thead><tbody>'
+      + rows + "</tbody></table>";
+  }
+
+  function pk_horizon(data) {
+    for (const ev of data.events) {
+      if (ev.peak) return ev.peak.horizon_minutes;
+    }
+    return "?";
+  }
+
+  async function runCapacityWhatIf() {
+    const status = document.getElementById("wi-status");
+    const holder = document.getElementById("wi-result");
+    const added = {
+      crew: parseInt(document.getElementById("wi-crew").value, 10) || 0,
+      helicopter: parseInt(document.getElementById("wi-heli").value, 10) || 0,
+      uav: parseInt(document.getElementById("wi-uav").value, 10) || 0,
+    };
+    const eventKey = document.getElementById("wi-event").value || null;
+    status.textContent = "hesaplanıyor…";
+    try {
+      const res = await fetch(WI_CAP_FEED, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ added_resources: added, event_key: eventKey }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const detail = err.detail;
+        throw new Error((detail && detail.error) || (detail && detail.detail && detail.detail.error) || ("HTTP " + res.status));
+      }
+      const data = await res.json();
+      holder.innerHTML = renderCapacityWhatIf(data);
+      status.textContent = "tamam";
+    } catch (err) {
+      holder.innerHTML = "";
+      status.textContent = "hata: " + err.message;
+    }
+  }
+
+  document.getElementById("wi-run").addEventListener("click", runCapacityWhatIf);
 
   refresh();
   setInterval(refresh, 60000);

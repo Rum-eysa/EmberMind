@@ -35,7 +35,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 2 | EM-029 Risk indeksi hesaplama (#29) | E3 | DONE | Risk(t)=yayılım talebi/kapasite ufuk bazlı hiç yoktu; eşikler yapılandırılabilir eklendi |
 | 3 | EM-030 Kapasite açığı zaman çizelgesi (#30) | E3 | DONE | EM-029 verisi üzerine çizgi grafik + enterpolasyonlu ilk kritik aşım dakikası |
 | 4 | EM-032 Eşik aşımı uyarısı (#32) | E3 | DONE | EM-029/030'a bağlı; histerezis (besleme peak-latch) + canlı besleme "alert" + görsel/sesli |
-| 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | TODO | EM-055 what-if'ine kapasite delta'sı eklenir (bu dalda yeni) |
+| 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | DONE | EM-055'in arz-tarafı karşılığı; talep sabit, varsayıms kapasiteye karşı yeniden fiyatlama |
 | 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | TODO | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
 
 ## Varsayımlar ve kararlar
@@ -69,6 +69,14 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   uyarılan bandın üstüne çıkınca uyarı; bu muhafazakâr davranış düşüş-sonrası
   aynı tepeye dönüşte tekrar uyarmaz (kabul kriteri "tekrarları bastır"
   ile tutarlı). Ses = WebAudio bip (dosya asset yok, kapsam büyütmeme).
+- **EM-056 arz-tarafı what-if:** EM-055 rüzgâr (talep) what-if'inin tersi.
+  Yayılım tahmini **yeniden hesaplanmaz** (talep sabit); yalnızca kapasite
+  değiştirilir → EM-029 `_horizons_for` ile açık/bant yeniden fiyatlanır.
+  Ek birimler `assumption_map`'daki tür başına ha/saat varsayımıyle
+  değerlendirilir (canlı envantere dokunulmaz, rezervasyon yok). `resolves_gap`
+  = mevcut açık >0 VE senaryo açığı ==0. Endpoint hatası `RiskIndexError`
+  (bulunamayan olay) bilinçli olarak **400** (wind what-if ile tutarlı; 404
+  risk-index GET'in aksine POST gövde hatası).
 
 ## Görev logları
 
@@ -149,3 +157,26 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **Kapılar:** black/mypy(78)/pylint(10.00)/bandit(0) yeşil;
   pytest **502** (493 + 9 yeni).
 - **Commit:** `feat(EM-032): ...` (bu dal).
+
+### EM-056 — Kapasite değişimi what-if senaryosu (#56) — DONE
+- **Eksik analizi:** EM-055 rüzgâr (talep-tarafı) what-if'i mevcuttu ama
+  komutanın *arz* sorusu ("ek kaynak açığı nasıl değiştirir?") karşılıksızdı.
+  Yeni yayılım motoru gerekmez — EM-029 `_horizons_for`/`level_thresholds`
+  yeniden kullanılarak talep sabit tutulur, yalnızca kapasite değiştirilir.
+- **Kapsam:** `src/services/capacity_whatif.py`
+  (`_validated_added` girdi bekçisi, `scenario_capacity` ek birimleri
+  ha/saat varsayımıyla fiyatlar, `run_capacity_whatif` olay×ufuk açık/bant
+  öncesi-sonrası + `resolves_gap`), `src/routes/whatif.py`
+  (`WhatIfCapacityRequest` + `POST /api/v1/whatif/capacity`, config'e
+  `capacity_attribution`), `risk_panel.html` **Kapasite What-If (EM-056)**
+  kartı (ek kaynak girdileri + olay seçki `refreshRiskIndex`'ten beslenir,
+  `runCapacityWhatIf()` POST, açık değişim tablosu + "çözüldü" rozetleri,
+  `escapeHtml`), `tests/unit/test_capacity_whatif.py` (19 test), CHANGELOG +
+  docs/api.
+- **Kanıt:** 1 müsait ekip (2.0 ha/s) + T+30 talep 12.0 → açık 10.0 (kritik);
+  +1 helikopter (→14.0) açığı kapatır, bant dikkat'e düşer, `resolved_by_addition`
+  True (servis + endpoint testi). Geçersiz tür/negatif/tamsayı-dışı →
+  `CapacityWhatIfError` (→400).
+- **Kapılar:** black(117)/mypy(79)/pylint(10.00)/bandit(0) yeşil;
+  pytest **521** (502 + 19 yeni).
+- **Commit:** `feat(EM-056): ...` (bu dal).

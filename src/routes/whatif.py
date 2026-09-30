@@ -11,6 +11,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from src.database import Database
+from src.services.capacity_whatif import (
+    CAPACITY_WHATIF_ATTRIBUTION,
+    CapacityWhatIfError,
+    run_capacity_whatif,
+)
+from src.services.risk_index import RiskIndexError
 from src.services.spread import SpreadError
 from src.services.whatif import (
     WHATIF_ATTRIBUTION,
@@ -41,6 +47,15 @@ class WhatIfRequest(BaseModel):
     horizon_minutes: list[int] | None = None
 
 
+class WhatIfCapacityRequest(BaseModel):
+    """Capacity what-if: extra units per type, optionally scoped to one event."""
+
+    model_config = {"protected_namespaces": ()}
+
+    added_resources: dict[str, int] = {}
+    event_key: str | None = None
+
+
 def register_whatif_routes(api: FastAPI, database: Database, settings: Any) -> None:
     """Attach the wind what-if recompute endpoints."""
 
@@ -52,6 +67,7 @@ def register_whatif_routes(api: FastAPI, database: Database, settings: Any) -> N
             "target_seconds": recompute_target_seconds(settings),
             "persistence": "none",
             "attribution": WHATIF_ATTRIBUTION,
+            "capacity_attribution": CAPACITY_WHATIF_ATTRIBUTION,
         }
 
     @api.post("/api/v1/whatif/wind", tags=["whatif"])
@@ -62,6 +78,25 @@ def register_whatif_routes(api: FastAPI, database: Database, settings: Any) -> N
             with database.session() as session:
                 return run_whatif(session, settings, req.model_dump())
         except (WhatIfError, SpreadError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
+
+    @api.post("/api/v1/whatif/capacity", tags=["whatif"])
+    def whatif_capacity(req: WhatIfCapacityRequest) -> dict[str, Any]:
+        """Re-price each event's spread demand against reinforced capacity.
+
+        EM-056: keeps the forecast fixed and adds hypothetical units (crew /
+        helicopter / uav) to the live effective capacity, reporting the gap
+        change and which incidents the reinforcement resolves. Ephemeral.
+        """
+        try:
+            with database.session() as session:
+                return run_capacity_whatif(
+                    session, settings, req.added_resources, req.event_key
+                )
+        except (CapacityWhatIfError, RiskIndexError) as exc:
             raise HTTPException(
                 status_code=400,
                 detail={"status": "error", "error": str(exc)},

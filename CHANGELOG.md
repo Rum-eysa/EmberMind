@@ -88,6 +88,23 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     sayısal özet (alan, talep, etkin kapasite, kapasite açığı, tehdit
     sayısı, en erken etki, hesap süresi) panelde yan yana; 400 ms debounce +
     `AbortController` ile kaydırırken bile 10 sn içinde güncellenir
+- EM-056: Kapasite değişimi what-if senaryosu (E6) — arz tarafı
+  - `src/services/capacity_whatif.py`: komutanın *arz* sorusunu yanıtlar —
+    "iki helikopter ve bir ekip eklersem kapasite açığı nasıl değişir?".
+    EM-029 yayılım **talebi sabit** tutulur, varsayıms bir **kapasiteye**
+    (canlı `effective_capacity` + istenen ek birimler tür başına ha/saat
+    varsayımıyla değerlendirilerek) karşı yeniden fiyatlanır. Her aktif (veya
+    seçilen) olay için ufuk bazında açık/risk bandı öncesi-sonrası ve
+    pekiştirmenin gerçekten **çözdüğü** olaylar (açık vardı → kapandı)
+    raporlanır. EM-055 gibi tamamen **geçicidir**: kaynak atanmaz, yazılmaz
+  - `run_capacity_whatif` / `scenario_capacity` EM-029 motorunu
+    (`_horizons_for`, `level_thresholds`) yeniden kullanır; `added_resources`
+    `{crew|helicopter|uav: adet}` doğrulanır (bilinmeyen tür/negatif/tamsayı
+    dışı → `CapacityWhatIfError`)
+  - `src/routes/whatif.py`: **`POST /api/v1/whatif/capacity`** + config'e
+    `capacity_attribution`; komutan paneli (`risk_panel`): **Kapasite
+    What-If (EM-056)** kartı — ek kaynak girdileri, olay seçki, açık
+    değişim tablosu ve "çözüldü" rozetleri
 - EM-028: Kapasite biriminin tanımı ve normalizasyonu — kapasite açığı ve risk
   indeksi (E3)
   - `src/models/capacity.py` → `CapacityAssumption` (V016 migration): her

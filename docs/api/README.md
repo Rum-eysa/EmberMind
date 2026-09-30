@@ -291,6 +291,26 @@ sıralamasının iki hali + `delta.newly_threatened`) döndürür. `compute_ms`
 döner. Harita tarafında **What-If (Rüzgâr)** paneli senaryo poligonlarını
 orijinalin üzerine kesik mavi katman olarak bindirir.
 
+### Kapasite Değişimi What-If Senaryosu (EM-056)
+```
+POST /api/v1/whatif/capacity  # ek kaynak varsayımıyla açık değişimi (arz tarafı)
+```
+EM-055 *talep*tarafı (rüzgâr) iken EM-056 **arz** tarafını sorar: "ek
+helikopter/ekip eklersem kapasite açığı nasıl değişir?". Gövde
+`added_resources` (`{crew|helicopter|uav: adet}`) ve opsiyonel `event_key`
+alır. Servis EM-029 yayılım **talebi sabit** tutar ve onu varsayıms bir
+**kapasiteye** karşı yeniden fiyatlar: canlı `effective_capacity` (EM-028) +
+ek birimler tür başına ha/saat varsayımıyla (ekip 2.0 / helikopter 12.0 /
+İHA 4.0). Yanıt her olay için ufuk bazında `current_gap_ha_h` /
+`scenario_gap_ha_h` / `gap_delta_ha_h` ile `current_level` → `scenario_level`
+bant geçişini ve pekiştirmenin **çözdüğü** olayları (`resolves_gap`,
+`resolved_by_addition`) `capacity` (current→scenario, `delta_ha_h`) özetiyle
+döndürür. Senaryo **kalıcı değildir** (`persistence: "none"`; kaynak atanmaz,
+satır yazılmaz). Bilinmeyen tür / negatif / tamsayı-dışı adet veya
+bulunamayan `event_key` **400** döner. Komutan panelinde (`/panel`)
+**Kapasite What-If (EM-056)** kartı girdileri, olay seçkisini ve açık değişim
+tablosunu gösterir.
+
 ### Tasarım Sistemi ve Bileşen Kütüphanesi (EM-075)
 ```
 GET /styleguide        # bileşen vitrini (renk/tipografi/boşluk + buton, kart, panel, rozet, tablo, form)
