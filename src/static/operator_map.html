@@ -118,6 +118,14 @@
     }
     #positioning-panel .tc-h { display: flex; justify-content: space-between; font-weight: 600; }
     #positioning-panel .tc-meta { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
+    /* EM-050: kısıt nedeniyle elenen öneriler */
+    #positioning-panel .rj-h { margin-top: 8px; font-size: var(--font-size-xs); color: var(--text-muted); }
+    #positioning-panel .rj-item {
+      border: 1px dashed var(--border-color); border-radius: 6px;
+      padding: 4px 8px; margin-top: 4px; font-size: var(--font-size-xs);
+    }
+    #positioning-panel .rj-c { color: #b71c1c; font-weight: 600; }
+    #positioning-panel .rj-r { color: var(--text-muted); }
         /* EM-046: "neden?" gerekçe paneli (satır altı, aç/kapa) */
     #positioning-panel .why {
           flex-basis: 100%; background: #f5f3ff; border-left: 3px solid #4527a0;
@@ -690,6 +698,40 @@
         e.stopPropagation(); decideProposal("reject", p);
       });
       box.appendChild(row);
+    }
+    // EM-050: kısıt ihlali nedeniyle üretilmeyen öneriler + elenme nedenleri.
+    const rejBox = document.createElement("div");
+    rejBox.id = "positioning-rejected";
+    rejBox.innerHTML = '<div class="rj-h">Kısıt nedeniyle elenen öneriler yükleniyor…</div>';
+    box.appendChild(rejBox);
+    loadRejectedProposals(rejBox);
+  }
+
+  // EM-050: menzil/mesai/gece/yol kapalılığı nedeniyle elenenleri getir.
+  async function loadRejectedProposals(rejBox) {
+    if (!exposureEventKey) { rejBox.innerHTML = ""; return; }
+    try {
+      const res = await fetch("/api/v1/positioning/proposals?event_key="
+        + encodeURIComponent(exposureEventKey));
+      const j = await res.json();
+      if (!res.ok) { rejBox.innerHTML = ""; return; }
+      const rej = j.rejected || [];
+      if (!rej.length) {
+        rejBox.innerHTML = '<div class="rj-h">Kısıt nedeniyle elenen öneri yok.</div>';
+        return;
+      }
+      let html = '<div class="rj-h">Kısıt nedeniyle elenen öneri: <b>'
+        + rej.length + '</b> (EM-050)</div>';
+      for (const r of rej) {
+        const cs = (r.constraints || []).map(c => escapeHtml(c)).join(", ");
+        html += '<div class="rj-item"><b>' + escapeHtml(r.name || r.resource_key)
+          + '</b> (' + escapeHtml(r.resource_type || "?") + ')' +
+          ' <span class="rj-c">' + cs + '</span>'
+          + '<div class="rj-r">' + escapeHtml(r.reason || "") + '</div></div>';
+      }
+      rejBox.innerHTML = html;
+    } catch (err) {
+      rejBox.innerHTML = '<div class="rj-h">Elenenler alinamadi.</div>';
     }
   }
 

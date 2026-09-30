@@ -365,6 +365,13 @@ class Config:
     # Aerial assets (helicopter / uav) fly great-circle instead of road-routed
     # (EM-049); this cruise speed in km/h turns straight-line distance into ETA.
     POSITIONING_AIR_SPEED_KMH = float(os.getenv("POSITIONING_AIR_SPEED_KMH", "220"))
+    # EM-050 constraint-based optimisation: when enabled, an origin without
+    # night capability is rejected if its arrival would land in the night
+    # window; menzil (range_km) and mesai/yakıt (shift_minutes) limits always
+    # apply when declared. Resources with NULL limits are never rejected.
+    POSITIONING_NIGHT_BAN_ENABLED = os.getenv(
+        "POSITIONING_NIGHT_BAN_ENABLED", "1"
+    ) not in ("0", "false", "no")
 
     # EFFIS historical fire perimeters (EM-011)
     EFFIS_BASE_URL = os.getenv(

@@ -224,6 +224,33 @@ def list_resources(
     return list(session.scalars(query.limit(int(limit))))
 
 
+def _parse_limit(value: Any, field: str) -> float | None:
+    """EM-050 optional positive limit; ``None`` stays unconstrained."""
+    if value is None or value == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise InventoryError(f"invalid {field} '{value}'") from exc
+    if number <= 0:
+        raise InventoryError(f"{field} must be positive")
+    return number
+
+
+def _parse_bool_limit(value: Any) -> bool | None:
+    """EM-050 tri-state flag: None = unknown, else True/False."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in ("1", "true", "yes", "on"):
+        return True
+    if text in ("0", "false", "no", "off"):
+        return False
+    raise InventoryError(f"invalid boolean '{value}'")
+
+
 def create_resource(session: Session, data: dict[str, Any]) -> SuppressionResource:
     """Validate and insert a new inventory record (unique resource_key)."""
     resource_key = _clean_str(data.get("resource_key"))
@@ -243,6 +270,9 @@ def create_resource(session: Session, data: dict[str, Any]) -> SuppressionResour
         status=normalize_status(data.get("status") or "available"),
         capacity=_validate_capacity(data.get("capacity", 0.0)),
         capacity_unit=_clean_str(data.get("capacity_unit")),
+        range_km=_parse_limit(data.get("range_km"), "range_km"),
+        shift_minutes=_parse_limit(data.get("shift_minutes"), "shift_minutes"),
+        night_capable=_parse_bool_limit(data.get("night_capable")),
         arrival_eta=_parse_arrival(
             data.get(
                 "arrival_minutes", data.get("eta_minutes", data.get("arrival_eta"))
@@ -274,6 +304,9 @@ def update_resource(
         "arrival_minutes",
         "eta_minutes",
         "arrival_eta",
+        "range_km",
+        "shift_minutes",
+        "night_capable",
     }
     unknown = set(changes) - editable
     if unknown:
@@ -304,6 +337,12 @@ def update_resource(
     for field in ("name", "base_key", "country", "capacity_unit"):
         if field in changes:
             setattr(resource, field, _clean_str(changes[field]))
+    # EM-050 optional deployability limits (None clears back to unconstrained).
+    for field in ("range_km", "shift_minutes"):
+        if field in changes:
+            setattr(resource, field, _parse_limit(changes[field], field))
+    if "night_capable" in changes:
+        resource.night_capable = _parse_bool_limit(changes["night_capable"])  # type: ignore[assignment]
     session.flush()
     return resource
 

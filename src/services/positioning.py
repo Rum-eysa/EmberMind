@@ -5,8 +5,15 @@ closure-aware road route to the incident and expose the recommended deployment
 point plus the route geometry and ETA. The suggestion is computed live on every
 request (no persistence) so it always reflects the current resource statuses and
 active road closures. Routing reuses the EM-011 road-network graph.
+
+EM-050 layers *constraint-based* filtering on top of the ranking: an origin
+whose route violates its declared menzil (``range_km``), duty/endurance
+(``shift_minutes``) or night-operation limit (``night_capable``), or that the
+active road closures made unreachable, never becomes a proposal - it moves to
+the rejected list carrying the violated constraint names and a human reason.
 """
 import math
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -30,10 +37,27 @@ POSITIONING_ATTRIBUTION = (
 # (EM-049). Ground crews (and crew bases) remain closure-aware road-routed.
 AIRBORNE_TYPES = frozenset({"helicopter", "uav"})
 
+# EM-050: constraint identifiers surfaced on every rejected origin.
+CONSTRAINT_NAMES = ("range", "shift", "night", "road_closure")
+CONSTRAINT_ATTRIBUTION = (
+    "Kısıt tabanlı öneri elenme nedenleri (menzil/mesai/gece/yol kapalılığı): EM-050"
+)
+
+# Night window in UTC used by the night-operation ban; approximates the local
+# operating hours of the pilot region (TR/EL, roughly UTC+3 in summer) so the
+# ban engages when crews would arrive after dusk.
+_NIGHT_START_UTC = 20
+_NIGHT_END_UTC = 5
+
 
 def _is_airborne(resource_type: str) -> bool:
     """True when the resource type flies (helicopter / uav), else ground."""
     return str(resource_type).strip().lower() in AIRBORNE_TYPES
+
+
+def _is_night_hour(arrival: datetime) -> bool:
+    """True when the arrival instant falls inside the night window."""
+    return arrival.hour >= _NIGHT_START_UTC or arrival.hour < _NIGHT_END_UTC
 
 
 # A resource origin/destination is described as a ``(latitude, longitude)`` pair.
@@ -65,6 +89,9 @@ def _available_origins(session: Session) -> list[dict[str, Any]]:
                 "name": str(base.name),
                 "resource_type": str(base.crew_type),
                 "coord": (float(base.latitude), float(base.longitude)),  # type: ignore[arg-type]
+                "range_km": base.range_km,  # type: ignore[misc]
+                "shift_minutes": base.shift_minutes,  # type: ignore[misc]
+                "night_capable": base.night_capable,  # type: ignore[misc]
             }
         )
     for asset in session.scalars(
@@ -77,6 +104,10 @@ def _available_origins(session: Session) -> list[dict[str, Any]]:
                 "name": str(asset.name),
                 "resource_type": str(asset.resource_type),
                 "coord": (float(asset.latitude), float(asset.longitude)),  # type: ignore[arg-type]
+                # EM-050 optional limits; None columns stay None (unbounded).
+                "range_km": asset.range_km,  # type: ignore[misc]
+                "shift_minutes": asset.shift_minutes,  # type: ignore[misc]
+                "night_capable": asset.night_capable,  # type: ignore[misc]
             }
         )
     return origins
@@ -104,11 +135,63 @@ def _route_coordinates(
     return coords
 
 
+def _reject_summary(
+    origin: dict[str, Any], event_key: str | None, travel_mode: str
+) -> dict[str, Any]:
+    """Common identity fields carried by every EM-050 rejection entry."""
+    return {
+        "resource_key": origin["resource_key"],
+        "name": origin["name"],
+        "resource_type": origin["resource_type"],
+        "kind": origin["kind"],
+        "event_key": event_key,
+        "travel_mode": travel_mode,
+    }
+
+
+def _assess_constraints(
+    origin: dict[str, Any],
+    minutes: float,
+    km: float,
+    now_utc: datetime,
+    night_ban_enabled: bool,
+) -> tuple[list[str], str] | None:
+    """EM-050: violated constraints for a routed origin, or ``None`` if clean.
+
+    A ``None`` limit means "unknown / unconstrained" and never rejects, so the
+    check is fully backward compatible for inventories without declared limits.
+    """
+    violations: list[str] = []
+    reasons: list[str] = []
+    range_km = origin.get("range_km")
+    if range_km is not None and km > float(range_km):
+        violations.append("range")
+        reasons.append(f"menzil {float(range_km):.0f} km, rot {km:.1f} km")
+    shift_minutes = origin.get("shift_minutes")
+    if shift_minutes is not None and minutes > float(shift_minutes):
+        violations.append("shift")
+        reasons.append(
+            f"mesai/yakıt {float(shift_minutes):.0f} dk, ETA {minutes:.0f} dk"
+        )
+    if (
+        night_ban_enabled
+        and origin.get("night_capable") is False
+        and _is_night_hour(now_utc + timedelta(minutes=minutes))
+    ):
+        violations.append("night")
+        reasons.append("gece operasyonu yasak: birim gece yetkisi yok")
+    if not violations:
+        return None
+    return violations, "; ".join(reasons)
+
+
 def build_proposals(
     session: Session,
     settings: Any,
     event_key: str | None,
     limit: int | None = None,
+    now_utc: datetime | None = None,
+    rejected_out: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Rank available resources by route ETA to the fire event's location.
 
@@ -116,9 +199,15 @@ def build_proposals(
     each carrying the recommended deployment point, the route LineString and the
     closure-aware ETA. Raises :class:`PositioningError` for an unknown event and
     :class:`RoadNetworkError` when no road network is available to route on.
+
+    EM-050: origins that violate a declared constraint (menzil / mesai / gece,
+    or left unreachable by an active road closure) are excluded from the
+    proposals and appended to ``rejected_out`` with their constraint names and
+    a human-readable reason.
     """
     destination = _resolve_destination(session, event_key)
     origins = _available_origins(session)
+    now_utc = now_utc or datetime.now(timezone.utc)
 
     segments = list(session.scalars(select(RoadSegment)).all())
     if not segments:
@@ -127,6 +216,7 @@ def build_proposals(
     access_speed = float(getattr(settings, "ROAD_ACCESS_SPEED_KMH", 40.0))
     air_speed = float(getattr(settings, "POSITIONING_AIR_SPEED_KMH", 220.0))
     excluded = active_closure_keys(session)
+    night_ban = bool(getattr(settings, "POSITIONING_NIGHT_BAN_ENABLED", True))
     graph = RoadNetworkGraph.from_segments(
         segments, access_speed_kmh=access_speed, excluded_segment_keys=excluded
     )
@@ -179,6 +269,37 @@ def build_proposals(
                 if reachable
                 else []
             )
+        # EM-050: in filtering mode (``rejected_out`` supplied) an unusable
+        # origin never reaches the proposal list; it is rejected with the
+        # violated constraints shown. Without the sink the EM-052 ranking
+        # contract is untouched (EM-046 explain relies on it), but a violation
+        # is still annotated on the proposal so no consumer can miss it.
+        if not reachable:
+            if rejected_out is not None:
+                rejected_out.append(
+                    {
+                        **_reject_summary(origin, event_key, travel_mode),
+                        "constraints": ["road_closure"],
+                        "reason": "yol kapanmaları nedeniyle ulaşılabilir değil",
+                    }
+                )
+                continue
+        breach = (
+            _assess_constraints(origin, minutes, km, now_utc, night_ban)
+            if reachable
+            else None
+        )
+        if breach is not None and rejected_out is not None:
+            rejected_out.append(
+                {
+                    **_reject_summary(origin, event_key, travel_mode),
+                    "constraints": breach[0],
+                    "reason": breach[1],
+                    "eta_minutes": round(minutes, 2),
+                    "distance_km": round(km, 3),
+                }
+            )
+            continue
         proposal = {
             "proposal_id": f"prop-{idx}-{origin['resource_key']}",
             "kind": origin["kind"],
@@ -210,6 +331,14 @@ def build_proposals(
             },
         }
         proposals.append(proposal)
+        # EM-050 no-sink mode: keep the historical EM-052 ranking contract,
+        # but annotate any violation so no consumer can miss it.
+        if rejected_out is None:
+            if not reachable:
+                proposal["constraint_violations"] = ["road_closure"]
+            elif breach is not None:
+                proposal["constraint_violations"] = breach[0]
+                proposal["constraint_reason"] = breach[1]
 
     proposals.sort(
         key=lambda p: (

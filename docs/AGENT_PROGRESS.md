@@ -48,6 +48,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 15 | EM-048 Önerinin etki karşılaştırması (#48) | E5 | DONE | "uygulanırsa" vs "uygulanmazsa" risk ufuk bazında yan yana; EM-056 re-pricing motoru + EM-052 önerileri; canlı/tavsiye, kalıcılık yok |
 | 16 | EM-053 Çifte atama / kaynak çakışma önleme (#53) | E5 | DONE | kabul/düzenle artık başka olaya atanmış birimi 409 ile engeller; müsaite alma + görev bitişi otomatik müsait; atama EM-047 denetim kaydından türer (migration yok) |
 | 17 | EM-051 Kabul edilen öneriden saha görev kartı (#51) | E5 | DONE | hedef (olay+koordinat) + varış (ETA/arrival_eta) + risk notu (EM-029 tepe bandı); kart EM-047 denetim anlık görüntüsünden canlı kurulur, kalıcılık yok |
+| 18 | EM-050 Kısıt tabanlı optimizasyon (#50) | E5 | DONE | menzil/mesai/gece/yol kapalılığı ihlali olan öneri üretilmez + nedeni gösterilir; opsiyonel limit kolonları (V022 ADD-only, NULL=sınırsız); EM-046/katman sıralama sözleşmesi korunur |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -540,11 +541,46 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **690** (675 + 15 yeni).
 - **Commit:** `feat(EM-051): ...` (bu dal).
 
+### EM-050 — Kısıt tabanlı optimizasyon (#50)
+
+- **Kapsam:** `scripts/migration/V022__resource_constraint_limits.sql`
+  (suppression_resources + crew_bases: `range_km`/`shift_minutes`/
+  `night_capable`, yalnızca ADD), `src/models/inventory.py` +
+  `src/models/road_network.py` (opsiyonel kolonlar + as_dict),
+  `src/services/positioning.py` (`_assess_constraints`, `_reject_summary`,
+  `build_proposals` yeni `now_utc`/`rejected_out` parametreleri — ek parametre,
+  mevcut imzalar bozulmadı), `src/routes/positioning.py` (`rejected` alanları +
+  `…/constraints` ucu), `src/routes/inventory.py` + `src/services/inventory.py`
+  (CRUD doğrulama), `operator_map.html` (**Kısıt nedeniyle elenen öneriler**:
+  `loadRejectedProposals`), `inventory.html` (Menzil/Mesai/Gece alanları),
+  `settings.py` + `.env.example` (`POSITIONING_NIGHT_BAN_ENABLED`),
+  `tests/unit/test_constraint_positioning.py` (12 test), CHANGELOG + docs/api.
+- **Varsayımlar:** (1) NULL limit = "bilinmiyor/sınırsız" → hiç elenme yok
+  (geriye dönük uyum); (2) **elenen toplayıcısı verilmeyen çağrılar EM-046/
+  katman sözleşmesini bozmaz**: sıralama aynı kalır, ihlal
+  `constraint_violations`/`constraint_reason` ile işaretlenir; (3) gece
+  penceresi UTC 20-05 (pilot bölge yerel saatine yakın yaklaşık), varış anı
+  `now_utc + ETA` ile test edilir ve `now_utc` test için enjekte edilebilir;
+  (4) kaynak sayısı kısıtı = mevcut `POSITIONING_MAX_PROPOSALS`; yol
+  kapalılığı rotada zaten uygulanıyordu, artık ayrıca `road_closure` olarak
+  raporlanır; (5) `test_positioning.py` yardımcıları yeniden kullanılır.
+- **Kanıt:** saf değerlendirme: menzil+mesai+gece birlikte, NULLsuz hiç
+  elenmez, yasak kapalı/gündüz geçer; filtre modu: `far`(menzil) ve
+  `island`(yol kapalılığı) öneri listesine girmez, elenenlerde kısıt
+  adları+gerekçe; mesai ve gece (varış bazlı, gündüz aynı limit geçer) +
+  toplayıcısız mod: ada en sonda kalır, `constraint_violations` işaretli,
+  `fast` tertemiz; uç: proposals `rejected`/`rejected_count` 2, constraints
+  config, 404 korundu; envanter: create 40/90/False → kalıcı, update, negatif
+  menzil 400; UI + envanter formu bağlantıları.
+- **Kapılar:** black(148 değişmez)/mypy(97)/pylint(10.00)/bandit(0) yeşil;
+  pytest **702** (690 + 12 yeni).
+- **Commit:** `feat(EM-050): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -557,8 +593,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 147 değişmez · mypy Success (97) · pylint 10.00/10 ·
-  bandit 0 · pytest **690 passed**.
+- **Final kapılar:** black 148 değişmez · mypy Success (97) · pylint 10.00/10 ·
+  bandit 0 · pytest **702 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

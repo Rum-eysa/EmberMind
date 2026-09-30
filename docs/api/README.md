@@ -295,6 +295,29 @@ Operatör haritasındaki Konuşlanma panelinde **Atamalar** bölümü aktif atam
 listesini, satır başına **Müsaite al** düğmesini ve "Biten olayları otomatik
 müsaite al" işlemini sunar.
 
+### Kısıt Tabanlı Optimizasyon (EM-050)
+
+Öneriler, komutana ulaşmadan önce **kayıtlı işletme limitlerine** göre
+elenir: `range_km` (menzil, tek yön km), `shift_minutes` (mesai/yakıt dk),
+`night_capable` (gece yetkisi — varış UTC 20-05 penceresine denk gelir ve
+yetki yoksa elenir) ve aktif **yol kapanmaları** nedeniyle ulaşılamayan
+kaynaklar. Limitler `suppression_resources` ve `crew_bases` üzerinde
+**opsiyoneldir** (V022, yalnızca ADD); `NULL` = bilinmiyor/sınırsız, yani
+limit bildirmemiş envanter tam eskisi gibi önerilir.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/positioning/proposals` | Kısıt modunda çalışır: ihlal eden kaynak öneri listesinde **yer almaz**; yanıtta `rejected` (kısıt adları + gerekçe + ETA/mesafe) ve `rejected_count` taşır |
+| `GET /api/v1/positioning/constraints` | Kısıt tanımlayıcısı: alan anlamları, kaynak sayısı limiti (`POSITIONING_MAX_PROPOSALS`), gece yasağı durumu |
+| `POST/PUT /api/v1/resources` | Yeni limit alanlarını doğrular (pozitif sayı, üç durumlu gece bayrağı: belirtilmemiş/var/yok) |
+
+Geriye dönük sözleşme: EM-046 açıklama ve harita katmanı çağrıları elenen
+toplayıcısı vermediği için eski sıralama sözleşmesi **birebir korunur**; bu
+modda ihlaller önerinin `constraint_violations` / `constraint_reason`
+alanlarında işaretlenir. Gece yasağı `POSITIONING_NIGHT_BAN_ENABLED=0` ile
+kapatılabilir. Operatör haritasında Konuşlanma paneli **"Kısıt nedeniyle
+elenen öneriler"** bloğunu, envanter formu Menzil/Mesai/Gece alanlarını gösterir.
+
 ### Saha Görev Kartları (EM-051)
 
 Kabul edilen bir öneri saha ekibi için kısa bir **görev kartına** dönüştürülür:

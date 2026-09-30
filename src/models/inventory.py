@@ -8,7 +8,7 @@ road-network routing origins).
 """
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Float, Index, String
+from sqlalchemy import Boolean, Column, DateTime, Float, Index, String
 
 from .base import BaseModel
 from ..utils.timeutils import to_utc_iso
@@ -47,6 +47,15 @@ class SuppressionResource(BaseModel):
     # from this instant so the capacity-gap timeline reflects the reinforcement.
     # ``None`` means no committed arrival -> never counted (EM-031 behaviour).
     arrival_eta = Column(DateTime, nullable=True)
+    # EM-050: deployability constraints evaluated before a proposal is made.
+    # All nullable = "unknown / unconstrained": a resource without declared
+    # limits is never rejected on that constraint (backward compatible).
+    # ``range_km`` is one-way operating range (rotor wings / vehicle tank),
+    # ``shift_minutes`` the remaining duty/endurance window, ``night_capable``
+    # False triggers the night-flight-ban style restriction for the unit.
+    range_km = Column(Float, nullable=True)
+    shift_minutes = Column(Float, nullable=True)
+    night_capable = Column(Boolean, nullable=True)
 
     __table_args__ = (
         Index("idx_suppression_resources_type_status", "resource_type", "status"),
@@ -69,4 +78,7 @@ class SuppressionResource(BaseModel):
             "capacity": self.capacity,
             "capacity_unit": self.capacity_unit,
             "arrival_eta": to_utc_iso(self.arrival_eta),
+            "range_km": self.range_km,
+            "shift_minutes": self.shift_minutes,
+            "night_capable": self.night_capable,
         }

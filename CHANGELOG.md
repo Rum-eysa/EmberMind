@@ -5,6 +5,30 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-050: Kısıt tabanlı optimizasyon (E5)
+  - Komutan **uygulanamaz öneri** görmek istemez: menzil, yakıt/mesai, yol
+    kapanmaları, gece yasağı ve kaynak sayısı kısıtları öneri üretilmeden önce
+    değerlendirilir
+  - `suppression_resources` ve `crew_bases` tablolarına **opsiyonel**
+    `range_km` / `shift_minutes` / `night_capable` kolonları eklendi
+    (migration V022, yalnızca ADD); `NULL` = "bilinmiyor/sınırsız" — limiti
+    olmayan kaynak eskisi gibi önerilir (geriye dönük uyum)
+  - `build_proposals` kısıt modunda (elenen toplayıcısı verildiğinde) kısıt
+    ihlali olan kaynağı öneri listesine **hiç almaz**; elenenler isimli
+    kısıt kümesi (`range`/`shift`/`night`/`road_closure`) + insan okunur
+    gerekçeyle döner. Gece yasağı varış anının gece penceresine (UTC 20-05)
+    denk gelmesiyle tetiklenir; `POSITIONING_NIGHT_BAN_ENABLED` ile kapatılır
+  - **Geriye dönük sözleşme:** EM-046 açıklama ve harita katmanı
+    sıralamayı bozmaz — toplayıcı verilmeyen çağrılarda ihlaller önerinin
+    `constraint_violations`/`constraint_reason` alanlarında işaretlenir,
+    sıralama/limit davranışı birebir korunur (kaynak sayısı limiti =
+    `POSITIONING_MAX_PROPOSALS`, yol kapalılığı rotada zaten uygulanıyordu)
+  - Uçlar: `GET /api/v1/positioning/proposals` artık `rejected` +
+    `rejected_count` taşır; yeni `GET /api/v1/positioning/constraints`
+    tanımlayıcısı; envanter CRUD (`POST/PUT /api/v1/resources`) yeni limit
+    alanlarını doğrular (pozitif, üç durumlu gece bayrağı) ve düzenler
+  - Operatör haritası (`/ui`): Konuşlanma panelinde **"Kısıt nedeniyle elenen
+    öneriler"** bloğu; envanter formunda Menzil / Mesai / Gece yetkisi alanları
 - EM-051: Kabul edilen öneriden saha görev kartı (E5)
   - Saha ekibi lideri kısa bir **görev talimatı** ister: nereye (**hedef** —
     olay adı + koordinat), ne zaman (**varış** — ETA dk / planlanan varış ETA),

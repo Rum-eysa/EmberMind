@@ -179,6 +179,24 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
             <input id="r-arrival" class="em-input" type="number" step="1" min="0"
                    placeholder="boş = sabit varış yok (EM-033)">
           </div>
+          <div class="em-form__field">
+            <label class="em-form__label" for="r-range">Menzil (km)</label>
+            <input id="r-range" class="em-input" type="number" step="1" min="1"
+                   placeholder="boş = sınırsız (EM-050)">
+          </div>
+          <div class="em-form__field">
+            <label class="em-form__label" for="r-shift">Mesai/yakıt (dk)</label>
+            <input id="r-shift" class="em-input" type="number" step="1" min="1"
+                   placeholder="boş = sınırsız (EM-050)">
+          </div>
+          <div class="em-form__field">
+            <label class="em-form__label" for="r-night">Gece yetkisi</label>
+            <select id="r-night" class="em-input">
+              <option value="">Belirtilmemiş</option>
+              <option value="true">Var</option>
+              <option value="false">Yok (gece yasak)</option>
+            </select>
+          </div>
           <div class="em-row">
             <button class="em-btn" type="submit" id="save-btn">Kaydet</button>
             <button class="em-btn em-btn--secondary" type="button"
@@ -275,6 +293,10 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
     $("r-capacity").value = r.capacity;
     $("r-unit").value = r.capacity_unit || "";
     $("r-arrival").value = toArrivalMinutes(r.arrival_eta);
+    // EM-050 optional limits (null = unconstrained -> empty field).
+    $("r-range").value = r.range_km != null ? r.range_km : "";
+    $("r-shift").value = r.shift_minutes != null ? r.shift_minutes : "";
+    $("r-night").value = r.night_capable == null ? "" : String(r.night_capable);
   }
 
   function resetForm() {
@@ -299,6 +321,9 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
       capacity: Number($("r-capacity").value || 0),
       capacity_unit: $("r-unit").value.trim() || null,
       arrival_minutes: $("r-arrival").value === "" ? null : Number($("r-arrival").value),
+      range_km: $("r-range").value === "" ? null : Number($("r-range").value),
+      shift_minutes: $("r-shift").value === "" ? null : Number($("r-shift").value),
+      night_capable: $("r-night").value === "" ? null : $("r-night").value === "true",
     };
     const url = editingKey ? `${API}/${editingKey}` : API;
     let res;

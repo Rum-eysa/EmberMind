@@ -42,6 +42,10 @@ class ResourceCreateRequest(BaseModel):
     # EM-033: minutes-from-now until an en-route asset is on station (None = no
     # committed arrival, so it never contributes capacity until "available").
     arrival_minutes: float | None = None
+    # EM-050: optional deployability limits (None = unknown / unconstrained).
+    range_km: float | None = None
+    shift_minutes: float | None = None
+    night_capable: bool | None = None
 
 
 class ResourceUpdateRequest(BaseModel):
@@ -58,6 +62,10 @@ class ResourceUpdateRequest(BaseModel):
     capacity_unit: str | None = None
     # EM-033: editable arrival ETA in minutes-from-now (see ResourceCreateRequest).
     arrival_minutes: float | None = None
+    # EM-050: optional deployability limits (see ResourceCreateRequest).
+    range_km: float | None = None
+    shift_minutes: float | None = None
+    night_capable: bool | None = None
 
 
 def _bad_request(exc: InventoryError) -> HTTPException:
