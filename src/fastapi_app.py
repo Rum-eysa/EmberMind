@@ -30,6 +30,7 @@ from src.routes.positioning import register_positioning_routes
 from src.routes.risk_index import register_risk_index_routes
 from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
+from src.routes.scenario_share import register_scenario_share_routes
 from src.routes.spread import register_spread_routes
 from src.routes.synthetic import register_synthetic_routes
 from src.routes.whatif import register_whatif_routes
@@ -393,6 +394,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_inventory_routes(api, database, settings)
     register_capacity_routes(api, database, settings)
     register_whatif_routes(api, database, settings)
+    register_scenario_share_routes(api, database, settings)
     register_perf_budget_routes(api, database, settings)
     register_synthetic_routes(api, database, settings)
     register_live_routes(api, database, settings)

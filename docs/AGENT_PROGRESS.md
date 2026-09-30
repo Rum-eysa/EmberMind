@@ -40,6 +40,8 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 7 | EM-061 Sıcaklık ve nem what-if parametreleri (#61) | E6 | DONE | EM-055 rüzgâr senaryosunun hava-tarafı genişletmesi; kaydırıcı + delta + Sıfırla |
 | 8 | EM-033 Zamana bağlı kapasite modeli (#33) | E3 | DONE | yoldaki kaynağın varış ETA'sı ile çizelge kapasitesi basamaklanır (sabit değil) |
 | 9 | EM-057 Dinamik otomatik yeniden hesaplama (#57) | E6 | DONE | rüzgâr/konum/kapasite değişince plan otomatik yenilenir + "ne değişti?" özeti |
+| 10 | EM-059 Senaryo kaydetme ve paylaşma (#59) | E6 | DONE | geçici what-if koşularının üzerine girdi-kaydı + token'lı paylaşım bağlantısı |
+| — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
 
@@ -309,11 +311,37 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   pytest **583** (567 + 16 yeni).
 - **Commit:** `feat(EM-057): ...` (bu dal).
 
+### EM-059 — Senaryo kaydetme ve paylaşma (#59) — DONE
+- **Eksik analizi:** EM-055/056/061/057 what-if yeniden hesaplamaları kasıtlı
+  olarak **geçici** (`persistence: "none"`). Umut verici bir koşu adlandırılamıyor,
+  vardiya devrinde geri getirilemiyor ve ekiple bağlantı üzerinden
+  paylaşılamıyordu. `ScenarioRun` (models/synthetic.py) **sentetik veri üretimi**
+  (EM-104) içindi, what-if kalıcılığı için değil → gerçek boşluk. E6 Should (sp3).
+- **Kapsam:** `src/models/scenario.py` (`WhatIfScenario`, `whatif_scenarios`,
+  V019 migration), `src/services/scenario_share.py` (CRUD + token yaşam döngüsü),
+  `src/routes/scenario_share.py` (9 uç, `fastapi_app`'e kaydedildi),
+  `operator_map.html` (what-if panelinde **Senaryolar — Kaydet / Paylaş** araç
+  çubuğu: `saveScenario`/`loadScenario`/`shareScenario`/`refreshScenarioList`),
+  `tests/unit/test_scenario_share.py` (20 test), CHANGELOG + docs/api.
+- **Varsayım (yalnızca girdi):** senaryo **sonuç** değil yalnızca **girdi**
+  (`kind` + `params_json`) saklar; sonuç her zaman mevcut `/whatif/wind` /
+  `/whatif/capacity` ucundan **yeniden oynatılır** → fizik çoğaltılmaz, bayat
+  sonuç olmaz. Paylaşım opak token (`secrets.token_urlsafe(16)`) +
+  `/by-token/<token>`; yeniden-share tokenı **döndürmez** (stabil).
+- **Kanıt:** wind enlem+boylam ister (yok→`ScenarioError`/400), capacity dolu
+  `added_resources` ister; isim boş/>120 red; list kind/event filtresi; share →
+  `share_path` biter tokenla, by-token geri getirir, disable → by-token 404;
+  delete True/False; uçlar 200/400/404; UI `whatif-scen-save` +
+  `/api/v1/whatif/scenarios` gömülü.
+- **Kapılar:** black(129)/mypy(86)/pylint(10.00)/bandit(0) yeşil;
+  pytest **603** (583 + 20 yeni; V019 migration `test_spatial` yeşil).
+- **Commit:** `feat(EM-059): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -326,8 +354,8 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 125 değişmez · mypy Success (83) · pylint 10.00/10 ·
-  bandit 0 · pytest **583 passed**.
+- **Final kapılar:** black 129 değişmez · mypy Success (86) · pylint 10.00/10 ·
+  bandit 0 · pytest **603 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

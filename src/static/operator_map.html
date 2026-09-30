@@ -94,6 +94,18 @@
     #whatif-ignition { color: var(--text-secondary); font-style: italic; margin: 2px 0; }
     #whatif-newlist { margin-top: 4px; }
     #whatif-newlist .tag { color: #1565c0; font-weight: 700; }
+    /* EM-059: saved/shareable scenario toolbar inside the what-if panel. */
+    #whatif-scenario { border-top: 1px solid var(--border-color); margin-top: 6px;
+          padding-top: 6px; }
+    #whatif-scenario .scen-head { font-size: var(--font-size-xs); font-weight: 700;
+          color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; }
+    #whatif-scenario input[type=text] { flex: 1; min-width: 0; font-size: var(--font-size-xs);
+          padding: 3px 6px; }
+    #whatif-scenario select { flex: 1; min-width: 0; font-size: var(--font-size-xs);
+          padding: 3px 4px; }
+    #whatif-scen-link { font-size: var(--font-size-xs); word-break: break-all;
+          color: #1565c0; margin-top: 2px; }
+    #whatif-scen-link.err { color: #c62828; }
     #whatif-chip { font-size: var(--font-size-xs); font-weight: 700; padding: 2px 8px;
       border-radius: 10px; background: #9e9e9e; color: #fff; white-space: nowrap; }
     #whatif-chip.on { background: #1565c0; }
@@ -224,6 +236,22 @@
     <div class="btns">
       <button type="button" id="whatif-rot45" title="Kabul kriteri senaryosu: rüzgâr 45° dönsün">45° döndür</button>
       <button type="button" id="whatif-reset">Sıfırla</button>
+    </div>
+    <div id="whatif-scenario">
+      <div class="scen-head">Senaryolar — Kaydet / Paylaş</div>
+      <div class="row">
+        <input type="text" id="whatif-scen-name" placeholder="Senaryo adı"
+               aria-label="Kaydedilecek what-if senaryosunun adı">
+      </div>
+      <div class="btns">
+        <button type="button" id="whatif-scen-save" title="Şu anki kaydırıcı değerlerini adlandırılmış bir senaryo olarak kaydet">Kaydet</button>
+        <button type="button" id="whatif-scen-share" title="Seçili senaryo için paylaşım bağlantısı oluştur">Paylaş</button>
+      </div>
+      <div class="row">
+        <select id="whatif-scen-list" aria-label="Kaydedilmiş what-if senaryoları"></select>
+        <button type="button" id="whatif-scen-load" title="Seçili senaryoyu kaydırıcılara yükle ve yeniden hesapla">Yükle</button>
+      </div>
+      <div id="whatif-scen-link"></div>
     </div>
     <div id="whatif-summary"></div>
     <div id="whatif-newlist"></div>
@@ -733,6 +761,7 @@
     document.getElementById("whatif-panel").style.display = "block";
     setWhatifChip("", "What-If: hazır");
     updateWhatifIgnitionHint();
+    refreshScenarioList();
     runWhatif();
   }
   function closeWhatif() {
@@ -745,6 +774,104 @@
     document.getElementById("whatif-summary").innerHTML = "";
     document.getElementById("whatif-newlist").innerHTML = "";
     setWhatifChip("", "What-If: kapalı");
+  }
+
+  // --- EM-059: kaydedilmiş/paylaşılmış what-if senaryoları -----------------
+  function scenLink(msg, isErr) {
+    const box = document.getElementById("whatif-scen-link");
+    if (!box) return;
+    box.className = isErr ? "err" : "";
+    box.textContent = msg || "";
+  }
+  function currentWhatifScenarioParams() {
+    // A wind scenario stores its ignition point + the four slider knobs so it
+    // can be replayed through /whatif/wind exactly as the live run does.
+    const ign = whatifIgnition();
+    if (!ign) return null;
+    return {
+      params: {
+        latitude: ign.latitude, longitude: ign.longitude,
+        wind_rotation_delta_deg: Number(document.getElementById("whatif-dir").value),
+        wind_speed_factor: Number(document.getElementById("whatif-speed").value) / 100,
+        temperature_delta_c: Number(document.getElementById("whatif-temp").value),
+        humidity_delta_pct: Number(document.getElementById("whatif-humidity").value),
+      },
+      event_key: ign.event_key,
+    };
+  }
+  async function refreshScenarioList() {
+    const sel = document.getElementById("whatif-scen-list");
+    if (!sel) return;
+    const prev = sel.value;
+    try {
+      const res = await fetch("/api/v1/whatif/scenarios?kind=wind&limit=50");
+      if (!res.ok) return;
+      const data = await res.json();
+      sel.innerHTML = "";
+      for (const s of (data.scenarios || [])) {
+        const opt = document.createElement("option");
+        opt.value = s.scenario_key;
+        opt.textContent = s.shared ? `${s.name} \u2794` : s.name;
+        sel.appendChild(opt);
+      }
+      if (prev) sel.value = prev;
+    } catch (err) { /* listeme hatası sessiz — panel zaten çalışıyor */ }
+  }
+  async function saveScenario() {
+    const nameEl = document.getElementById("whatif-scen-name");
+    const name = (nameEl && nameEl.value || "").trim();
+    if (!name) { scenLink("Senaryo adı gerekli", true); return; }
+    const built = currentWhatifScenarioParams();
+    if (!built) { scenLink("Önce bir olay seçin veya haritaya tıklayın", true); return; }
+    try {
+      const res = await fetch("/api/v1/whatif/scenarios", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, kind: "wind", params: built.params, event_key: built.event_key }),
+      });
+      const j = await res.json();
+      if (!res.ok) { scenLink(`Kaydedilemedi: ${(j.detail && j.detail.error) || res.status}`, true); return; }
+      if (nameEl) nameEl.value = "";
+      scenLink(`Kaydedildi: ${j.scenario.name}`);
+      await refreshScenarioList();
+      const sel = document.getElementById("whatif-scen-list");
+      if (sel) sel.value = j.scenario.scenario_key;
+    } catch (err) { scenLink(`Kaydedilemedi: ${err.message}`, true); }
+  }
+  async function loadScenario() {
+    const sel = document.getElementById("whatif-scen-list");
+    const key = sel && sel.value;
+    if (!key) { scenLink("Yüklenecek senaryo seçin", true); return; }
+    try {
+      const res = await fetch(`/api/v1/whatif/scenarios/${encodeURIComponent(key)}`);
+      const j = await res.json();
+      if (!res.ok) { scenLink(`Yüklenemedi: ${(j.detail && j.detail.error) || res.status}`, true); return; }
+      const p = j.scenario.params || {};
+      if (p.latitude == null || p.longitude == null) { scenLink("Senaryo ignisyon noktası eksik", true); return; }
+      // Önce ignisyonu senaryo konumuna sabitle (harita tıklaması gibi).
+      mapClickPoint = { lat: p.latitude, lng: p.longitude };
+      exposureEventKey = j.scenario.event_key || exposureEventKey;
+      if (document.getElementById("whatif-dir")) document.getElementById("whatif-dir").value = String(p.wind_rotation_delta_deg || 0);
+      if (document.getElementById("whatif-speed")) document.getElementById("whatif-speed").value = String(Math.round((p.wind_speed_factor || 1) * 100));
+      if (document.getElementById("whatif-temp")) document.getElementById("whatif-temp").value = String(p.temperature_delta_c || 0);
+      if (document.getElementById("whatif-humidity")) document.getElementById("whatif-humidity").value = String(p.humidity_delta_pct || 0);
+      scenLink(`Yüklendi: ${j.scenario.name}`);
+      updateWhatifIgnitionHint();
+      if (!whatifEnabled) { openWhatif(); } else { runWhatif(); }
+    } catch (err) { scenLink(`Yüklenemedi: ${err.message}`, true); }
+  }
+  async function shareScenario() {
+    const sel = document.getElementById("whatif-scen-list");
+    const key = sel && sel.value;
+    if (!key) { scenLink("Paylaşılacak senaryo seçin", true); return; }
+    try {
+      const res = await fetch(`/api/v1/whatif/scenarios/${encodeURIComponent(key)}/share`, { method: "POST" });
+      const j = await res.json();
+      if (!res.ok) { scenLink(`Paylaşılamadı: ${(j.detail && j.detail.error) || res.status}`, true); return; }
+      const url = `${window.location.origin}${j.scenario.share_path}`;
+      scenLink(url);
+      if (navigator.clipboard) { try { await navigator.clipboard.writeText(url); } catch (e) { /* pano izni yok */ } }
+      await refreshScenarioList();
+    } catch (err) { scenLink(`Paylaşılamadı: ${err.message}`, true); }
   }
 
   // --- EM-090: canlı güncelleme (WebSocket + REST yedeği) ------------------
@@ -957,6 +1084,13 @@
         if (whatifEnabled) { runWhatif(); }
       });
     }
+    // EM-059: senaryo kaydet / yükle / paylaş düğmeleri.
+    const scenSave = document.getElementById("whatif-scen-save");
+    if (scenSave) scenSave.addEventListener("click", saveScenario);
+    const scenLoad = document.getElementById("whatif-scen-load");
+    if (scenLoad) scenLoad.addEventListener("click", loadScenario);
+    const scenShare = document.getElementById("whatif-scen-share");
+    if (scenShare) scenShare.addEventListener("click", shareScenario);
     // Haritaya tıklama, olay seçili değilken ignisyon noktası olur.
     map.on("click", ev => {
       mapClickPoint = ev.latlng;

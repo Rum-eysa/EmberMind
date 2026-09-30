@@ -5,6 +5,31 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-059: What-if senaryosu kaydetme ve paylaşma (E6)
+  - EM-055/056/061/057 what-if yeniden hesaplamaları kasıtlı olarak geçiciydi;
+    EM-059 bunların **üzerine** ince bir kalıcılık katmanı ekler: bir komutan
+    umut verici bir koşu adlandırır, vardiya devrinde geri getirir ve ekibe bir
+    **bağlantıyla** paylaşır (kaydırıcıları tekrar girmeden)
+  - Yalnızca senaryonun **girdileri** saklanır (`kind` + `params_json`); sonuç
+    asla önbelleğe alınmaz — her zaman mevcut `/whatif/wind` veya
+    `/whatif/capacity` ucundan **yeniden oynatılır** (fizik çoğaltılmaz, bayat
+    sonuç olmaz)
+  - `src/models/scenario.py` (`whatif_scenarios` tablosu, `V019` migration):
+    `scenario_key`, `name`, `kind` (wind/capacity), `event_key`, `params_json`,
+    `share_token` (opsiyonel, benzersiz), `created_by`, `notes`
+  - `src/services/scenario_share.py`: CRUD + paylaşım token yaşam döngüsü
+    (`create/list/get/rename/enable_share/disable_share/delete`); tür/girdi
+    doğrulaması (wind → enlem+boylam, capacity → dolu `added_resources`)
+  - **Paylaşım:** `enable_share` opak bir token üretir (`secrets.token_urlsafe`)
+    ve `/api/v1/whatif/scenarios/by-token/<token>` yolu döner; `disable_share`
+    bağlantıyı iptal eder
+  - Uçlar: `POST/GET /api/v1/whatif/scenarios`, `GET /…/config`,
+    `GET /…/{key}`, `PATCH /…/{key}`, `POST/DELETE /…/{key}/share`,
+    `DELETE /…/{key}`, `GET /…/by-token/{token}`
+  - Operatör haritası (`/ui`): what-if panelinde **Senaryolar — Kaydet / Paylaş**
+    araç çubuğu (mevcut kaydırıcıları adlandırılmış senaryo olarak kaydet,
+    kayıtlı bir senaryoyu seçip kaydırıcılara yükle + yeniden hesapla, seçili
+    senaryonun paylaşım bağlantısını panoya kopyala)
 - EM-057: Gerçek zamanlı otomatik yeniden hesaplama — "plan güncellendi, ne değişti?" (E6)
   - `src/services/auto_recompute.py`: rüzgâr, **yangın konumu** veya **kapasite**
     anlamlı biçimde değiştiğinde planı otomatik yeniden hesaplar. Sürücü

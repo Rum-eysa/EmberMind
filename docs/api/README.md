@@ -361,6 +361,31 @@ bulunamayan `event_key` **400** döner. Komutan panelinde (`/panel`)
 **Kapasite What-If (EM-056)** kartı girdileri, olay seçkisini ve açık değişim
 tablosunu gösterir.
 
+### Senaryo Kaydetme ve Paylaşma (EM-059)
+```
+GET    /api/v1/whatif/scenarios/config     # panel özellik tanımlayıcısı
+POST   /api/v1/whatif/scenarios            # adlandırılmış senaryo (girdiler) kaydet
+GET    /api/v1/whatif/scenarios            # kayıtlı senaryolar (kind/event_key/limit)
+GET    /api/v1/whatif/scenarios/{key}      # tek senaryo
+PATCH  /api/v1/whatif/scenarios/{key}      # yeniden adlandır
+POST   /api/v1/whatif/scenarios/{key}/share    # paylaşım bağlantısı (token) üret
+DELETE /api/v1/whatif/scenarios/{key}/share    # bağlantıyı iptal et
+DELETE /api/v1/whatif/scenarios/{key}          # senaryoyu sil
+GET    /api/v1/whatif/scenarios/by-token/{token}  # token ile paylaşılan senaryoyu getir
+```
+EM-055/056/061/057 what-if hesapları **geçicidir**; EM-059 bunların üzerine
+yalnızca **girdileri** (`kind` + `params_json`) saklayan ince bir kalıcılık
+katmanı ekler — sonuç **asla önbelleğe alınmaz**, her zaman mevcut
+`/whatif/wind` veya `/whatif/capacity` ucundan **yeniden oynatılır** (fizik
+çoğaltılmaz, bayat sonuç olmaz). `kind=wind` enlem+boylam, `kind=capacity` dolu
+bir `added_resources` ister; aksi **400** döner. `share` opak bir token
+(`secrets.token_urlsafe`) üretir ve `/by-token/<token>` yolunu döner; `unshare`
+tokenı temizler (bayat bağlantı **404**). Bulunamayan anahtar/token **404**.
+Operatör haritasındaki (`/ui`) **Senaryolar — Kaydet / Paylaş** araç çubuğu
+mevcut kaydırıcıları adlandırılmış senaryo olarak kaydeder, kayıtlı bir
+senaryoyu kaydırıcılara yükleyip yeniden hesaplar ve paylaşım bağlantısını
+panoya kopyalar.
+
 ### Yeniden Hesaplama Performans Bütçesi (EM-060)
 ```
 GET  /api/v1/perf-budget          # kayan p95 gecikme okuması (durum paneli)
