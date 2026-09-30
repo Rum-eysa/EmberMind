@@ -7,12 +7,13 @@ tune the assumptions from the interface.
 """
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from src.database import Database
 from src.services.capacity import (
     CapacityError,
+    capacity_schedule,
     effective_capacity,
     list_assumptions,
     update_assumptions,
@@ -67,5 +68,29 @@ def register_capacity_routes(api: FastAPI, database: Database, settings: Any) ->
         with database.session() as session:
             return {
                 "capacity": effective_capacity(session, settings),
+                "attribution": CAPACITY_ATTRIBUTION,
+            }
+
+    @api.get("/api/v1/capacity/schedule", tags=["capacity"])
+    def read_schedule(
+        minutes: list[int] | None = Query(default=None),
+    ) -> dict[str, Any]:
+        """Time-dependent capacity (EM-033): ha/hour at each forecast horizon.
+
+        Credits en-route units from their arrival ETA so the commander sees the
+        real risk crossing when reinforcements come online. Defaults to the
+        configured ``SPREAD_HORIZON_MINUTES`` when no ``minutes`` are supplied.
+        """
+        horizon_minutes = (
+            [int(m) for m in minutes]
+            if minutes
+            else [
+                int(h)
+                for h in getattr(settings, "SPREAD_HORIZON_MINUTES", [30, 60, 120])
+            ]
+        )
+        with database.session() as session:
+            return {
+                "schedule": capacity_schedule(session, settings, horizon_minutes),
                 "attribution": CAPACITY_ATTRIBUTION,
             }

@@ -101,7 +101,8 @@
       <div class="card">
         <h2>Kapasite Açığı Zaman Çizelgesi</h2>
         <div class="muted-note">Talep (ha/saat) etkin kapasiteyi ne zaman aşıyor?
-          Çizgi grafik zaman ekseninde; ilk kritik eşiği başlıkta. EM-030</div>
+          Çizgi grafik zaman ekseninde; ilk kritik eşiği başlıkta. EM-030 —
+          yoldaki kaynaklar varış ETA'sından itibaren kapasiteye eklenir (EM-033).</div>
         <div class="kv"><span>Kapasite ne zaman yetmez?</span>
           <b id="tl-first">–</b></div>
         <div id="gap-chart" style="margin-top:8px"></div>
@@ -324,7 +325,7 @@
   // kritik bant ilk aşım dakikası (ufuklar arası doğrusal enterpolasyon).
   const TL_FEED = "/api/v1/risk-index/timeline";
 
-  function renderGapChart(ev, capacity) {
+  function renderGapChart(ev, capacity, sched) {
     const pts = ev.series;
     if (!pts.length) return '<div class="muted-note">yayılım tahmini yok</div>';
     const W = 320, H = 168, padL = 34, padR = 10, padT = 12, padB = 24;
@@ -336,6 +337,22 @@
     const Y = (val) => padT + plotH - (val / maxVal) * plotH;
     const demandPts = [[0, 0]].concat(pts.map((p) => [p.minute, p.demand_ha_h]));
     const dLine = demandPts
+      .map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1))
+      .join(" ");
+    // EM-033: capacity is a step line — it jumps as en-route units hit their
+    // ETA. With no committed arrivals (sched null) this degrades to the flat
+    // EM-030 capacity line.
+    const capPts = [[0, capacity]];
+    if (sched && sched.arrivals) {
+      const runMap = {};
+      for (const a of sched.arrivals) { runMap[a.minute] = (runMap[a.minute] || 0) + a.ha_per_hour; }
+      let run = capacity;
+      for (const m of Object.keys(runMap).map(Number).sort((x, y) => x - y)) {
+        if (m <= maxMin) { capPts.push([m, run]); run += runMap[m]; capPts.push([m, run]); }
+      }
+    }
+    capPts.push([maxMin, run]);
+    const capLine = capPts
       .map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1))
       .join(" ");
     const capY = Y(capacity).toFixed(1);
@@ -355,7 +372,7 @@
     return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="kapasite açığı çizgi grafik">'
       + '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (padL + plotW) + '" y2="' + (padT + plotH) + '" stroke="var(--border-color)"/>'
       + '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="var(--border-color)"/>'
-      + '<line x1="' + padL + '" y1="' + capY + '" x2="' + (padL + plotW) + '" y2="' + capY + '" stroke="var(--color-success)" stroke-width="2"/>'
+      + '<polyline points="' + capLine + '" fill="none" stroke="var(--color-success)" stroke-width="2"/>'
       + '<text x="' + (padL - 4) + '" y="' + (Number(capY) + 3) + '" font-size="9" fill="var(--color-success)" text-anchor="end">kap</text>'
       + '<polyline points="' + dLine + '" fill="none" stroke="var(--color-accent)" stroke-width="2"/>'
       + marker + ticks
@@ -389,7 +406,9 @@
       firstEl.textContent = ev.first_exceedance_minute !== null
         ? ev.event_key + " · T+" + ev.first_exceedance_minute + " dk'da kritik"
         : "ufuk penceresinde aşılmıyor";
-      holder.innerHTML = renderGapChart(ev, data.capacity_effective_ha_h);
+      const sched = (data.capacity_schedule && data.capacity_schedule.arrivals !== undefined)
+        ? data.capacity_schedule : null;
+      holder.innerHTML = renderGapChart(ev, data.capacity_effective_ha_h, sched);
       legend.innerHTML =
         '<span><i style="background:var(--color-accent)"></i>talep (ha/saat)</span>'
         + '<span><i style="background:var(--color-success)"></i>etkin kapasite</span>'

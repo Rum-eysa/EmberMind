@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models.spatial import FireEvent, FireForecast
-from src.services.capacity import effective_capacity
+from src.services.capacity import capacity_schedule, effective_capacity
 from src.utils.timeutils import to_utc_iso, utc_now
 
 # Ordered severity bands; the boundary values come from settings so an
@@ -264,21 +264,51 @@ def capacity_gap_timeline(
     ]
     capacity = effective_capacity(session, settings)
     total_capacity = float(capacity["total_effective_ha_per_hour"])
+    # EM-033: price each horizon against the capacity actually on station at
+    # that minute (available now + en-route units whose ETA has passed), instead
+    # of holding capacity flat across the timeline. Falls back to the flat
+    # current total when no en-route asset has a committed ETA.
+    time_dependent = bool(getattr(settings, "TIME_DEPENDENT_CAPACITY", True))
+    sched = (
+        capacity_schedule(session, settings, horizon_minutes)
+        if time_dependent
+        else None
+    )
     events = _active_events(session, event_key)
     forecasts = _latest_forecasts(session, {str(e.event_key) for e in events})
     kritik = thresholds["critical_near_max"]
 
     scored: list[dict[str, Any]] = []
     for event in events:
-        rows = _horizons_for(
-            str(event.event_key), forecasts, horizon_minutes, total_capacity, thresholds
-        )
+        rows: list[dict[str, Any]] = []
+        for horizon in sorted(horizon_minutes):
+            cap_min = (
+                float(sched["schedule"][horizon])
+                if sched is not None
+                else total_capacity
+            )
+            one = _horizons_for(
+                str(event.event_key),
+                forecasts,
+                [horizon],
+                cap_min,
+                thresholds,
+            )
+            if one:
+                rows.append(one[0])
         series = [
             {
                 "minute": row["horizon_minutes"],
                 "area_ha": row["area_ha"],
                 "demand_ha_h": row["demand_ha_h"],
-                "capacity_ha_h": round(total_capacity, 3),
+                "capacity_ha_h": round(
+                    (
+                        float(sched["schedule"][row["horizon_minutes"]])
+                        if sched is not None
+                        else total_capacity
+                    ),
+                    3,
+                ),
                 "gap_ha_h": row["gap_ha_h"],
                 "risk_index": row["risk_index"],
                 "level": row["level"],
@@ -304,7 +334,7 @@ def capacity_gap_timeline(
 
     over = [e for e in scored if e["first_exceedance_minute"] is not None]
     soonest = min(over, key=lambda e: e["first_exceedance_minute"], default=None)
-    return {
+    payload: dict[str, Any] = {
         "panel": "capacity_gap_timeline",
         "generated_at": to_utc_iso(utc_now()),
         "unit": capacity["unit"],
@@ -323,3 +353,6 @@ def capacity_gap_timeline(
             else None,
         },
     }
+    if sched is not None:
+        payload["capacity_schedule"] = sched
+    return payload

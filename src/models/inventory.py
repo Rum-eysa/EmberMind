@@ -8,9 +8,10 @@ road-network routing origins).
 """
 from typing import Any
 
-from sqlalchemy import Column, Float, Index, String
+from sqlalchemy import Column, DateTime, Float, Index, String
 
 from .base import BaseModel
+from ..utils.timeutils import to_utc_iso
 
 # Canonical vocabularies shared by the service, routes and CSV importer.
 RESOURCE_TYPES = ("crew", "helicopter", "uav")
@@ -40,6 +41,12 @@ class SuppressionResource(BaseModel):
     status = Column(String(32), nullable=False, default="available")
     capacity = Column(Float, nullable=False, default=0.0)
     capacity_unit = Column(String(24), nullable=True)
+    # EM-033: naive-UTC estimated arrival for an "en_route" asset. While such a
+    # resource is not yet on station it is excluded from the *current* effective
+    # capacity (EM-031), but the time-dependent capacity model brings it online
+    # from this instant so the capacity-gap timeline reflects the reinforcement.
+    # ``None`` means no committed arrival -> never counted (EM-031 behaviour).
+    arrival_eta = Column(DateTime, nullable=True)
 
     __table_args__ = (
         Index("idx_suppression_resources_type_status", "resource_type", "status"),
@@ -61,4 +68,5 @@ class SuppressionResource(BaseModel):
             "status": self.status,
             "capacity": self.capacity,
             "capacity_unit": self.capacity_unit,
+            "arrival_eta": to_utc_iso(self.arrival_eta),
         }

@@ -39,6 +39,9 @@ class ResourceCreateRequest(BaseModel):
     status: str = "available"
     capacity: float = 0.0
     capacity_unit: str | None = None
+    # EM-033: minutes-from-now until an en-route asset is on station (None = no
+    # committed arrival, so it never contributes capacity until "available").
+    arrival_minutes: float | None = None
 
 
 class ResourceUpdateRequest(BaseModel):
@@ -53,6 +56,8 @@ class ResourceUpdateRequest(BaseModel):
     status: str | None = None
     capacity: float | None = None
     capacity_unit: str | None = None
+    # EM-033: editable arrival ETA in minutes-from-now (see ResourceCreateRequest).
+    arrival_minutes: float | None = None
 
 
 def _bad_request(exc: InventoryError) -> HTTPException:
@@ -139,7 +144,7 @@ def register_inventory_routes(api: FastAPI, database: Database, _settings: Any) 
     @api.put("/api/v1/resources/{resource_key}", tags=["inventory"])
     def update(resource_key: str, req: ResourceUpdateRequest) -> dict[str, Any]:
         """Edit fields of an existing inventory record."""
-        changes = req.model_dump(exclude_unset=True)
+        changes = req.model_dump(exclude_unset=True, exclude_none=True)
         try:
             with database.session() as session:
                 resource = update_resource(session, resource_key, changes)

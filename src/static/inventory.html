@@ -174,6 +174,11 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
             <label class="em-form__label" for="r-unit">Kapasite birimi</label>
             <input id="r-unit" class="em-input" placeholder="personnel / tons / uçuş">
           </div>
+          <div class="em-form__field">
+            <label class="em-form__label" for="r-arrival">Varış ETA (dk, yolda)</label>
+            <input id="r-arrival" class="em-input" type="number" step="1" min="0"
+                   placeholder="boş = sabit varış yok (EM-033)">
+          </div>
           <div class="em-row">
             <button class="em-btn" type="submit" id="save-btn">Kaydet</button>
             <button class="em-btn em-btn--secondary" type="button"
@@ -248,6 +253,13 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
     setStatus(`Envanter: ${body.count} kayıt`);
   }
 
+  function toArrivalMinutes(iso) {
+    if (!iso) return "";
+    const t = Date.parse(iso);
+    if (isNaN(t)) return "";
+    return String(Math.max(0, Math.round((t - Date.now()) / 60000)));
+  }
+
   function fillForm(r) {
     editingKey = r.resource_key;
     $("form-title").textContent = `Düzenle — ${r.resource_key}`;
@@ -262,6 +274,7 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
     $("r-status").value = r.status;
     $("r-capacity").value = r.capacity;
     $("r-unit").value = r.capacity_unit || "";
+    $("r-arrival").value = toArrivalMinutes(r.arrival_eta);
   }
 
   function resetForm() {
@@ -285,6 +298,7 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
       status: $("r-status").value,
       capacity: Number($("r-capacity").value || 0),
       capacity_unit: $("r-unit").value.trim() || null,
+      arrival_minutes: $("r-arrival").value === "" ? null : Number($("r-arrival").value),
     };
     const url = editingKey ? `${API}/${editingKey}` : API;
     let res;

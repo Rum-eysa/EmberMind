@@ -199,6 +199,7 @@ Operatör haritasındaki lejanttan `/panel`'e geçilir.
 GET /api/v1/capacity/assumptions  # kaynak tipi başına etkin müdahale kapasitesi (ha/saat)
 PUT /api/v1/capacity/assumptions  # yönetici düzenlemesi: {"crew":..,"helicopter":..,"uav":..}
 GET /api/v1/capacity/effective    # müsait envanterin tek birime (ha/saat) normalize hali
+GET /api/v1/capacity/schedule[?minutes=30&minutes=60]  # zamana bağlı kapasite (EM-033)
 ```
 Kapasite ile riskin **aynı birimde** ölçülebilmesi için her kaynak tipi
 (ekip / helikopter / İHA) bir **etkin müdahale kapasitesi (ha/saat)**
@@ -244,9 +245,30 @@ enterpolasyonla** bir dakikaya indirgenir (`first_exceedance_minute`,
 örn. `T+47`); ilk ufuk zaten aşmışsa o ufuk (muhafazakâr üst sınır),
 ufuk penceresi içinde hiç aşılmazsa `null` döner. `summary` en erken
 aşım yapan olayı işaret eder. Panelde **Kapasite Açığı Zaman Çizelgesi**
-kartı talep (ha/saat) eğrisini yatay etkin kapasite çizgisi üzerine çizer
+kartı talep (ha/saat) eğrisini **basamaklı** etkin kapasite çizgisi üzerine çizer
 (satır içi SVG — harici grafik kütüphanesi yok) ve ilk kritik dakikasını
 başlıkta gösterir.
+
+### Zamana Bağlı Kapasite Modeli (EM-033)
+```
+GET /api/v1/capacity/schedule[?minutes=30&minutes=60&minutes=120]
+PUT /api/v1/resources/{key}   # {"status":"yolda", "arrival_minutes": 45}
+```
+EM-028/EM-031 **anlık** kapasiteyi yalnızca `available` kaynaklardan sayar;
+`en_route` (yolda) birim o an **istasyonda değildir**. EM-033 bu gerçeği
+**zaman eksenine** taşır: her yoldaki birimin `arrival_eta` (naive-UTC tahmini
+varış anı) alanı vardır ve kapasite(t), o dakikaya kadar **varmış** birimleri
+tür başına ha/saat varsayımıyla ekler. `capacity_schedule` `base_ha_h` (anlık),
+ufuk dakikalarında `schedule` ve `arrivals` (dakika + birim ha/saat) döndürür.
+
+`capacity_gap_timeline` artık sabit kapasite yerine **her ufku o dakikadaki
+kapasiteyle** fiyatlar; böylece risk eşiği ve `first_exceedance_minute`
+pekiştirmenin varışını yansıtır (açık kapanır / ilk kritik aşım ertelenir).
+ETA'sı **olmayan** yoldaki birim hiçbir ufka katkı vermez (EM-031 korunur);
+`TIME_DEPENDENT_CAPACITY=false` iken çizelge EM-030 **sabit** kapasite
+davranışına döner. `effective_capacity` ve `compute_risk_index` (anlık
+ görünüm) kasten **sabit** kalır. Envanter create/update `arrival_minutes`
+(dakika-şimdiden) kabul eder; negatif **400** döner.
 
 ### Eşik Aşımı Uyarısı ve Histerezis (EM-032)
 ```

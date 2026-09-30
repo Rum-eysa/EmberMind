@@ -271,6 +271,17 @@ class Config:
     )
     CAPACITY_HA_PER_HOUR_UAV = float(os.getenv("CAPACITY_HA_PER_HOUR_UAV", "4.0"))
 
+    # EM-033: time-dependent capacity (Epic E3). When on, the capacity-gap
+    # timeline prices each horizon against the capacity actually on station at
+    # that minute (available now + en-route units whose arrival ETA has passed)
+    # instead of holding capacity flat. Off -> EM-030 flat-capacity behaviour.
+    TIME_DEPENDENT_CAPACITY = os.getenv("TIME_DEPENDENT_CAPACITY", "1").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from src.models.capacity import CapacityAssumption
 from src.models.inventory import RESOURCE_TYPES, SuppressionResource
 from src.services.inventory import InventoryError, normalize_type
+from src.utils.timeutils import utc_now
 
 # The one unit every resource is normalised to, so capacity and risk match.
 CAPACITY_UNIT = "ha/saat"
@@ -129,6 +130,101 @@ def available_counts_by_type(session: Session) -> dict[str, int]:
         .group_by(SuppressionResource.resource_type)
     ).all()
     return {str(rtype): int(count) for rtype, count in rows}
+
+
+def enroute_arrival_minutes(session: Session) -> list[tuple[str, int]]:
+    """``(resource_type, minutes_until_arrival)`` for ETA-committed en-route units.
+
+    EM-033 makes capacity time-dependent: an ``en_route`` asset that has a
+    committed ``arrival_eta`` is scheduled to come online that many minutes from
+    now. The value is clamped to ``>= 0`` so an already-passed ETA is treated as
+    on station now. En-route assets **without** an ETA are deliberately left out
+    -- they keep the EM-031 behaviour of contributing nothing until they flip to
+    ``available`` -- so the current effective capacity is never inflated.
+    """
+    now = utc_now()
+    rows = session.execute(
+        select(
+            SuppressionResource.resource_type,
+            SuppressionResource.arrival_eta,
+            func.count(),
+        )
+        .where(SuppressionResource.status == "en_route")
+        .where(SuppressionResource.arrival_eta.is_not(None))
+        .group_by(
+            SuppressionResource.resource_type,
+            SuppressionResource.arrival_eta,
+        )
+    ).all()
+    out: list[tuple[str, int]] = []
+    for rtype, eta, count in rows:
+        if eta is None:
+            continue
+        minute = max(0, int(round((eta - now).total_seconds() / 60.0)))
+        for _ in range(int(count)):
+            out.append((str(rtype), minute))
+    return out
+
+
+def capacity_at_minute(
+    base_total: float,
+    assumptions: dict[str, float],
+    arrivals: list[tuple[str, int]],
+    minute: int,
+) -> float:
+    """Effective capacity (ha/hour) at ``minute``: now-capacity + units arrived.
+
+    ``base_total`` is the current :func:`effective_capacity` total (available
+    only, EM-028); every en-route arrival whose ETA is at or before ``minute``
+    adds its type's per-unit assumption. Pure arithmetic so callers can read the
+    DB once and evaluate the whole horizon schedule.
+    """
+    extra = 0.0
+    for rtype, eta_minute in arrivals:
+        if eta_minute <= minute:
+            extra += float(assumptions.get(rtype, 0.0))
+    return round(float(base_total) + extra, 3)
+
+
+def capacity_schedule(
+    session: Session,
+    settings: Any,
+    minutes: list[int],
+) -> dict[str, Any]:
+    """Capacity (ha/hour) evaluated at each of ``minutes`` (EM-033).
+
+    Returns the ``base_ha_h`` (available-only now capacity), the per-minute
+    ``schedule`` and the discrete ``arrivals`` (minute + per-unit ha/hour) that
+    step it up, so the timeline and the risk bands can be re-priced against the
+    capacity that will actually be on station at each horizon.
+    """
+    assumptions = assumption_map(session, settings)
+    base_total = float(
+        effective_capacity(session, settings)["total_effective_ha_per_hour"]
+    )
+    arrivals = enroute_arrival_minutes(session)
+    schedule = {
+        int(minute): capacity_at_minute(base_total, assumptions, arrivals, int(minute))
+        for minute in minutes
+    }
+    arrival_rows = sorted(
+        (
+            minute,
+            rtype,
+            float(assumptions.get(rtype, 0.0)),
+        )
+        for rtype, minute in arrivals
+    )
+    return {
+        "unit": CAPACITY_UNIT,
+        "base_ha_h": round(base_total, 3),
+        "time_dependent": bool(arrivals),
+        "arrivals": [
+            {"minute": minute, "resource_type": rtype, "ha_per_hour": ha}
+            for minute, rtype, ha in arrival_rows
+        ],
+        "schedule": schedule,
+    }
 
 
 def effective_capacity(session: Session, settings: Any) -> dict[str, Any]:

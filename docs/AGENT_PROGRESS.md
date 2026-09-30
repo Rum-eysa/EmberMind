@@ -38,6 +38,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | DONE | EM-055'in arz-tarafı karşılığı; talep sabit, varsayıms kapasiteye karşı yeniden fiyatlama |
 | 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | DONE | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
 | 7 | EM-061 Sıcaklık ve nem what-if parametreleri (#61) | E6 | DONE | EM-055 rüzgâr senaryosunun hava-tarafı genişletmesi; kaydırıcı + delta + Sıfırla |
+| 8 | EM-033 Zamana bağlı kapasite modeli (#33) | E3 | DONE | yoldaki kaynağın varış ETA'sı ile çizelge kapasitesi basamaklanır (sabit değil) |
 
 ## Varsayımlar ve kararlar
 
@@ -243,6 +244,38 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **Kapılar:** black(122)/mypy(82)/pylint(10.00)/bandit(0) yeşil;
   pytest **554** (541 + 13 yeni).
 - **Commit:** `feat(EM-061): ...` (bu dal).
+
+### EM-033 — Zamana bağlı kapasite modeli, yoldaki kaynakların varışı (#33) — DONE
+- **Eksik analizi:** `effective_capacity` (EM-028) yalnızca `available` sayan
+  **anlık** bir yığındı; `en_route` birimin **varış zamanı** diye bir kavramı
+  yoktu (`SuppressionResource`'ta ETA kolonu yok). EM-030 çizelgesi kapasiteyi
+  ufuk boyunca **sabit** tutuyordu. Issue "kapasite(t) her kaynağın tahmini
+  varışından itibaren devreye girer + risk eşiği bunu yansıtır" istiyordu.
+- **Kapsam:** `src/models/inventory.py` (`arrival_eta` DateTime, V018
+  migration, `as_dict`), `src/services/capacity.py` (`enroute_arrival_minutes`,
+  `capacity_at_minute`, `capacity_schedule`), `src/services/risk_index.py`
+  (`capacity_gap_timeline` her ufku o dakikadaki kapasiteyle fiyatlar +
+  `capacity_schedule` bloğu), `src/config/settings.py` + `.env.example`
+  (`TIME_DEPENDENT_CAPACITY`), `src/routes/capacity.py`
+  (`GET /api/v1/capacity/schedule`), `src/services/inventory.py` +
+  `src/routes/inventory.py` (create/update `arrival_minutes`),
+  `risk_panel.html` (**basamaklı** kapasite çizgisi) + `inventory.html`
+  (**Varış ETA (dk)** alanı), `tests/unit/test_time_dependent_capacity.py`
+  (13 test), CHANGELOG + docs/api.
+- **Varsayım (EM-031 korunumu):** yalnızca **ETA'sı olan** `en_route` birim
+  gelecekteki ufuklarda kapasiteye eklenir; ETA'sız yoldaki birim hiçbir ufka
+  katkı vermez → mevcut `en_route`→0 kapasite testleri (test_capacity) ve
+  `available`-only `effective_capacity`/`compute_risk_index` **değişmez**. Geçmiş
+  ETA "şimdi"ye kırpılır. Çizelge haricinde anlık görünüm sabit kalır.
+- **Kanıt (≥3 zaman senaryosu):** T+75 varış → T+30/60 taban, T+120 taban+12
+  (basamak); ilk kritik aşım pekiştirmesiz ~T+67 iken pekiştirmeli **None**
+  (ertelenir); `TIME_DEPENDENT_CAPACITY=False` → tüm ufuklar sabit +
+  `capacity_schedule` yok; ETA'sız yoldaki → `[]`; CRUD `arrival_minutes=45`
+  → `arrival_eta` ISO, negatif → `InventoryError`; uç 200; panel/inventory
+  gömülü.
+- **Kapılar:** black(123)/mypy(82)/pylint(10.00)/bandit(0) yeşil;
+  pytest **567** (554 + 13 yeni).
+- **Commit:** `feat(EM-033): ...` (bu dal).
 
 ## Bitiş özeti
 

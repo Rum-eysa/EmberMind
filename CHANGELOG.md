@@ -149,6 +149,31 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (EM-060 telemetrisiyle birlikte); operatör haritasındaki **What-If**
     paneline **Sıcaklık Δ** ve **Nem Δ** kaydırıcıları + **Sıfırla**
     davranışı eklendi, özet kartına "Sıcaklık / Nem" satırı geldi
+- EM-033: Zamana bağlı kapasite modeli — yoldaki kaynakların varışı (E3)
+  - `src/models/inventory.py` (`SuppressionResource.arrival_eta`, migration
+    `V018__resource_arrival_eta.sql`): `en_route` (yolda) birimin istasyona
+    **tahmini varış anı** (naive-UTC); `None` → sabit varış yok, EM-031
+    davranışı korunur (müsait olmayan hiçbir ufka katkı vermez)
+  - `src/services/capacity.py`: `enroute_arrival_minutes` (yalnızca ETA'sı olan
+    yoldaki birimler, geçmiş ETA "şimdi"ye kırpılır), `capacity_at_minute`
+    (taban kapasite + o dakikaya kadar varmış birimlerin tür başına ha/saat
+    varsayımı) ve `capacity_schedule` (her ufuk dakikasında kapasite + adım
+    adımlı `arrivals` listesi) — **anlık** etkin kapasite (EM-028) değişmedi,
+    yalnızca **zaman ekseninde** tamamlanır
+  - `src/services/risk_index.py`: `capacity_gap_timeline` artık **sabit**
+    kapasite yerine her ufku o dakikadaki kapasiteyle fiyatlar (`time_dependent`
+    vars. `TIME_DEPENDENT_CAPACITY`); risk eşiği ve ilk kritik aşım dakikası
+    pekiştirmenin varışını yansıtır (açık kapanır / aşım ertelenir); yanıta
+    `capacity_schedule` bloğu eklenir. `effective_capacity`/`compute_risk_index`
+    (anlık görünüm) bilinçli olarak **sabit** kalır
+  - `GET /api/v1/capacity/schedule[?minutes=]` (yeni uç); envanter
+    create/update `arrival_minutes` (dakika-şimdiden) kabul eder (negatif →
+    400); `src/config/settings.py` + `.env.example` (`TIME_DEPENDENT_CAPACITY`)
+  - UI: komutan paneli çizelgesinde kapasite **yatay çizgi** yerine
+    **basamaklı** çizgi (yoldaki kaynak varış ETA'sında yukarı adım atar);
+    envanter ekranına **Varış ETA (dk)** alanı; `tests/unit/test_time_dependent_capacity.py`
+    (13 test: varış bucket'ı, adım fiyatlaması, ilk aşımın ertelenmesi, sabit
+    geri dönüş, CRUD, uç)
 - EM-028: Kapasite biriminin tanımı ve normalizasyonu — kapasite açığı ve risk
   indeksi (E3)
   - `src/models/capacity.py` → `CapacityAssumption` (V016 migration): her

@@ -7,6 +7,7 @@ upserts by ``resource_key``.
 """
 import csv
 import io
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from src.models.inventory import (
     RESOURCE_TYPES,
     SuppressionResource,
 )
+from src.utils.timeutils import utc_now
 
 # Turkish / abbreviation aliases accepted in API payloads and CSV files.
 TYPE_ALIASES = {
@@ -81,6 +83,10 @@ CSV_HEADER_ALIASES = {
     "kapasite": "capacity",
     "capacity_unit": "capacity_unit",
     "unit": "capacity_unit",
+    "arrival_minutes": "arrival_minutes",
+    "eta_minutes": "arrival_minutes",
+    "varis": "arrival_minutes",
+    "vars_zaman": "arrival_minutes",
 }
 
 CSV_REQUIRED_COLUMNS = ("resource_key", "resource_type", "latitude", "longitude")
@@ -152,6 +158,33 @@ def _validate_capacity(capacity: Any) -> float:
     return value
 
 
+def _parse_arrival(value: Any) -> Any:
+    """Normalise an EM-033 arrival input to a naive-UTC datetime or None.
+
+    Accepts ``None`` (no committed arrival), an ISO-8601 string (a trailing
+    ``Z`` is dropped so it parses to naive UTC) or a non-negative number of
+    minutes from now (``arrival_minutes``/``eta_minutes``), matching how the
+    operator map already reasons about "T+dk". A negative or unparseable value
+    is rejected so capacity is never scheduled from a bad ETA.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        minutes = float(value)
+        if minutes < 0:
+            raise InventoryError("arrival_minutes must be >= 0")
+        return utc_now() + timedelta(minutes=minutes)
+    text = str(value).strip()
+    if not text:
+        return None
+    if len(text) >= 2 and text[-1] in ("Z", "z"):
+        text = text[:-1]
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise InventoryError(f"invalid arrival_eta '{value}'") from exc
+
+
 def _clean_str(value: Any) -> str | None:
     if value is None:
         return None
@@ -210,6 +243,11 @@ def create_resource(session: Session, data: dict[str, Any]) -> SuppressionResour
         status=normalize_status(data.get("status") or "available"),
         capacity=_validate_capacity(data.get("capacity", 0.0)),
         capacity_unit=_clean_str(data.get("capacity_unit")),
+        arrival_eta=_parse_arrival(
+            data.get(
+                "arrival_minutes", data.get("eta_minutes", data.get("arrival_eta"))
+            )
+        ),
     )
     session.add(resource)
     session.flush()
@@ -233,6 +271,9 @@ def update_resource(
         "status",
         "capacity",
         "capacity_unit",
+        "arrival_minutes",
+        "eta_minutes",
+        "arrival_eta",
     }
     unknown = set(changes) - editable
     if unknown:
@@ -250,6 +291,16 @@ def update_resource(
         resource.longitude = lon  # type: ignore[assignment]
     if "capacity" in changes and changes["capacity"] is not None:
         resource.capacity = _validate_capacity(changes["capacity"])  # type: ignore[assignment]
+    if (
+        "arrival_minutes" in changes
+        or "eta_minutes" in changes
+        or "arrival_eta" in changes
+    ):
+        raw = changes.get(
+            "arrival_minutes",
+            changes.get("eta_minutes", changes.get("arrival_eta")),
+        )
+        resource.arrival_eta = _parse_arrival(raw)  # type: ignore[assignment]
     for field in ("name", "base_key", "country", "capacity_unit"):
         if field in changes:
             setattr(resource, field, _clean_str(changes[field]))
