@@ -198,6 +198,24 @@ LineString), `eta_minutes`, `distance_km` ve `delay_vs_open_minutes` taşır.
 **409**, olay bulunamazsa **404** döner. Harita gösterimi `positioning` katmanı
 ve **Konuşlanma Önerileri** paneliyle yapılır (öneri seçilince harita odaklanır).
 
+### Öneri Kabul / Ret / Düzenleme (EM-047)
+```
+GET  /api/v1/recommendations/decisions/config   # aksiyonlar + durum sözlüğü
+POST /api/v1/recommendations/decisions          # bir öneriye karar ver
+GET  /api/v1/recommendations/decisions          # karar geçmişi (event_key/resource_key/action/limit)
+GET  /api/v1/recommendations/decisions/{decision_key}  # tek karar (denetim kaydı)
+```
+Motor **önerir**, operatör **karar verir** (nihai karar operatörde). Üç aksiyon:
+**`accept`** ve **`edit`** önerilen kaynağı `en_route` ("yolda") durumuna geçirir
+(EM-031); `edit` ek olarak `arrival_minutes` gibi operatör değişikliklerini
+uygulanır ve detail anlık görüntüsüne yazar. **`reject`** kaynağa dokunmaz ve
+**isteğe bağlı** bir `reason` kaydeder (zorunlu değil). **Her** karar
+`recommendation_decisions` tablosuna değiştirilemez bir **denetim kaydı** olarak
+yazılır (öneri girdileri + önceki/sonraki kaynak durumu). Durum geçişleri
+envanter servisini (`update_resource`) yeniden kullanır. Kaynak bulunamazsa
+**404**, geçersiz `action` ise **400** döner. Operatör haritasındaki her öneri
+satırında **Kabul / Düzenle / Reddet** düğmeleri bulunur.
+
 ### Komutan Kapasite ve Risk Paneli (EM-073)
 ```
 GET /panel                       # tek panel komuta arayüzü (koyu tema, 60 sn otomatik yenileme)

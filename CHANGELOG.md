@@ -5,6 +5,26 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-047: Öneri kabul/ret/düzenleme karar iş akışı (E5)
+  - Operatör, EM-052'nin ürettiği konuşlanma **önerisi üzerinde nihai kararı**
+    verir: üç aksiyon — **Kabul**, **Düzenle** (bir kabul + operatör
+    değişiklikleri, ör. varış süresi) ve **Reddet**. Nihai karar her zaman
+    operatördedir
+  - **Kabul/Düzenle** önerilen kaynağı `en_route` ("yolda") durumuna geçirir
+    (EM-031 sözlüğü); **Reddet** kaynağa dokunmaz, gerekçe **isteğe bağlı**
+    kaydedilir (zorunlu değil)
+  - **Her karar** değiştirilemez bir denetim kaydına yazılır
+    (`src/models/recommendation.py`, `recommendation_decisions` tablosu,
+    `V021` migration); kayıt karar anındaki öneri girdilerini (proposal_id,
+    ETA, konuşlanma noktası) + önceki/sonraki kaynak durumunu saklar
+  - `src/services/recommendation_decision.py` (`record_decision`,
+    `list_decisions`, `get_decision`); durum geçişleri envanter servisinden
+    (`update_resource`) yeniden kullanılır — sözlük ve ETA doğrulaması tek yerde
+  - Uçlar: `POST/GET /api/v1/recommendations/decisions`,
+    `GET /…/decisions/config`, `GET /…/decisions/{decision_key}`
+  - Operatör haritası (`/ui`): her konuşlanma önerisi satırında **Kabul /
+    Düzenle / Reddet** düğmeleri; karar sonrası öneri listesi + kaynak durumu
+    otomatik yenilenir
 - EM-062: What-if geçmişi ve geri alma (E6)
   - Operatör **denediği koşuları** geriye doğru görmek ve tek tıkla birine
     dönmek ister (karşılaştırmalı çalışma). EM-059'dan farklı olarak geçmiş

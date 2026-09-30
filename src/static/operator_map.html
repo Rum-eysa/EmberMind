@@ -69,6 +69,17 @@
                                color: #00695c; }
     #positioning-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #positioning-panel .count { color: var(--text-secondary); font-weight: 400; }
+        /* EM-047: operatör karar düğmeleri (kabul/düzenle/reddet) */
+    #positioning-panel .item { flex-wrap: wrap; }
+    #positioning-panel .decide { flex-basis: 100%; display: flex; gap: 4px; margin-top: 4px; }
+    #positioning-panel .db {
+          flex: 1; font-size: var(--font-size-xs); padding: 2px 0; cursor: pointer;
+          border: 1px solid var(--border-color); border-radius: 3px; background: #fff;
+        }
+    #positioning-panel .db-accept { color: #1b5e20; border-color: #1b5e20; }
+    #positioning-panel .db-edit { color: #00695c; border-color: #00695c; }
+    #positioning-panel .db-reject { color: #b71c1c; border-color: #b71c1c; }
+    #positioning-panel .db:disabled { opacity: .4; cursor: not-allowed; }
     .route-eta { background: #00695c; color: #fff; border: none; font-weight: 700;
                    box-shadow: 0 1px 3px rgba(0,0,0,.4); }
     .route-eta::before { display: none; }
@@ -583,17 +594,79 @@
       const eta = p.eta_minutes != null ? `T+${escapeHtml(p.eta_minutes)} dk` : "—";
       const km = p.distance_km != null ? ` &middot; ${escapeHtml(p.distance_km)} km` : "";
       const type = p.resource_type ? escapeHtml(p.resource_type) : "";
+      const decided = p.resource_key ? "" : " disabled";
       row.innerHTML =
         `<span><b>${escapeHtml(p.name || "kaynak")}</b>`
         + `${type ? ` <i>(${type})</i>` : ""}${km}</span>`
-        + `<span class="t">${eta}</span>`;
+        + `<span class="t">${eta}</span>`
+        + `<span class="decide">`
+        + `<button type="button" class="db db-accept"${decided}>Kabul</button>`
+        + `<button type="button" class="db db-edit"${decided}>Düzenle</button>`
+        + `<button type="button" class="db db-reject"${decided}>Reddet</button>`
+        + `</span>`;
       const focus = () => focusProposal(p.proposal_id);
       row.addEventListener("click", focus);
       row.addEventListener("keydown", e => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); focus(); }
       });
+      // EM-047: operatör öneri üzerinde nihai kararı verir.
+      row.querySelector(".db-accept")?.addEventListener("click", e => {
+        e.stopPropagation(); decideProposal("accept", p);
+      });
+      row.querySelector(".db-edit")?.addEventListener("click", e => {
+        e.stopPropagation(); decideProposal("edit", p);
+      });
+      row.querySelector(".db-reject")?.addEventListener("click", e => {
+        e.stopPropagation(); decideProposal("reject", p);
+      });
       box.appendChild(row);
     }
+  }
+
+  // EM-047: kabul/ret/düzenleme kararini sunucuya yaz ve kaynagi guncelle.
+  async function decideProposal(action, p) {
+    if (!p.resource_key) { setStatus("Oneri kaynagi belirsiz; karar verilemedi."); return; }
+    let reason = null;
+    let arrival = null;
+    if (action === "reject") {
+      const r = window.prompt("Ret gerekcesi (istege bagli):", "");
+      if (r === null) return;
+      reason = r || null;
+    } else if (action === "edit") {
+      const r = window.prompt("Varsis suresi (dk) — bos birakilirsa onerilen kalsin:", p.eta_minutes != null ? String(p.eta_minutes) : "");
+      if (r === null) return;
+      if (r.trim() !== "") { arrival = Number(r); }
+      const g = window.prompt("Karar gerekcesi/not (istege bagli):", "");
+      if (g === null) return;
+      reason = g || null;
+    }
+    const body = {
+      resource_key: p.resource_key,
+      action,
+      event_key: p.event_key || null,
+      proposal_id: p.proposal_id || null,
+      reason,
+      arrival_minutes: arrival,
+      detail: { name: p.name, resource_type: p.resource_type, eta_minutes: p.eta_minutes, distance_km: p.distance_km },
+    };
+    try {
+      const res = await fetch("/api/v1/recommendations/decisions", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (!res.ok) { setStatus("Karar kaydedilemedi: " + (j.detail && j.detail.error ? j.detail.error : res.status)); return; }
+      const label = action === "accept" ? "Kabul" : action === "edit" ? "Duzenle-Kabul" : "Ret";
+      const after = j.resource_status_after || "";
+      setStatus(`Karar kaydedildi (${label}) — ${p.name || p.resource_key}: ${after}`);
+      reloadPositioning();
+    } catch (err) {
+      setStatus("Karar hatasi: " + err);
+    }
+  }
+
+  // EM-047: karar sonrasi oneri listesini (ve kaynak durumunu) tazele.
+  function reloadPositioning() {
+    loadLayer("positioning").catch(() => {});
   }
 
   function renderHorizons() {

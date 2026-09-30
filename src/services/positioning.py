@@ -221,6 +221,8 @@ def positioning_layer(
                 "properties": {
                     "kind": "deployment_point",
                     "proposal_id": proposal["proposal_id"],
+                    "resource_key": proposal["resource_key"],
+                    "event_key": proposal["event_key"],
                     "name": proposal["name"],
                     "resource_type": proposal["resource_type"],
                     "eta_minutes": proposal["eta_minutes"],

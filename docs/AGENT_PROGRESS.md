@@ -42,6 +42,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 9 | EM-057 Dinamik otomatik yeniden hesaplama (#57) | E6 | DONE | rüzgâr/konum/kapasite değişince plan otomatik yenilenir + "ne değişti?" özeti |
 | 10 | EM-059 Senaryo kaydetme ve paylaşma (#59) | E6 | DONE | geçici what-if koşularının üzerine girdi-kaydı + token'lı paylaşım bağlantısı |
 | 11 | EM-062 What-if geçmişi ve geri alma (#62) | E6 | DONE | otomatik yuvarlanan son-10 koşu listesi + tek tık geri alma |
+| 12 | EM-047 Öneri kabul/ret/düzenleme (#47) | E5 | DONE | EM-052 önerisi üzerinde 3 aksiyon; kabul/düzenle kaynağı yolda'ya çeker; her karar denetim kaydı |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -365,11 +366,42 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   pytest **615** (603 + 12 yeni; V020 migration `test_spatial` yeşil).
 - **Commit:** `feat(EM-062): ...` (bu dal).
 
+### EM-047 — Öneri kabul/ret/düzenleme (#47) — DONE
+- **Eksik analizi:** EM-052 (`positioning.build_proposals`) önerileri **canlı**
+  üretiyor AMA operatörün bu öneri üzerinde verdiği **karar** hiçbir yerde
+  saklanmıyordu; `accept/reject/decision/feedback` için model/servis/route yoktu
+  (grep boş). Kabul kriterleri: üç aksiyon + kabul kaynağı "yolda" yapar +
+  ret gerekçesi isteğe bağlı + her karar denetim kaydına yazılır. E5 Must (sp5).
+- **Kapsam:** `src/models/recommendation.py` (`RecommendationDecision`,
+  `recommendation_decisions`, V021 migration; `models/__init__`'e kaydedildi),
+  `src/services/recommendation_decision.py` (`record_decision`, `list_decisions`,
+  `get_decision`), `src/routes/recommendation_decision.py` (4 uç, `fastapi_app`'e
+  kaydedildi), `src/services/positioning.py` (deployment_point özelliklerine
+  `resource_key`/`event_key` eklendi — UI karar verebilsin), `operator_map.html`
+  (öneri satırında **Kabul/Düzenle/Reddet** + `decideProposal` + karar sonrası
+  `loadLayer` yenileme), `tests/unit/test_recommendation_decision.py` (12 test),
+  CHANGELOG + docs/api.
+- **Varsayımlar:** (1) `edit` = kabul + operatör değişiklikleri (`arrival_minutes`
+  envanter üzerinden `arrival_eta`'ya planlanır); (2) kabul/düzenle kaynağı
+  `en_route`'a çeker — durum geçişi `inventory.update_resource` yeniden
+  kullanılarak sözlük/ETA doğrulaması tek yerde kalır; (3) E10 auth kapsam dışı,
+  `decided_by` serbest metin; denetim **kaydı** (immutable satır) burada tutulur;
+  (4) öneri saklanmaz — karar anındaki girdiler denetim kaydının `detail_json`
+  anlık görüntüsüne yazılır.
+- **Kanıt:** accept → `en_route` + `status_changed:true`; edit(arrival=30) →
+  `en_route` + `arrival_eta` dolu + detail 30; reject → durum değişmez + reason
+  opsiyonel (ikisi de denetlenir); invalid action → DecisionError; unknown
+  resource → DecisionError; get(missing) → DecisionError; uçlar config/record
+  (200/404/400)/list/get(404); UI `db-accept`/`db-reject`/`decideProposal`.
+- **Kapılar:** black(136 değişmez)/mypy(91)/pylint(10.00)/bandit(0) yeşil;
+  pytest **627** (615 + 12 yeni; V021 migration `test_spatial` yeşil).
+- **Commit:** `feat(EM-047): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -382,8 +414,8 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 132 değişmez · mypy Success (88) · pylint 10.00/10 ·
-  bandit 0 · pytest **615 passed**.
+- **Final kapılar:** black 136 değişmez · mypy Success (91) · pylint 10.00/10 ·
+  bandit 0 · pytest **627 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

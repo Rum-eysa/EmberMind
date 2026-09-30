@@ -9,6 +9,7 @@ from .land_cover import LandCoverDataPoint
 from .live import LiveUpdate
 from .perf_budget import RecomputeLatencySample
 from .pipeline import PipelineJobHistory
+from .recommendation import RecommendationDecision
 from .road_network import CrewBase, RoadClosure, RoadSegment
 from .scenario import WhatIfHistory, WhatIfScenario
 from .spread_metrics import SpreadEvaluationMetric
@@ -41,6 +42,7 @@ __all__ = [
     "NaturalBarrier",
     "PipelineJobHistory",
     "RecomputeLatencySample",
+    "RecommendationDecision",
     "RoadClosure",
     "RoadSegment",
     "ScenarioRun",
