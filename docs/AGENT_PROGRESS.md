@@ -39,6 +39,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | DONE | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
 | 7 | EM-061 Sıcaklık ve nem what-if parametreleri (#61) | E6 | DONE | EM-055 rüzgâr senaryosunun hava-tarafı genişletmesi; kaydırıcı + delta + Sıfırla |
 | 8 | EM-033 Zamana bağlı kapasite modeli (#33) | E3 | DONE | yoldaki kaynağın varış ETA'sı ile çizelge kapasitesi basamaklanır (sabit değil) |
+| 9 | EM-057 Dinamik otomatik yeniden hesaplama (#57) | E6 | DONE | rüzgâr/konum/kapasite değişince plan otomatik yenilenir + "ne değişti?" özeti |
 
 ## Varsayımlar ve kararlar
 
@@ -277,11 +278,43 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   pytest **567** (554 + 13 yeni).
 - **Commit:** `feat(EM-033): ...` (bu dal).
 
+### EM-057 — Gerçek zamanlı otomatik yeniden hesaplama (#57) — DONE
+- **Eksik analizi:** EM-018 `spread_trigger` rüzgâr/nem/sıcaklık değişimini
+  tespit edip yayılımı yeniden hesaplıyordu AMA (1) **yangın konumu** ve
+  **kapasite** değişimine bakmıyordu, (2) otomatik tarama canlı beslemeye hiç
+  kayıt yazmıyordu → operatör "plan güncellendi, ne değişti?" özeti görmüyordu
+  (yalnızca elle `/spread/predict` ucu besleme yazıyordu). E6 Must (sp5).
+- **Kapsam:** `src/services/auto_recompute.py` (`current_plan_state`,
+  `changed_factors`, `evaluate_recompute`, `run_recompute`,
+  `auto_recompute_sweep`, `haversine_km`), `src/config/settings.py` +
+  `.env.example` (`AUTO_RECOMPUTE_ENABLED/INTERVAL_MINUTES/POSITION_MOVE_KM/
+  CAPACITY_CHANGE_PCT`), `src/tasks.py` (Celery beat `auto_recompute_plans`),
+  `src/routes/spread.py` (`GET /recompute-status`, `POST /recompute-sweep`),
+  `operator_map.html` (`flashLive` → `plan_update` başlık + değişen faktör
+  etiketleri + tepe risk bandı), `tests/unit/test_auto_recompute.py` (16 test),
+  CHANGELOG + docs/api.
+- **Varsayım (feed-as-state, EM-032 deseni):** son planın sürücü-durum anlık
+  görüntüsü yeni tablo/migration yerine append-only canlı beslemeye
+  (`kind=forecast`, `source=auto_recompute`) yazılır ve geri okunur → Celery/API
+  süreçleri ayrışır. Eşikler: rüzgâr/nem/sıcaklık EM-018'den; konum haversine
+  ≥1 km; kapasite bağıl ≥%10. Debounce EM-018 penceresi (anti-flap). Yeniden
+  hesaplama EM-018 `run_spread_forecast` + EM-029 `compute_risk_index`'i çağırır;
+  **mevcut EM-018/028/029 servisleri değişmez**.
+- **Kanıt:** snapshot yok → `new_plan` (run); run sonrası anında → `debouncing`;
+  debounce geçip değişim yok → `stable`; +1 ekip (2→4 ha/s, +%100) → `capacity`;
+  0.05° kuzey (~5.5 km) → `position`; run → 3 `FireForecast` + 1 `forecast`
+  besleme kaydı (title "Plan güncellendi", message "Değişen", payload
+  `plan_update`); sweep `AUTO_RECOMPUTE_ENABLED=False` → 0; endpoint 200/404.
+- **Kapılar:** black(125)/mypy(83)/pylint(10.00)/bandit(0) yeşil;
+  pytest **583** (567 + 16 yeni).
+- **Commit:** `feat(EM-057): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
-  EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60) — her biri kendi
-  commit'i ile `agent/task-automation` dalına push edildi; ilgili issue'lara
+  EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
+  EM-033 (#33), EM-057 (#57) — her biri kendi commit'i ile
+  `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
 - **BLOCKED:** bu turda yok. Kapsam dışı bırakılanlar (yukarıdaki eleme):
@@ -293,8 +326,8 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 121 değişmez · mypy Success (82) · pylint 10.00/10 ·
-  bandit 0 · pytest **541 passed**.
+- **Final kapılar:** black 125 değişmez · mypy Success (83) · pylint 10.00/10 ·
+  bandit 0 · pytest **583 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

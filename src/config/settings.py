@@ -123,6 +123,26 @@ class Config:
         os.getenv("SPREAD_TRIGGER_TEMP_C_THRESHOLD", "5.0")
     )
 
+    # EM-057: Dynamic plan auto-recompute with operator "what changed" summary.
+    # Master switch for the periodic recompute sweep (wind / position / capacity).
+    AUTO_RECOMPUTE_ENABLED = os.getenv("AUTO_RECOMPUTE_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    # How often the recompute sweep runs (minutes).
+    AUTO_RECOMPUTE_INTERVAL_MINUTES = int(
+        os.getenv("AUTO_RECOMPUTE_INTERVAL_MINUTES", "5")
+    )
+    # Fire-centroid move (km) that counts as a meaningful position change.
+    AUTO_RECOMPUTE_POSITION_MOVE_KM = float(
+        os.getenv("AUTO_RECOMPUTE_POSITION_MOVE_KM", "1.0")
+    )
+    # Relative effective-capacity change (%) that counts as a meaningful change.
+    AUTO_RECOMPUTE_CAPACITY_CHANGE_PCT = float(
+        os.getenv("AUTO_RECOMPUTE_CAPACITY_CHANGE_PCT", "10.0")
+    )
+
     # EM-019: Dead fuel moisture model (1h/10h/100h classes from T & RH).
     # When enabled, spread inputs derive fuel moisture from the per-class
     # diurnal-conditioning model instead of the plain 1-hour EMC curve.

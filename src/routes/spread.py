@@ -11,6 +11,10 @@ from sqlalchemy import select
 
 from src.database import Database
 from src.models.spatial import FireEvent
+from src.services.auto_recompute import (
+    auto_recompute_sweep,
+    evaluate_recompute,
+)
 from src.services.barriers import (
     BarrierError,
     delete_barrier,
@@ -368,3 +372,40 @@ def register_spread_routes(api: FastAPI, database: Database, settings: Any) -> N
                 "status": "ok",
                 **auto_trigger_forecasts(session, settings, event_keys=keys),
             }
+
+    # --- EM-057: dynamic plan auto-recompute endpoints ---------------------
+
+    @api.get("/api/v1/spread/recompute-status", tags=["auto-recompute"])
+    def spread_recompute_status(event_key: str = Query(...)) -> dict[str, Any]:
+        """Would a sweep recompute this event's plan now? (wind/position/capacity)."""
+        with database.session() as session:
+            event = session.scalar(
+                select(FireEvent).where(FireEvent.event_key == event_key)
+            )
+            if event is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"status": "error", "error": f"event {event_key} not found"},
+                )
+            return {
+                "auto_recompute_enabled": bool(
+                    getattr(settings, "AUTO_RECOMPUTE_ENABLED", True)
+                ),
+                **evaluate_recompute(session, settings, event),
+            }
+
+    @api.post("/api/v1/spread/recompute-sweep", tags=["auto-recompute"])
+    def spread_recompute_sweep(
+        event_key: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        """Run the EM-057 recompute sweep on demand (ops/demo aid).
+
+        Refreshes the plan of every active (or the one requested) event whose
+        wind, fire position or suppression capacity changed meaningfully and
+        pushes a "plan güncellendi, ne değişti?" summary onto the live feed.
+        """
+        with database.session() as session:
+            keys = [event_key] if event_key else None
+            result = auto_recompute_sweep(session, settings, event_keys=keys)
+            session.commit()
+            return {"status": "ok", **result}

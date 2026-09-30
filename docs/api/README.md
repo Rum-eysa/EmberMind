@@ -69,6 +69,8 @@ GET  /api/v1/spread/metrics           # saklanan değerlendirme metrikleri (EM-0
 GET  /api/v1/spread/metrics/summary   # sürüm bazlı ortalama özet (EM-017)
 GET  /api/v1/spread/trigger-status    # olay için debounce'lu tetikleme kararı (EM-018)
 POST /api/v1/spread/trigger-sweep     # otomatik tetikleme taramasını elle çalıştır (EM-018)
+GET  /api/v1/spread/recompute-status  # rüzgâr/konum/kapasite değişiminde yeniden hesaplama kararı (EM-057)
+POST /api/v1/spread/recompute-sweep   # planı değişen olayları yeniden hesapla + "ne değişti?" özeti (EM-057)
 POST /api/v1/spread/performance/benchmark  # optimizasyon öncesi/sonrası ölçüm + kalıcı kayıt (EM-022)
 GET  /api/v1/spread/performance            # saklanan benchmark koşuları + önbellek istatistikleri (EM-022)
 GET  /api/v1/spread/performance/profile    # cProfile sıcak fonksiyon raporu (EM-022)
@@ -92,6 +94,20 @@ uygulanır; girdi katmanı okumaları **önbellek + vektörleştirmeyle**
 hızlandırılır (EM-022, `SPREAD_PERF_ENABLED`; 10 sn yeniden hesaplama hedefi
 benchmark uçlarıyla kanıtlanır). Değerlendirme metrikleri (EM-017) sürüm
 karşılaştırması için `spread_evaluation_metrics` tablosunda birikir (V010).
+
+**Dinamik otomatik yeniden hesaplama (EM-057).** Operatör eski plana göre
+hareket etmesin diye sürücü durum — **rüzgâr**, **yangın konumu** ve **kapasite**
+— anlamlı biçimde değiştiğinde plan (EM-018 yayılım taraması + EM-029 risk
+pik bandı) otomatik yeniden hesaplanır. Son planın sürücü-durum anlık görüntüsü
+durum deposu olarak append-only canlı beslemeye (EM-090, kaynak `auto_recompute`)
+yazılır; yeni bir tablo/migration gerekmez ve Celery/API süreçleri ayrışır.
+Rüzgâr/nem/sıcaklık eşikleri EM-018'den alınır; konum için
+`AUTO_RECOMPUTE_POSITION_MOVE_KM` (haversine), kapasite için
+`AUTO_RECOMPUTE_CAPACITY_CHANGE_PCT` (bağıl %) kullanılır; anti-flap debounce
+EM-018 penceresini paylaşır. Her yeniden hesaplama beslemeye `Plan güncellendi: …`
+başlıklı ve `Değişen: …` mesajlı tek bir `forecast` kaydı yazar; operatör haritası
+bunu **değişen faktör etiketleriyle** gösterir. Celery beat `auto_recompute_plans`
+(`AUTO_RECOMPUTE_ENABLED`, `AUTO_RECOMPUTE_INTERVAL_MINUTES`).
 
 ### Maruziyet — Tehdit Altındaki Yapılar (EM-023)
 ```

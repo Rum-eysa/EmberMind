@@ -5,6 +5,27 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-057: Gerçek zamanlı otomatik yeniden hesaplama — "plan güncellendi, ne değişti?" (E6)
+  - `src/services/auto_recompute.py`: rüzgâr, **yangın konumu** veya **kapasite**
+    anlamlı biçimde değiştiğinde planı otomatik yeniden hesaplar. Sürücü
+    durum anlık görüntüsü (çözümlenen hava + olay konumu + EM-028 etkin kapasite)
+    append-only canlı beslemeye (EM-090) yazılır ve bir sonraki turda **durum
+    deposu** olarak geri okunur (yeni tablo/migration yok, süreçler arası çalışır)
+  - **Değişim tespiti:** rüzgâr hızı/yönü, nem ve sıcaklık için EM-018 eşikleri
+    yeniden kullanılır; konum için haversine mesafe tabanı
+    (`AUTO_RECOMPUTE_POSITION_MOVE_KM`, vars. 1 km), kapasite için bağıl yüzde
+    değişim (`AUTO_RECOMPUTE_CAPACITY_CHANGE_PCT`, vars. %10); debounce EM-018
+    `SPREAD_TRIGGER_DEBOUNCE_MINUTES` ile aynı anti-flap penceresini korur
+  - Yeniden hesaplama EM-018 `run_spread_forecast` (tüm ufuklar) + EM-029
+    `compute_risk_index` pik bandını çağırır; ardından beslemeye tek bir
+    `forecast` kaydı yazar (başlık `Plan güncellendi: …`, mesaj `Değişen: … —
+    tepe risk: …`, kaynak `auto_recompute`)
+  - Celery beat `auto_recompute_plans` (`AUTO_RECOMPUTE_ENABLED`, vars. `true`;
+    `AUTO_RECOMPUTE_INTERVAL_MINUTES`, vars. 5 dk)
+  - `GET /api/v1/spread/recompute-status?event_key=` (debounce/yeniden hesaplama kararı) ve
+    `POST /api/v1/spread/recompute-sweep[?event_key=]` (talep üzerine tarama)
+  - Operatör haritası (`/ui`): `flashLive` bir `plan_update` payloadı gördüğünde
+    başlık + **değişen faktör etiketleri** + yeni tepe risk bandıyla gösterir
 - EM-032: Eşik aşımı uyarısı — histerezis (E3)
   - `src/services/risk_alert.py`: aktif olayların EM-029 `Risk(t)` pik
     seviyesini değerlendirir; risk **bir üst seviyeye çıktığında** canlı

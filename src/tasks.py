@@ -17,6 +17,7 @@ from celery import Celery
 
 from src.config.settings import ProductionConfig
 from src.database import Database
+from src.services.auto_recompute import auto_recompute_sweep
 from src.services.effis import import_effis_perimeters
 from src.services.fire_sync import sync_firms
 from src.services.fwi import compute_region_fwi
@@ -66,6 +67,10 @@ celery_app.conf.update(
         "trigger-spread-forecasts": {
             "task": "src.tasks.trigger_spread_forecasts",
             "schedule": config.SPREAD_TRIGGER_INTERVAL_MINUTES * 60,
+        },
+        "auto-recompute-plans": {
+            "task": "src.tasks.auto_recompute_plans",
+            "schedule": config.AUTO_RECOMPUTE_INTERVAL_MINUTES * 60,
         },
     },
     timezone="UTC",
@@ -251,4 +256,22 @@ def compute_fire_weather_index(self: Any) -> dict[str, Any]:
         "FWI/OpenWeather",
         compute_region_fwi,
         "zones_computed",
+    )
+
+
+@celery_app.task(
+    name="src.tasks.auto_recompute_plans",
+    bind=True,
+    max_retries=config.PIPELINE_MAX_RETRIES,
+)
+def auto_recompute_plans(self: Any) -> dict[str, Any]:
+    """EM-057: refresh plans whose wind/position/capacity changed and notify."""
+    if not config.AUTO_RECOMPUTE_ENABLED:
+        return {"status": "disabled"}
+    return _run_tracked_task(
+        self,
+        "auto_recompute_plans",
+        "EM-057/auto-recompute",
+        auto_recompute_sweep,
+        "recomputed_count",
     )

@@ -762,6 +762,18 @@
     const lines = updates.slice(-4).map(u => {
       const label = LIVE_KIND_LABELS[u.kind] || u.kind;
       const msg = u.message || u.title || "";
+      // EM-057: "plan güncellendi, ne değişti?" özetini başlık + faktör etiketiyle göster.
+      const pl = u.payload || {};
+      if (pl.plan_update) {
+        const chips = (pl.changed_labels || [])
+          .map(c => `<b>${escapeHtml(c)}</b>`).join(" · ");
+        const head = escapeHtml(u.title || "Plan güncellendi");
+        const band = (pl.headline && pl.headline.peak_level)
+          ? ` \u2192 ${escapeHtml(pl.headline.peak_level)}` : "";
+        return `<div><b>\u00f6zet \u00b7 ${head}</b>${band}`
+          + (chips ? ` <span>(${chips})</span>` : "")
+          + `<div>${escapeHtml(msg)}</div></div>`;
+      }
       return `<div><b>${escapeHtml(label)}</b>: ${escapeHtml(msg)}</div>`;
     });
     box.innerHTML = `<b>Canlı güncelleme</b>${lines.join("")}`;
