@@ -5,6 +5,23 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-045: Kaynak önerisi motoru — öneri başına beklenen risk düşüşü (E5)
+  - Komutan "şimdi ne yapmalıyım?" sorusuna **sıralı** öneri listesi ister; her
+    öneri artık **beklenen risk düşüşü** (`expected_risk_reduction`) değerini
+    taşır: bu tek birim olaya tahsis edilirse olayın tepe EM-029 risk indeksi
+    ne kadar iner (rezervde tutulduğuna göre marjinal fark)
+  - Metrik **varış süresine duyarlıdır**: birim yalnızca yetişebildiği ufukta
+    kapasiteye sayılır; yavaş/uzak kaynak, hızlı/yakın kaynaktan düşük skor
+    alır. Girdi: risk indeksi (EM-029), kaynak envanteri + kapasite varsayımları
+    (EM-028), konum ve tip-bazlı ETA (EM-049)
+  - `src/services/recommendation_engine.py`: `marginal_risk_reduction` (saf
+    marjinal matematik) + `enrich_proposals` (önerileri yerinde etiketler);
+    ulaşılamayan kaynaklar ve ekip üssü gibi öneri olmayan satırlar `None` alır
+  - **Sözleşme korunur:** `build_proposals` saf bırakılır; zenginleştirme yalnız
+    `GET /api/v1/positioning/proposals` ucunda ek katman olarak uygulanır, EM-046
+    / EM-048 / EM-050 / EM-052 sıralama sözleşmesine dokunmaz. Yanıtta
+    `value_metric` (alan + atıf + `persistence: none`) bildirilir. Kayıt yok,
+    canlı ve salt danışmanlık
 - EM-050: Kısıt tabanlı optimizasyon (E5)
   - Komutan **uygulanamaz öneri** görmek istemez: menzil, yakıt/mesai, yol
     kapanmaları, gece yasağı ve kaynak sayısı kısıtları öneri üretilmeden önce

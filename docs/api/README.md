@@ -295,6 +295,24 @@ Operatör haritasındaki Konuşlanma panelinde **Atamalar** bölümü aktif atam
 listesini, satır başına **Müsaite al** düğmesini ve "Biten olayları otomatik
 müsaite al" işlemini sunar.
 
+### Kaynak Önerisi Motoru — Beklenen Risk Düşüşü (EM-045)
+
+Öneri motoru, sıralı konuşlanma listesinin **her satırına** bir `expected_risk_reduction`
+değeri ekler: bu tek kaynak olaya tahsis edildiğinde olayın **tepe EM-029 risk
+indeksi** rezervde tutulmasına göre ne kadar iner. Metrik **varış süresine
+duyarlıdır** — birim yalnızca yetişebildiği ufukta (ETA ≤ ufuk) kapasiteye sayılır;
+yavaş/uzak kaynak düşük, hızlı/yakın kaynak yüksek skor alır. Ulaşılamayan
+kaynaklar ve ekip üssü gibi öneri olmayan satırlar `None` taşır.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/positioning/proposals` | Her öneri `expected_risk_reduction` taşır; yanıtta `value_metric` (alan adı + atıf + `persistence: none`) bildirilir |
+
+`build_proposals` **saf bırakılır**; zenginleştirme yalnızca bu uçta ek bir katman
+olarak uygulanır (`src/services/recommendation_engine.py`), böylece EM-046/EM-048/
+EM-050/EM-052 sıralama sözleşmesi bozulmaz. Hesap canlı ve salt danışmanlıktır;
+hiçbir kaynak tutulmaz/değiştirilmez/kaydedilmez.
+
 ### Kısıt Tabanlı Optimizasyon (EM-050)
 
 Öneriler, komutana ulaşmadan önce **kayıtlı işletme limitlerine** göre

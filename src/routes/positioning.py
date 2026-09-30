@@ -9,7 +9,6 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 
 from src.database import Database
-from src.services.road_network import RoadNetworkError
 from src.services.positioning import (
     CONSTRAINT_ATTRIBUTION,
     CONSTRAINT_NAMES,
@@ -17,6 +16,12 @@ from src.services.positioning import (
     PositioningError,
     build_proposals,
 )
+from src.services.recommendation_engine import (
+    ENGINE_ATTRIBUTION,
+    ENGINE_PERSISTENCE,
+    enrich_proposals,
+)
+from src.services.road_network import RoadNetworkError
 
 
 def register_positioning_routes(
@@ -36,6 +41,9 @@ def register_positioning_routes(
                 proposals = build_proposals(
                     session, settings, event_key, limit, rejected_out=rejected
                 )
+                # EM-045: annotate each ranked proposal with the value it adds
+                # (marginal peak-risk reduction) without disturbing the ranking.
+                enrich_proposals(session, settings, event_key, proposals)
         except PositioningError as exc:
             raise HTTPException(
                 status_code=404,
@@ -55,6 +63,12 @@ def register_positioning_routes(
             # they surface here with the violated constraints and a reason.
             "rejected": rejected,
             "rejected_count": len(rejected),
+            # EM-045: every proposal carries an expected_risk_reduction value.
+            "value_metric": {
+                "field": "expected_risk_reduction",
+                "attribution": ENGINE_ATTRIBUTION,
+                "persistence": ENGINE_PERSISTENCE,
+            },
         }
 
     @api.get("/api/v1/positioning/constraints", tags=["positioning"])

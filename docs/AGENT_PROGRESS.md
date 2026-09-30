@@ -49,6 +49,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 16 | EM-053 Çifte atama / kaynak çakışma önleme (#53) | E5 | DONE | kabul/düzenle artık başka olaya atanmış birimi 409 ile engeller; müsaite alma + görev bitişi otomatik müsait; atama EM-047 denetim kaydından türer (migration yok) |
 | 17 | EM-051 Kabul edilen öneriden saha görev kartı (#51) | E5 | DONE | hedef (olay+koordinat) + varış (ETA/arrival_eta) + risk notu (EM-029 tepe bandı); kart EM-047 denetim anlık görüntüsünden canlı kurulur, kalıcılık yok |
 | 18 | EM-050 Kısıt tabanlı optimizasyon (#50) | E5 | DONE | menzil/mesai/gece/yol kapalılığı ihlali olan öneri üretilmez + nedeni gösterilir; opsiyonel limit kolonları (V022 ADD-only, NULL=sınırsız); EM-046/katman sıralama sözleşmesi korunur |
+| 19 | EM-045 Kaynak önerisi motoru — öneri başına beklenen risk düşüşü (#45) | E5 | DONE | sıralı öneri listesinde her satır `expected_risk_reduction` taşır (tek birimin tepe EM-029 riskine varış-duyarlı marjinal etkisi); `build_proposals` saf kalır, zenginleştirme uçta katman |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -576,11 +577,37 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **702** (690 + 12 yeni).
 - **Commit:** `feat(EM-050): ...` (bu dal).
 
+### EM-045 — Kaynak önerisi motoru: öneri başına beklenen risk düşüşü (#45)
+
+- **Kapsam:** `src/services/recommendation_engine.py` (`marginal_risk_reduction`
+  saf marjinal matematik + `enrich_proposals` yerinde etiketleme),
+  `src/routes/positioning.py` (proposals ucu `enrich_proposals` çağrısı +
+  `value_metric` alanı), `tests/unit/test_recommendation_engine.py` (8 test),
+  CHANGELOG + docs/api. Yeni tablo/migration/settings yok.
+- **Varsayımlar:** (1) metrik = bu tek birimin olaya tahsis edilmesi ile
+  rezervde tutulması arasındaki **tepe risk indeksi** farkı (talep sabit,
+  kapasite tek birim kadar artar); (2) **varış-duyarlı**: birim yalnızca
+  `ETA ≤ ufuk` olan ufkta kapasiteye sayılır, o an yetişemiyorsa o tepe
+  dakikada katkı 0; (3) `build_proposals` **saf** kalır — zenginleştirme
+  yalnızca proposals ucunda ek katman, EM-046/048/050/052 sıralama
+  sözleşmesine dokunmaz; (4) ölçülemez durumlar (taban kapasite ≤ 0, birim
+  kapasitesi ≤ 0, tahmin yok, ekip üssü, ulaşılamayan) `None`; (5) kayıt
+  yok/canlı/danışmanlık; (6) `test_recommendation_impact.py` yardımcıları
+  yeniden kullanılır (crew 2.0 ha/s → bilinen 1.0 düşüş).
+- **Kanıt:** saf: hızlı birim 0.75, tepe-ufuk seçimi 1.0, yavaş birim 0.0,
+  ölçülemez 4 durum `None`; zenginleştirme: `crew_near` 1.0, ulaşılamayan
+  `crew_island` `None`, ekip üssü `None`, bilinmeyen olay `RiskIndexError`;
+  uç: `value_metric.field=expected_risk_reduction` + atıf, `crew_near` 1.0,
+  eleme modunda ada listeden düşer.
+- **Kapılar:** black(150 değişmez)/mypy(98)/pylint(10.00)/bandit(0) yeşil;
+  pytest **710** (702 + 8 yeni).
+- **Commit:** `feat(EM-045): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -593,8 +620,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 148 değişmez · mypy Success (97) · pylint 10.00/10 ·
-  bandit 0 · pytest **702 passed**.
+- **Final kapılar:** black 150 değişmez · mypy Success (98) · pylint 10.00/10 ·
+  bandit 0 · pytest **710 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
