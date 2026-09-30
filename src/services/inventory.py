@@ -40,6 +40,10 @@ STATUS_ALIASES = {
     "deployed": "deployed",
     "görevde": "deployed",
     "gorevde": "deployed",
+    "en_route": "en_route",
+    "en-route": "en_route",
+    "enroute": "en_route",
+    "yolda": "en_route",
     "maintenance": "maintenance",
     "bakim": "maintenance",
     "bakım": "maintenance",
@@ -266,14 +270,26 @@ def delete_resource(session: Session, resource_key: str) -> bool:
 def capacity_summary(session: Session) -> dict[str, Any]:
     """Deterministic capacity rollup per resource type for the coordinator."""
     by_type: dict[str, dict[str, Any]] = {
-        rtype: {"total": 0, "available": 0, "deployed": 0, "capacity": 0.0}
+        rtype: {
+            "total": 0,
+            "available": 0,
+            "deployed": 0,
+            "en_route": 0,
+            "capacity": 0.0,
+        }
         for rtype in RESOURCE_TYPES
     }
     total = 0
     for row in list_resources(session, limit=100000):
         bucket = by_type.setdefault(
             str(row.resource_type),
-            {"total": 0, "available": 0, "deployed": 0, "capacity": 0.0},
+            {
+                "total": 0,
+                "available": 0,
+                "deployed": 0,
+                "en_route": 0,
+                "capacity": 0.0,
+            },
         )
         bucket["total"] += 1
         total += 1
@@ -281,6 +297,8 @@ def capacity_summary(session: Session) -> dict[str, Any]:
             bucket["available"] += 1
         elif row.status == "deployed":
             bucket["deployed"] += 1
+        elif row.status == "en_route":  # EM-031: committed but not on station
+            bucket["en_route"] += 1
         bucket["capacity"] = round(bucket["capacity"] + float(row.capacity), 3)
     return {
         "total_resources": total,

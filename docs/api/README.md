@@ -261,11 +261,21 @@ DELETE /api/v1/resources/{key}        # silme
 POST   /api/v1/resources/import/csv   # ham CSV gövdesiyle toplu içe aktarma (upsert)
 ```
 Koordinatör, müdahale varlıklarını (ekip, helikopter, İHA) konum, üs, ülke,
-durum (`available` / `deployed` / `maintenance` / `out_of_service`) ve sayısal
+durum (`available` / `deployed` / `en_route` / `maintenance` /
+`out_of_service`) ve sayısal
 kapasite ile yönetir; böylece komutan panelindeki kapasite hesabı güncel kalır.
 Türkçe eşanlamlılar kabul edilir (ekip→crew, helikopter→helicopter, iha→uav,
-müsait→available, görevde→deployed…). Bu envanter, yol ağı `crew_bases`
+müsait→available, görevde→deployed, yolda→en_route…). Bu envanter, yol ağı
+`crew_bases`
 (rotalama başlangıçları) kayıtlarından **ayrı** bir koordinatör kaynağıdır.
+
+**Kullanılabilirlik durumu (EM-031):** Etkin müdahale kapasitesi (EM-028)
+yalnızca `available` kaynakları sayar; dolayısıyla bir kaynağın durumu
+`PUT /api/v1/resources/{key}` ile örn. `en_route` (yolda) ya da `deployed`
+olarak değiştirildiği anda `GET /api/v1/capacity/effective` yeni değeri
+döner — **durum değişimi indeksi anında etkiler**. `en_route`, müdahaleye
+tahsis edilmiş ancak henüz istasyonda olmayan kaynağı ifade eder ve
+tür bazlı yeknâda (`capacity_summary`) ayrı sayaç olarak izlenir.
 CSV içe aktarma `resource_key` üzerinden upsert yapar; doğrulamadan geçen
 satırlar işlenir, bozuk satırlar `errors` listesinde satır numarasıyla
 raporlanır ve içe aktarma kesintisiz sürer. `python-multipart` bağımlılığı

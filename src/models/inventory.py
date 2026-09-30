@@ -14,7 +14,15 @@ from .base import BaseModel
 
 # Canonical vocabularies shared by the service, routes and CSV importer.
 RESOURCE_TYPES = ("crew", "helicopter", "uav")
-RESOURCE_STATUSES = ("available", "deployed", "maintenance", "out_of_service")
+# EM-031: "en_route" (yolda) is a transient committed-but-not-on-station
+# status; only "available" counts toward effective suppression capacity.
+RESOURCE_STATUSES = (
+    "available",
+    "deployed",
+    "en_route",
+    "maintenance",
+    "out_of_service",
+)
 
 
 class SuppressionResource(BaseModel):

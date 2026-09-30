@@ -104,6 +104,7 @@ a { color: var(--color-accent); }
 .em-badge--success { background: var(--color-success); color: #fff; border-color: transparent; }
 .em-badge--warning { background: var(--color-warning); color: #fff; border-color: transparent; }
 .em-badge--danger  { background: var(--color-danger);  color: #fff; border-color: transparent; }
+.em-badge--info    { background: var(--color-accent);  color: #fff; border-color: transparent; }
 
 /* Risk threshold badges: one per RISK_COLORS category (tokens.css --risk-*) */
 .em-badge--risk-very_low   { background: var(--risk-very-low);   color: #222; border-color: var(--border-color); }

@@ -5,6 +5,17 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-031: Kapasite kullanılabilirliği durum yönetimi (E3)
+  - Durum sözlüğüne **`en_route` (yolda)** eklendi — müdahaleye tahsis
+    edilmiş ancak henüz istasyonda olmayan kaynak; artık beş durum:
+    `available / deployed / en_route / maintenance / out_of_service`
+  - Etkin kapasite (EM-028) yalnızca `available` saydığı için durum
+    değişimi **indeksi anında** etkiler; `PUT /api/v1/resources/{key}`
+    ile `status` (Türkçe takma ad `yolda`, `en-route` kabul edilir)
+    güncellenince `GET /api/v1/capacity/effective` yeni değeri döner
+  - `capacity_summary` tür bazlı yeknâya `en_route` sayacı eklendi;
+    envanter ekranında (filter + kayıt formu) **Yolda** seçeneği ve
+    `em-badge--info` rozeti (tokens: `--color-accent`)
 - EM-055: What-If ve dinamik yeniden hesaplama — rüzgâr değişimi senaryosu
   (E6)
   - `src/services/whatif.py`: operatör "rüzgâr 45° dönse ne olur?" diye

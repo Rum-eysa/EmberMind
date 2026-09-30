@@ -52,6 +52,7 @@
               <option value="">Tüm durumlar</option>
               <option value="available">Müsait</option>
               <option value="deployed">Görevde</option>
+              <option value="en_route">Yolda</option>
               <option value="maintenance">Bakımda</option>
               <option value="out_of_service">Arızalı</option>
             </select>
@@ -158,6 +159,7 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
               <select id="r-status" class="em-select">
                 <option value="available">Müsait</option>
                 <option value="deployed">Görevde</option>
+                <option value="en_route">Yolda</option>
                 <option value="maintenance">Bakımda</option>
                 <option value="out_of_service">Arızalı</option>
               </select>
@@ -186,11 +188,12 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
   const API = "/api/v1/resources";
   const TYPE_TR = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
   const STATUS_TR = {
-    available: "Müsait", deployed: "Görevde",
+    available: "Müsait", deployed: "Görevde", en_route: "Yolda",
     maintenance: "Bakımda", out_of_service: "Arızalı",
   };
   const STATUS_BADGE = {
     available: "em-badge--success", deployed: "",
+    en_route: "em-badge--info",
     maintenance: "em-badge--warning", out_of_service: "em-badge--danger",
   };
   let editingKey = null;
