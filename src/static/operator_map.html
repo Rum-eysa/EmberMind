@@ -79,7 +79,17 @@
     #positioning-panel .db-accept { color: #1b5e20; border-color: #1b5e20; }
     #positioning-panel .db-edit { color: #00695c; border-color: #00695c; }
     #positioning-panel .db-reject { color: #b71c1c; border-color: #b71c1c; }
+    #positioning-panel .db-why { color: #4527a0; border-color: #4527a0; }
     #positioning-panel .db:disabled { opacity: .4; cursor: not-allowed; }
+        /* EM-046: "neden?" gerekçe paneli (satır altı, aç/kapa) */
+    #positioning-panel .why {
+          flex-basis: 100%; background: #f5f3ff; border-left: 3px solid #4527a0;
+          padding: 4px 6px; margin-top: 4px; color: var(--text-primary);
+        }
+    #positioning-panel .why-h { font-weight: 700; margin: 2px 0; }
+    #positioning-panel .why ul { margin: 0 0 4px 16px; padding: 0; }
+    #positioning-panel .why li { margin: 1px 0; }
+    #positioning-panel .why-c { color: var(--text-secondary); font-size: .95em; }
     .route-eta { background: #00695c; color: #fff; border: none; font-weight: 700;
                    box-shadow: 0 1px 3px rgba(0,0,0,.4); }
     .route-eta::before { display: none; }
@@ -600,16 +610,21 @@
         + `${type ? ` <i>(${type})</i>` : ""}${km}</span>`
         + `<span class="t">${eta}</span>`
         + `<span class="decide">`
+        + `<button type="button" class="db db-why">Neden?</button>`
         + `<button type="button" class="db db-accept"${decided}>Kabul</button>`
         + `<button type="button" class="db db-edit"${decided}>Düzenle</button>`
         + `<button type="button" class="db db-reject"${decided}>Reddet</button>`
-        + `</span>`;
+        + `</span>`
+        + `<div class="why" hidden></div>`;
       const focus = () => focusProposal(p.proposal_id);
       row.addEventListener("click", focus);
       row.addEventListener("keydown", e => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); focus(); }
       });
       // EM-047: operatör öneri üzerinde nihai kararı verir.
+      row.querySelector(".db-why")?.addEventListener("click", e => {
+        e.stopPropagation(); explainProposal(p, row.querySelector(".why"));
+      });
       row.querySelector(".db-accept")?.addEventListener("click", e => {
         e.stopPropagation(); decideProposal("accept", p);
       });
@@ -667,6 +682,41 @@
   // EM-047: karar sonrasi oneri listesini (ve kaynak durumunu) tazele.
   function reloadPositioning() {
     loadLayer("positioning").catch(() => {});
+  }
+
+  // EM-046: bir oneri satiri icin "neden?" panelini ac/kapa (gerekce + reddedilenler).
+  async function explainProposal(p, box) {
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }  // tekrar tiklama kapatir
+    const ev = p.event_key || exposureEventKey || "";
+    if (!ev) { box.textContent = "Gerekce icin bir olay secili olmali."; box.hidden = false; return; }
+    box.innerHTML = "gerekceler yukleniyor…";
+    box.hidden = false;
+    try {
+      const res = await fetch(`/api/v1/recommendations/explain?event_key=${encodeURIComponent(ev)}`);
+      const j = await res.json();
+      if (!res.ok) { box.textContent = "Gerekce alinamadi: " + (j.detail && j.detail.error ? j.detail.error : res.status); return; }
+      const rec = (j.proposals || []).find(x => x.proposal_id === p.proposal_id);
+      const ctx = j.context || {};
+      let html = "";
+      if (rec) {
+        html += `<div class="why-h">Neden onerildi (sira ${escapeHtml(rec.rank)})</div>`;
+        html += `<ul>` + (rec.why || []).map(w => `<li>${escapeHtml(w)}</li>`).join("") + `</ul>`;
+      }
+      const thr = ctx.threshold_eta_minutes != null ? ("T+" + escapeHtml(ctx.threshold_eta_minutes) + " dk") : "—";
+      html += `<div class="why-c">${escapeHtml(ctx.ranking_metric || "")} · ${escapeHtml(ctx.alternatives_evaluated || 0)} alternatif degerlendirildi · esik ${thr}</div>`;
+      const rej = j.rejected_alternatives || [];
+      if (rej.length) {
+        html += `<div class="why-h">Degerlendirilen reddedilen alternatifler</div><ul>`
+          + rej.map(r => `<li><b>${escapeHtml(r.name || r.resource_key)}</b>: ${escapeHtml(r.reason)}</li>`).join("")
+          + `</ul>`;
+      } else {
+        html += `<div class="why-c">Reddedilen alternatif yok; tum adaylar onerilenlerde.</div>`;
+      }
+      box.innerHTML = html;
+    } catch (err) {
+      box.textContent = "Gerekce hatasi: " + err;
+    }
   }
 
   function renderHorizons() {

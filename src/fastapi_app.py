@@ -28,6 +28,7 @@ from src.routes.map_layers import register_map_layer_routes
 from src.routes.perf_budget import register_perf_budget_routes
 from src.routes.positioning import register_positioning_routes
 from src.routes.recommendation_decision import register_recommendation_routes
+from src.routes.recommendation_explain import register_recommendation_explain_routes
 from src.routes.risk_index import register_risk_index_routes
 from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
@@ -391,6 +392,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_map_layer_routes(api, database, settings)
     register_positioning_routes(api, database, settings)
     register_recommendation_routes(api, database, settings)
+    register_recommendation_explain_routes(api, database, settings)
     register_risk_panel_routes(api, database, settings)
     register_risk_index_routes(api, database, settings)
     register_design_system_routes(api, database, settings)

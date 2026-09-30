@@ -216,6 +216,25 @@ envanter servisini (`update_resource`) yeniden kullanır. Kaynak bulunamazsa
 **404**, geçersiz `action` ise **400** döner. Operatör haritasındaki her öneri
 satırında **Kabul / Düzenle / Reddet** düğmeleri bulunur.
 
+### Öneri Gerekçesi / Açıklanabilirlik (EM-046)
+```
+GET /api/v1/recommendations/explain         # bir olayın sıralaması için "neden?" paneli
+GET /api/v1/recommendations/explain/config  # açıklanabilirlik tanımı
+```
+Komutan öneriye **güvenip güvenmeyeceğine** karar vermek için **neden**
+yapıldığını görmek ister. `explain`, EM-052 `build_proposals` çıktısını
+**açıklar** (yeniden sıralamaz); dolayısıyla gerekçe haritanın gösterdiği
+sayılarla çelişmez ve **canlı** hesaplanır (kayıt tutulmaz). Yanıtta:
+- `proposals[]`: önerilenlerin her biri `rank` ve bir `why` gerekçe listesiyle
+  (örn. "En kısa tahmini varış: T+X dk", "Aktif yol kapanışları +Y dk ekliyor")
+- `rejected_alternatives[]`: **değerlendirilip önerilmeyen** her alternatif bir
+  `reason` ile (izole/ulaşılamayan kaynak vs. daha uzun ETA)
+- `context`: `ranking_metric` (kapanış-duyarlı ETA), `alternatives_evaluated`,
+  `selected_limit` (top-N eşiği) ve `threshold_eta_minutes`
+`event_key` (zorunlu) ve `limit` (1..50) alır; olay bulunamazsa **404**, yol ağı
+boşsa **409** döner. Operatör haritasındaki her öneri satırında **Neden?**
+düğmesi bu paneli satır altında açar.
+
 ### Komutan Kapasite ve Risk Paneli (EM-073)
 ```
 GET /panel                       # tek panel komuta arayüzü (koyu tema, 60 sn otomatik yenileme)

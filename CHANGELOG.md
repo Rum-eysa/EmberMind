@@ -5,6 +5,20 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-046: Öneri gerekçesi / açıklanabilirlik (E5)
+  - Komutan, EM-052'nin bir öneriyi **neden** yaptığını görüp güvenip
+    güvenmeyeceğine karar verir. Her öneri için bir **"neden?" paneli**:
+    hangi tahmin (kapanış-duyarlı rota ETA'sı), hangi eşik (top-N seçimi +
+    aktif kapanış bağlamı), hangi alternatifler değerlendirildi
+  - **Reddedilen alternatifler ve nedenleri** görülebilir: ulaşılamayan izole
+    kaynak ile daha uzun ETA'lı aday ayrı ayrı gerekçelendirilir
+  - `src/services/recommendation_explain.py` (`explain_proposals`) — yeniden
+    sıralama **yapmaz**; `build_proposals` çıktısını açıklar, böylece gerekçe
+    haritanın gösterdiği sayılarla asla çelişmez. **Canlı** hesaplanır (kayıt yok)
+  - Uçlar: `GET /api/v1/recommendations/explain` (`?event_key=` zorunlu,
+    `?limit=`), `GET /…/explain/config`; olay yoksa **404**, yol ağı boşsa **409**
+  - Operatör haritası (`/ui`): her öneri satırında **Neden?** düğmesi; tıklayınca
+    gerekçeler + reddedilen alternatifler satır altında açılır
 - EM-047: Öneri kabul/ret/düzenleme karar iş akışı (E5)
   - Operatör, EM-052'nin ürettiği konuşlanma **önerisi üzerinde nihai kararı**
     verir: üç aksiyon — **Kabul**, **Düzenle** (bir kabul + operatör

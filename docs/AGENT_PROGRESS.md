@@ -43,6 +43,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 10 | EM-059 Senaryo kaydetme ve paylaşma (#59) | E6 | DONE | geçici what-if koşularının üzerine girdi-kaydı + token'lı paylaşım bağlantısı |
 | 11 | EM-062 What-if geçmişi ve geri alma (#62) | E6 | DONE | otomatik yuvarlanan son-10 koşu listesi + tek tık geri alma |
 | 12 | EM-047 Öneri kabul/ret/düzenleme (#47) | E5 | DONE | EM-052 önerisi üzerinde 3 aksiyon; kabul/düzenle kaynağı yolda'ya çeker; her karar denetim kaydı |
+| 13 | EM-046 Öneri gerekçesi / açıklanabilirlik (#46) | E5 | DONE | her öneri için "neden?" + reddedilen alternatifler ve gerekçeleri; build_proposals'ı açıklar, yeniden sıralamaz |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -397,11 +398,37 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   pytest **627** (615 + 12 yeni; V021 migration `test_spatial` yeşil).
 - **Commit:** `feat(EM-047): ...` (bu dal).
 
+### EM-046 — Öneri gerekçesi / açıklanabilirlik (#46) — DONE
+- **Eksik analizi:** EM-052 `build_proposals` önerileri sıralıyor AMA **neden**
+  sıralandığını ve **hangi alternatiflerin elendiğini** hiçbir yerden
+  açıklamıyordu; `explain`/`rationale`/`why` için servis/route yoktu. Kabul
+  kriterleri: her öneri için "neden?" paneli (tahmin/eşik/alternatifler) +
+  reddedilen alternatifler ve nedenleri görülebilir. E5 Must (sp5).
+- **Kapsam:** `src/services/recommendation_explain.py` (`explain_proposals`),
+  `src/routes/recommendation_explain.py` (2 uç, `fastapi_app`'e kaydedildi),
+  `operator_map.html` (öneri satırında **Neden?** düğmesi + `explainProposal`
+  satır-altı açılır panel), `tests/unit/test_recommendation_explain.py` (11 test),
+  CHANGELOG + docs/api. **Migration/model/settings yok** — canlı hesaplanır.
+- **Varsayımlar:** (1) yeniden sıralama yok; `build_proposals` (limit=_ALL) ile
+  **tam** sıralama alınıp `POSITIONING_MAX_PROPOSALS` (veya `limit`) ile
+  selected/rejected bölünür — gerekçe haritadaki sayılarla çelişmez; (2) "hangi
+  tahmin" = kapanış-duyarlı rota ETA'sı; "hangi eşik" = top-N seçimi +
+  `threshold_eta_minutes` (en yavaş seçilenin ETA'sı); (3) reddedilen gerekçesi:
+  ulaşılamayan → "izole/kopuk", eşikten uzun ETA → "daha uzun tahmini varış".
+- **Kanıt:** limit=1 → 1 öneri `rank:1` + `why` ("En kısa tahmini varış"),
+  reddedilenler `slow`="Daha uzun tahmini varış" + `island`="ulaşılamıyor";
+  context `alternatives_evaluated:3`, `threshold_eta`==önerilenin ETA'sı; limit=10
+  → reddedilen boş; bilinmeyen olay → PositioningError; boş ağ → RoadNetworkError;
+  uçlar 200/404/422/config; UI `db-why`/`explainProposal`.
+- **Kapılar:** black(139 değişmez)/mypy(93)/pylint(10.00)/bandit(0) yeşil;
+  pytest **638** (627 + 11 yeni).
+- **Commit:** `feat(EM-046): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -414,8 +441,8 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 136 değişmez · mypy Success (91) · pylint 10.00/10 ·
-  bandit 0 · pytest **627 passed**.
+- **Final kapılar:** black 139 değişmez · mypy Success (93) · pylint 10.00/10 ·
+  bandit 0 · pytest **638 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
