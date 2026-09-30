@@ -277,6 +277,29 @@ class Config:
         os.getenv("WHATIF_RECOMPUTE_TARGET_SECONDS", "10.0")
     )
 
+    # EM-060: recompute performance budget + auto scale-down (Epic E6)
+    # p95 of recent recompute latencies must stay under the target; when it
+    # does not, a warning is raised and subsequent recomputes automatically
+    # drop to a coarse resolution (fewer polygon vertices, trimmed horizons).
+    PERF_BUDGET_ENABLED = os.getenv("PERF_BUDGET_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    PERF_BUDGET_TARGET_SECONDS = float(os.getenv("PERF_BUDGET_TARGET_SECONDS", "10.0"))
+    PERF_BUDGET_WINDOW = int(os.getenv("PERF_BUDGET_WINDOW", "50"))
+    PERF_BUDGET_MIN_SAMPLES = int(os.getenv("PERF_BUDGET_MIN_SAMPLES", "5"))
+    PERF_BUDGET_ALERTS_ENABLED = os.getenv(
+        "PERF_BUDGET_ALERTS_ENABLED", "true"
+    ).lower() in ("1", "true", "yes", "on")
+    PERF_BUDGET_COARSE_VERTICES = int(os.getenv("PERF_BUDGET_COARSE_VERTICES", "12"))
+    PERF_BUDGET_COARSE_HORIZONS = [
+        int(minutes)
+        for minutes in os.getenv("PERF_BUDGET_COARSE_HORIZONS", "30,120").split(",")
+        if minutes.strip()
+    ]
+
     # USGS / SRTM Topography
     USGS_SRTM_BASE_URL = os.getenv(
         "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"

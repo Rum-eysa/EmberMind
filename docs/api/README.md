@@ -311,6 +311,32 @@ bulunamayan `event_key` **400** döner. Komutan panelinde (`/panel`)
 **Kapasite What-If (EM-056)** kartı girdileri, olay seçkisini ve açık değişim
 tablosunu gösterir.
 
+### Yeniden Hesaplama Performans Bütçesi (EM-060)
+```
+GET  /api/v1/perf-budget          # kayan p95 gecikme okuması (durum paneli)
+GET  /api/v1/perf-budget/config   # hedef/pencere + kaba çözünürlük ayarları
+POST /api/v1/perf-budget/sample   # elle gecikme örneği (yük testi/operasyon)
+```
+Pilot bölge sözü: bir yayılım/what-if yeniden hesabı **10 sn** içinde
+bitmelidir. Tek hızlı çalış bir şey kanıtlamaz; önemli olan **kuyruktur**.
+Servis son `PERF_BUDGET_WINDOW` (vars. 50) örneğin **p95** gecikmesini
+`PERF_BUDGET_TARGET_SECONDS` (vars. 10 sn) hedefine karşı değerlendirir;
+örnek sayısı `PERF_BUDGET_MIN_SAMPLES` (vars. 5) altına inince karar
+verilmez (`within_budget: null`, titreşim önlenir). p95 hedefi aşınca
+`breached` işaretlenir ve `PERF_BUDGET_ENABLED` (vars. `true`) ise sonraki
+her yeniden hesaplama otomatik **kaba çözünürlüğe** düşer
+(`recommended_resolution: "coarse"`, `scale_down_active: true`) — yalnızca
+poligon köşe sayısı (`PERF_BUDGET_COARSE_VERTICES`) ve ufuk seti
+(`PERF_BUDGET_COARSE_HORIZONS`) kırpılır. Bütçe içi → dışı **geçişinde**
+canlı beslemeye (EM-090) tek bir `alert` yazılır (süreğen ihlalde tekrar
+yok). `POST /sample` gövdesi `{latency_ms, source, resolution}`; negatif
+`latency_ms` **400** döner. EM-055 rüzgâr ucu (`POST /api/v1/whatif/wind`)
+**ek olarak** `perf_budget` alanı döndürür ve ölçülen süreyi telemetri
+örneği olarak kaydeder (yayılım tahmini hâlâ yazılmaz). Tablo
+`recompute_latency_samples` (V017) yalnızca-ekleme telemetridir.
+Komutan panelinde (`/panel`) **Yeniden Hesaplama Bütçesi** kartı
+p95 / hedef / örnek sayısı ve renk kodlu durumu gösterir.
+
 ### Tasarım Sistemi ve Bileşen Kütüphanesi (EM-075)
 ```
 GET /styleguide        # bileşen vitrini (renk/tipografi/boşluk + buton, kart, panel, rozet, tablo, form)

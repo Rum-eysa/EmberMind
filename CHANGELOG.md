@@ -105,6 +105,32 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     `capacity_attribution`; komutan paneli (`risk_panel`): **Kapasite
     What-If (EM-056)** kartı — ek kaynak girdileri, olay seçki, açık
     değişim tablosu ve "çözüldü" rozetleri
+- EM-060: Yeniden hesaplama performans bütçesi — p95 gecikme ve otomatik
+  ölçek küçültme (E6)
+  - `src/models/perf_budget.py` (`RecomputeLatencySample`, migration
+    `V017__recompute_latency_samples.sql`): her yayılım/what-if yeniden
+    hesabının duvar saati gecikmesi, çözünen çözünürlüğü ve o anki hedefi
+    tutan **yalnızca-ekleme telemetri** günlüğü (operasyonel resmi beslemez)
+  - `src/services/perf_budget.py`: kayan pencerede (vars. son 50 örnek)
+    **p95** gecikmeyi 10 sn hedefe karşı değerlendirir; örnek sayısı
+    `PERF_BUDGET_MIN_SAMPLES` (vars. 5) altına inince karar verilmez
+    (titreşimi önler). p95 hedefi aşınca `breached` işaretlenir ve
+    `PERF_BUDGET_ENABLED` ise her sonraki yeniden hesaplama otomatik olarak
+    **kaba çözünürlüğe** düşürülür (`_CoarseSettings` delege sarmalayıcı —
+    EM-022 `_ModeSettings` deseniyle aynı — yalnızca `SPREAD_POLYGON_VERTICES`
+    ve `SPREAD_HORIZON_MINUTES` değiştirilir)
+  - **Uyarı (kenar tetiklemeli):** bütçe içi → bütçe dışı geçişinde canlı
+    beslemeye (EM-090) tek bir `alert` yazılır; süreğen ihlalde tekrar
+    üretilmez (`_previous_breached` histerezisi, `PERF_BUDGET_ALERTS_ENABLED`)
+  - `src/routes/perf_budget.py`: `GET /api/v1/perf-budget`,
+    `GET /api/v1/perf-budget/config`, `POST /api/v1/perf-budget/sample`
+    (negatif gecikme → 400); `src/routes/whatif.py` rüzgâr ucu **eklenerek**
+    entegre edildi: yeniden hesaplama bütçeye danışır, süreyi örnek olarak
+    kaydeder ve yanıtta `perf_budget` alanını döndürür (yayılım tahmini
+    yazılmaz — EM-055 geçicilik sözleşmesi korunur)
+  - Komutan paneli (`risk_panel`): **Yeniden Hesaplama Bütçesi** kartı —
+    p95 / hedef / örnek sayısı ve durum (bütçe içi · yetersiz örnek ·
+    aşıldı/kaba çözünürlük); ayarlar `PERF_BUDGET_*` (`.env.example`)
 - EM-028: Kapasite biriminin tanımı ve normalizasyonu — kapasite açığı ve risk
   indeksi (E3)
   - `src/models/capacity.py` → `CapacityAssumption` (V016 migration): her

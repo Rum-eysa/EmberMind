@@ -107,6 +107,15 @@
         <div id="gap-chart" style="margin-top:8px"></div>
         <div id="tl-legend" class="gap-legend"></div>
       </div>
+      <div class="card">
+        <h2>Yeniden Hesaplama Bütçesi</h2>
+        <div class="muted-note">Son yeniden hesaplamaların p95 gecikmesi 10 sn
+          hedefine karşı; aşılırsa otomatik kaba çözünürlüğe geçilir. EM-060</div>
+        <div class="kv"><span>p95 gecikme</span><b id="pb-p95">–</b></div>
+        <div class="kv"><span>Hedef</span><b id="pb-target">–</b></div>
+        <div class="kv"><span>Örnek (pencere)</span><b id="pb-samples">–</b></div>
+        <div class="kv"><span>Durum</span><b id="pb-state">–</b></div>
+      </div>
     </section>
     <section class="card">
       <h2>Bölgeler — Risk İndeksi ve İlk Aşım</h2>
@@ -308,6 +317,7 @@
     }
     refreshRiskIndex();
     refreshTimeline();
+    refreshPerfBudget();
   }
 
   // EM-030: "kapasite ne zaman yetmez?" — talep vs kapasite çizgi grafiği ve
@@ -524,6 +534,36 @@
   }
 
   document.getElementById("wi-run").addEventListener("click", runCapacityWhatIf);
+
+  // EM-060: yeniden hesaplama p95 gecikmesi ve otomatik ölçek küçültme durumu.
+  const PB_FEED = "/api/v1/perf-budget";
+
+  async function refreshPerfBudget() {
+    try {
+      const res = await fetch(PB_FEED);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const p95 = data.p95_ms === null ? "veri yok" : data.p95_ms.toFixed(0) + " ms";
+      setText("pb-p95", p95);
+      setText("pb-target", (data.target_ms).toFixed(0) + " ms");
+      setText("pb-samples", data.samples + " / " + data.window);
+      const stateEl = document.getElementById("pb-state");
+      if (data.breached) {
+        stateEl.textContent = data.scale_down_active
+          ? "aşıldı · kaba çözünürlük"
+          : "aşıldı";
+        stateEl.style.color = "var(--color-danger)";
+      } else if (!data.min_samples_met) {
+        stateEl.textContent = "yetersiz örnek";
+        stateEl.style.color = "var(--text-secondary)";
+      } else {
+        stateEl.textContent = "bütçe içinde";
+        stateEl.style.color = "var(--color-success)";
+      }
+    } catch (err) {
+      setText("pb-state", "alınamadı");
+    }
+  }
 
   refresh();
   setInterval(refresh, 60000);

@@ -7,6 +7,7 @@ from .historical_fire import HistoricalFirePerimeter
 from .inventory import SuppressionResource
 from .land_cover import LandCoverDataPoint
 from .live import LiveUpdate
+from .perf_budget import RecomputeLatencySample
 from .pipeline import PipelineJobHistory
 from .road_network import CrewBase, RoadClosure, RoadSegment
 from .spread_metrics import SpreadEvaluationMetric
@@ -38,6 +39,7 @@ __all__ = [
     "LiveUpdate",
     "NaturalBarrier",
     "PipelineJobHistory",
+    "RecomputeLatencySample",
     "RoadClosure",
     "RoadSegment",
     "ScenarioRun",

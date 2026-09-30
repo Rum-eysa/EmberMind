@@ -36,7 +36,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 3 | EM-030 Kapasite açığı zaman çizelgesi (#30) | E3 | DONE | EM-029 verisi üzerine çizgi grafik + enterpolasyonlu ilk kritik aşım dakikası |
 | 4 | EM-032 Eşik aşımı uyarısı (#32) | E3 | DONE | EM-029/030'a bağlı; histerezis (besleme peak-latch) + canlı besleme "alert" + görsel/sesli |
 | 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | DONE | EM-055'in arz-tarafı karşılığı; talep sabit, varsayıms kapasiteye karşı yeniden fiyatlama |
-| 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | TODO | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
+| 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | DONE | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
 
 ## Varsayımlar ve kararlar
 
@@ -180,3 +180,36 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **Kapılar:** black(117)/mypy(79)/pylint(10.00)/bandit(0) yeşil;
   pytest **521** (502 + 19 yeni).
 - **Commit:** `feat(EM-056): ...` (bu dal).
+
+### EM-060 — Yeniden hesaplama performans bütçesi (#60) — DONE
+- **Eksik analizi:** EM-022 bir *benchmark* (`spread_perf.py`, tek seferlik
+  mod kıyasi) ve EM-055 anlık `within_target` işareti sunuyordu; ancak
+  **kayyan p95** gecikme ölçümü, süreğen aşım tespiti ve buna bağlı
+  **otomatik çözünürlük küçültme** hiç yoktu. Görev ima ettiği bağlantıları
+  da içerir: telemetri tablosu+migration, ayarlar, canlı-besleme uyarısı,
+  rüzgâr ucuna entegrasyon, UI kartı.
+- **Kapsam:** `src/models/perf_budget.py` (`RecomputeLatencySample`,
+  V017 migration, `models/__init__` kaydı), `src/config/settings.py` +
+  `.env.example` (`PERF_BUDGET_*`), `src/services/perf_budget.py`
+  (`percentile` numpy-tanımı enterpolasyon, `budget_status` kayan p95,
+  `_CoarseSettings` delege + `resolve_recompute_settings`,
+  `record_recompute_latency` kenar-tetiklemeli `alert`),
+  `src/routes/perf_budget.py` (3 uç) + `fastapi_app.py` kaydı,
+  `src/routes/whatif.py` rüzgâr ucuna **ek** `perf_budget` alanı +
+  gecikme örneği, `risk_panel.html` **Yeniden Hesaplama Bütçesi** kartı +
+  `refreshPerfBudget()`, `tests/unit/test_perf_budget.py` (20 test),
+  CHANGELOG + docs/api.
+- **Varsayım:** Ölçek küçültme poligon köşesini (36→`PERF_BUDGET_COARSE_VERTICES`
+  vars.12) ve ufuk setini (`PERF_BUDGET_COARSE_HORIZONS` vars.[30,120])
+  kırpar; tek başına gerçek CPU süresini ölçmek testte mümkün olmadığından
+  rüzgâr ucu `result["compute_ms"]` değeri telemetriye beslenir. Uyarı
+  yalnızca iç→dış kenarında (`_previous_breached` histerezisi) bir kez.
+- **Kanıt:** 6×2000ms → `within_budget` True; 5×20000ms → `breached`
+  True + `scale_down_active` True + `recommended_resolution` coarse;
+  4 örnek (<min) → karar yok (None); `PERF_BUDGET_ENABLED=False` → ihlal
+  ama aktif değil; coarse sarmalayıcı yalnızca iki düğmeyi değiştirir;
+  alert kenarda 1 kez, süreğende tekrar yok; POST sample negatif →400;
+  rüzgâr ucu `perf_budget` + telemetri satırı yazar, `FireForecast` yazmaz.
+- **Kapılar:** black(121)/mypy(82)/pylint(10.00)/bandit(0) yeşil;
+  pytest **541** (521 + 20 yeni).
+- **Commit:** `feat(EM-060): ...` (bu dal).
