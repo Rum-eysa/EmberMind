@@ -6,10 +6,19 @@ updated threat recommendation, with the original and the scenario side by side.
 
 This service drives the EM-015 Rothermel engine twice from the same resolved
 inputs — once unperturbed (the *original*) and once with the operator's wind
-direction/speed change applied (the *scenario*) — purely in memory. Because
+direction/speed change and/or air-temperature / relative-humidity deltas
+applied (the *scenario*) — purely in memory. Because
 ``spread.predict_spread`` only persists when an ``event_key`` is supplied, and
 we never pass one here, a what-if never touches the database; both sides are
 live recomputations compared on equal footing.
+
+EM-061 extends the wind-only EM-055 scenario with temperature and humidity
+knobs. The Rothermel engine consumes air temperature / relative humidity
+through the equilibrium (dead) fuel-moisture the engine derives when the
+caller does not pin ``fuel_moisture_pct``; a hotter / drier scenario therefore
+dries the fuel and speeds the spread, while a cooler / wetter one slows it. So
+the weather delta flows straight into spread area, capacity gap and threat
+ranking without any extra coupling here.
 
 Capacity gap is expressed in EM-028's single normalised unit: the demand is the
 scenario's area growth in hectares/hour, the supply is the effective
@@ -38,9 +47,10 @@ from src.services.exposure import (
 from src.services.spread import predict_spread
 from src.utils.timeutils import to_utc_iso, utc_now
 
-WHATIF_MODEL_NAME = "wind_whatif_v1"
+WHATIF_MODEL_NAME = "whatif_v2"
 WHATIF_ATTRIBUTION = (
-    "What-if rüzgâr senaryosu: Rothermel canlı yeniden hesaplama (EM-055)"
+    "What-if senaryosu: rüzgâr + sıcaklık/nem, Rothermel canlı yeniden "
+    "hesaplama (EM-055/EM-061)"
 )
 WHATIF_PERSISTENCE = "none"
 DEFAULT_RECOMPUTE_TARGET_SECONDS = 10.0
@@ -49,10 +59,16 @@ _TARGET_ATTR = "WHATIF_RECOMPUTE_TARGET_SECONDS"
 # Wind scenario bounds for the operator sliders / overrides.
 _MAX_WIND_SPEED_KMH = 200.0
 _MAX_WIND_SPEED_FACTOR = 5.0
+# EM-061: air-temperature delta (deg C) and relative-humidity delta (points).
+_MAX_TEMP_DELTA_C = 40.0
+_MAX_HUMIDITY_DELTA_PCT = 60.0
+# Physical clamp applied to the scenario's resolved weather values.
+_TEMP_RANGE_C = (-30.0, 60.0)
+_RH_RANGE_PCT = (1.0, 100.0)
 
 
 class WhatIfError(RuntimeError):
-    """Raised for invalid what-if inputs (bad coordinates or wind values)."""
+    """Raised for invalid what-if inputs (bad coordinates or scenario knobs)."""
 
 
 def recompute_target_seconds(settings: Any) -> float:
@@ -78,7 +94,10 @@ def _require_coordinate(req: dict[str, Any], key: str) -> float:
 
 
 def _validate_wind(req: dict[str, Any]) -> None:
-    """Range-check the operator wind knobs before any engine work happens."""
+    """Range-check the operator scenario knobs before any engine work happens.
+
+    Covers the EM-055 wind knobs and the EM-061 temperature / humidity deltas.
+    """
     speed = req.get("wind_speed_kmh")
     if speed is not None:
         speed = float(speed)
@@ -103,26 +122,48 @@ def _validate_wind(req: dict[str, Any]) -> None:
             raise WhatIfError(
                 f"wind_speed_factor must be within [0, {_MAX_WIND_SPEED_FACTOR}]"
             )
+    temp_delta = req.get("temperature_delta_c")
+    if temp_delta is not None:
+        temp_delta = float(temp_delta)
+        if not -_MAX_TEMP_DELTA_C <= temp_delta <= _MAX_TEMP_DELTA_C:
+            raise WhatIfError(
+                f"temperature_delta_c must be within [-{_MAX_TEMP_DELTA_C}, "
+                f"{_MAX_TEMP_DELTA_C}]"
+            )
+    rh_delta = req.get("humidity_delta_pct")
+    if rh_delta is not None:
+        rh_delta = float(rh_delta)
+        if not -_MAX_HUMIDITY_DELTA_PCT <= rh_delta <= _MAX_HUMIDITY_DELTA_PCT:
+            raise WhatIfError(
+                f"humidity_delta_pct must be within [-{_MAX_HUMIDITY_DELTA_PCT}, "
+                f"{_MAX_HUMIDITY_DELTA_PCT}]"
+            )
 
 
 def _predict_request(
-    req: dict[str, Any], wind: dict[str, float] | None = None
+    req: dict[str, Any], override: dict[str, float] | None = None
 ) -> dict[str, Any]:
-    """Assemble a persist-free predict_spread payload with a resolved wind.
+    """Assemble a persist-free predict_spread payload with resolved weather.
 
-    When ``wind`` is supplied its values take over; otherwise the request's own
-    wind (the operator's known base condition) is forwarded so the original run
-    reflects it instead of falling back to stored/calm weather.
+    When ``override`` is supplied its wind / temperature / humidity values take
+    over (the scenario side); otherwise the request's own weather (the
+    operator's known base condition) is forwarded so the original run reflects
+    it instead of falling back to stored / calm weather. ``fuel_moisture_pct``
+    is always forwarded straight from the request: leaving it unset lets the
+    engine re-derive moisture from the (possibly perturbed) weather, which is
+    exactly how an EM-061 temperature / humidity delta reaches the spread.
     """
-    active = wind or {}
+    active = override or {}
     return {
         "latitude": req["latitude"],
         "longitude": req["longitude"],
         "event_key": None,  # a what-if never writes FireForecast rows
         "wind_speed_kmh": active.get("wind_speed_kmh", req.get("wind_speed_kmh")),
         "wind_from_deg": active.get("wind_from_deg", req.get("wind_from_deg")),
-        "air_temp_c": req.get("air_temp_c"),
-        "relative_humidity_pct": req.get("relative_humidity_pct"),
+        "air_temp_c": active.get("air_temp_c", req.get("air_temp_c")),
+        "relative_humidity_pct": active.get(
+            "relative_humidity_pct", req.get("relative_humidity_pct")
+        ),
         "fuel_moisture_pct": req.get("fuel_moisture_pct"),
         "slope_deg": req.get("slope_deg"),
         "aspect_deg": req.get("aspect_deg"),
@@ -131,14 +172,20 @@ def _predict_request(
     }
 
 
-def _resolve_scenario_wind(
-    base: dict[str, float], req: dict[str, Any]
-) -> dict[str, float]:
-    """Perturb the resolved base wind with the operator's rotation and factor.
+def _clamp(value: float, low: float, high: float) -> float:
+    """Bound ``value`` to the inclusive [low, high] range."""
+    return max(low, min(high, value))
 
-    The request's own wind is the *current base condition* (shared by the
-    original and the scenario); the sliders only contribute the rotation delta
-    and the speed factor, so a what-if stays a controlled change of one knob.
+
+def _resolve_scenario(base: dict[str, float], req: dict[str, Any]) -> dict[str, float]:
+    """Perturb the resolved base weather with the operator's scenario knobs.
+
+    The request's own weather is the *current base condition* (shared by the
+    original and the scenario); the sliders only contribute the wind rotation
+    delta / speed factor (EM-055) and the temperature / humidity deltas
+    (EM-061), so a what-if stays a controlled change of a single knob and a
+    zero delta reproduces the original exactly. Resulting temperature and
+    relative humidity are clamped to physically sensible ranges.
     """
     base_from = float(base["wind_from_deg"])
     base_speed = float(base["wind_speed_kmh"])
@@ -150,9 +197,25 @@ def _resolve_scenario_wind(
         scenario_speed = base_speed * float(req["wind_speed_factor"])
     else:
         scenario_speed = base_speed
+
+    base_temp = float(base["air_temp_c"])
+    base_rh = float(base["relative_humidity_pct"])
+    if req.get("temperature_delta_c") is not None:
+        scenario_temp = base_temp + float(req["temperature_delta_c"])
+    else:
+        scenario_temp = base_temp
+    scenario_temp = _clamp(scenario_temp, _TEMP_RANGE_C[0], _TEMP_RANGE_C[1])
+    if req.get("humidity_delta_pct") is not None:
+        scenario_rh = base_rh + float(req["humidity_delta_pct"])
+    else:
+        scenario_rh = base_rh
+    scenario_rh = _clamp(scenario_rh, _RH_RANGE_PCT[0], _RH_RANGE_PCT[1])
+
     return {
         "wind_from_deg": round(scenario_from, 2),
         "wind_speed_kmh": round(min(scenario_speed, _MAX_WIND_SPEED_KMH), 2),
+        "air_temp_c": round(scenario_temp, 2),
+        "relative_humidity_pct": round(scenario_rh, 2),
     }
 
 
@@ -363,9 +426,9 @@ def run_whatif(session: Session, settings: Any, req: dict[str, Any]) -> dict[str
     group_key = str(req.get("event_key") or "whatif")
 
     original = predict_spread(session, settings, _predict_request(req))
-    base_wind = original["inputs"]
-    scenario_wind = _resolve_scenario_wind(base_wind, req)
-    scenario = predict_spread(session, settings, _predict_request(req, scenario_wind))
+    base_inputs = original["inputs"]
+    scenario_over = _resolve_scenario(base_inputs, req)
+    scenario = predict_spread(session, settings, _predict_request(req, scenario_over))
 
     original_summary = _summarize_side(original)
     scenario_summary = _summarize_side(scenario)
@@ -389,15 +452,29 @@ def run_whatif(session: Session, settings: Any, req: dict[str, Any]) -> dict[str
         },
         "wind": {
             "original": {
-                "from_deg": round(float(base_wind["wind_from_deg"]), 2),
-                "speed_kmh": round(float(base_wind["wind_speed_kmh"]), 2),
+                "from_deg": round(float(base_inputs["wind_from_deg"]), 2),
+                "speed_kmh": round(float(base_inputs["wind_speed_kmh"]), 2),
             },
             "scenario": {
-                "from_deg": scenario_wind["wind_from_deg"],
-                "speed_kmh": scenario_wind["wind_speed_kmh"],
+                "from_deg": scenario_over["wind_from_deg"],
+                "speed_kmh": scenario_over["wind_speed_kmh"],
             },
             "rotation_delta_deg": req.get("wind_rotation_delta_deg"),
             "speed_factor": req.get("wind_speed_factor"),
+        },
+        "weather": {
+            "original": {
+                "air_temp_c": round(float(base_inputs["air_temp_c"]), 2),
+                "relative_humidity_pct": round(
+                    float(base_inputs["relative_humidity_pct"]), 2
+                ),
+            },
+            "scenario": {
+                "air_temp_c": scenario_over["air_temp_c"],
+                "relative_humidity_pct": scenario_over["relative_humidity_pct"],
+            },
+            "temperature_delta_c": req.get("temperature_delta_c"),
+            "humidity_delta_pct": req.get("humidity_delta_pct"),
         },
         "original": original_summary,
         "scenario": scenario_summary,

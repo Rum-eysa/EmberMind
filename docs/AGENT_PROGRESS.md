@@ -37,6 +37,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 4 | EM-032 Eşik aşımı uyarısı (#32) | E3 | DONE | EM-029/030'a bağlı; histerezis (besleme peak-latch) + canlı besleme "alert" + görsel/sesli |
 | 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | DONE | EM-055'in arz-tarafı karşılığı; talep sabit, varsayıms kapasiteye karşı yeniden fiyatlama |
 | 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | DONE | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
+| 7 | EM-061 Sıcaklık ve nem what-if parametreleri (#61) | E6 | DONE | EM-055 rüzgâr senaryosunun hava-tarafı genişletmesi; kaydırıcı + delta + Sıfırla |
 
 ## Varsayımlar ve kararlar
 
@@ -213,6 +214,35 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **Kapılar:** black(121)/mypy(82)/pylint(10.00)/bandit(0) yeşil;
   pytest **541** (521 + 20 yeni).
 - **Commit:** `feat(EM-060): ...` (bu dal).
+
+### EM-061 — Sıcaklık ve nem what-if parametreleri (#61) — DONE
+- **Eksik analizi:** EM-055 what-if yalnızca **rüzgâr**ı (yön/hız) bozuyordu;
+  `air_temp_c`/`relative_humidity_pct` yalnızca taban değer olarak iletiliyor,
+  senaryo düğmesi yoktu. Issue panelde sıcaklık/nem kaydırıcısı ve bunun
+  yayılıma/riske yansımasını istiyordu.
+- **Kapsam:** `src/services/whatif.py` (`_validate_wind` +sıcaklık/nem
+  bekçileri, `_clamp`, `_resolve_scenario_wind`→`_resolve_scenario`
+  rüzgâr+sıcaklık+nem, `_predict_request` override, `run_whatif`
+  `base_inputs`/`scenario_over` + `weather` bloğu, `WHATIF_MODEL_NAME`
+  `whatif_v2`), `src/routes/whatif.py` (`WhatIfRequest` iki opsiyonel alan
+  `temperature_delta_c`/`humidity_delta_pct`), `operator_map.html` **What-If —
+  Hava Senaryosu** sıcaklık/nem kaydırıcıları + `runWhatif()` delta okuma +
+  **Sıfırla** + özet "Sıcaklık / Nem" satırı, `tests/unit/test_whatif_weather.py`
+  (13 test), CHANGELOG + docs/api.
+- **Varsayım (fiziksel bağlantı):** Rothermel motoru sıcaklık/nemi **denge (ölü)
+  yakıt nemi** üzerinden tüketir ve bu yalnızca `fuel_moisture_pct`
+  **sabitlenmediğinde** aktiftir (spread.py). Dolayısıyla sıcaklık/nem deltaları
+  yayılıma ancak çağıran `fuel_moisture` vermediğinde yansır; EM-055 testleri
+  `fuel_moisture` sabitlediği için davranışı değişmez. Daha sıcak/kuru → yakıt
+  kurur → yayılım hızlanır (alan/talep/açık artar); daha soğuk/nemli → yavaşlar.
+- **Kanıt:** delta `0`/düğme yok → senaryo == orijinal (sıfırlama sözleşmesi);
+  +15°C/-20% → air_temp≈40/rh≈20, alan+talep+açık artar; −10°C/+20% → azalır;
+  senaryo nemi [1,100]'e, sıcaklığı [-30,60]'a kırpılır; ± sınır aşımı →
+  `WhatIfError`(→400); uç `weather` bloğu + EM-060 `perf_budget` döndürür;
+  UI `whatif-temp`/`whatif-humidity` gömülü.
+- **Kapılar:** black(122)/mypy(82)/pylint(10.00)/bandit(0) yeşil;
+  pytest **554** (541 + 13 yeni).
+- **Commit:** `feat(EM-061): ...` (bu dal).
 
 ## Bitiş özeti
 

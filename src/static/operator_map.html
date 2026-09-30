@@ -195,7 +195,7 @@
   </div>
 
   <div id="whatif-panel" class="panel" aria-live="polite">
-    <h1>What-If — Rüzgâr Senaryosu</h1>
+    <h1>What-If — Hava Senaryosu</h1>
     <div id="whatif-ignition">İgnisyon noktası: bir olay seçin veya haritaya tıklayın.</div>
     <div class="row">
       <label for="whatif-dir">Yön değişimi</label>
@@ -208,6 +208,18 @@
       <input type="range" id="whatif-speed" min="50" max="200" step="5" value="100"
              aria-label="Rüzgâr hız çarpanı kaydırıcısı (yüzde)">
       <span class="val" id="whatif-speed-val">%100</span>
+    </div>
+    <div class="row">
+      <label for="whatif-temp">Sıcaklık Δ</label>
+      <input type="range" id="whatif-temp" min="-30" max="30" step="1" value="0"
+             aria-label="Hava sıcaklığı değişim kaydırıcısı (Celsius)">
+      <span class="val" id="whatif-temp-val">0°C</span>
+    </div>
+    <div class="row">
+      <label for="whatif-humidity">Nem Δ</label>
+      <input type="range" id="whatif-humidity" min="-60" max="60" step="5" value="0"
+             aria-label="Bağıl nem değişim kaydırıcısı (yüzde puanı)">
+      <span class="val" id="whatif-humidity-val">0%</span>
     </div>
     <div class="btns">
       <button type="button" id="whatif-rot45" title="Kabul kriteri senaryosu: rüzgâr 45° dönsün">45° döndür</button>
@@ -633,14 +645,19 @@
     if (!ign) { setWhatifChip("", "What-If: nokta seçin"); return; }
     const dir = Number(document.getElementById("whatif-dir").value);
     const speedPct = Number(document.getElementById("whatif-speed").value);
+    const tempDelta = Number(document.getElementById("whatif-temp").value);
+    const humidDelta = Number(document.getElementById("whatif-humidity").value);
     document.getElementById("whatif-dir-val").textContent = `${dir > 0 ? "+" : ""}${dir}°`;
     document.getElementById("whatif-speed-val").textContent = `%${speedPct}`;
+    document.getElementById("whatif-temp-val").textContent = `${tempDelta > 0 ? "+" : ""}${tempDelta}°C`;
+    document.getElementById("whatif-humidity-val").textContent = `${humidDelta > 0 ? "+" : ""}${humidDelta}%`;
     if (whatifAbort) whatifAbort.abort();
     whatifAbort = new AbortController();
     setWhatifChip("slow", "What-If: hesaplanıyor…");
     const body = {
       latitude: ign.latitude, longitude: ign.longitude, event_key: ign.event_key,
       wind_rotation_delta_deg: dir, wind_speed_factor: speedPct / 100,
+      temperature_delta_c: tempDelta, humidity_delta_pct: humidDelta,
     };
     try {
       const res = await fetch("/api/v1/whatif/wind", {
@@ -702,6 +719,7 @@
       + `<div class="metric"><span>Tehdit altındaki yapı</span><b>${rec.original.count} → ${rec.scenario.count}</b></div>`
       + `<div class="metric"><span>En erken etki</span><b>T+${fmt(rec.original.earliest_impact_minutes)} → T+${fmt(rec.scenario.earliest_impact_minutes)} dk</b></div>`
       + `<div class="metric"><span>Rüzgar</span><b>${whatifResult.wind.original.from_deg}/${whatifResult.wind.original.speed_kmh} → ${whatifResult.wind.scenario.from_deg}/${whatifResult.wind.scenario.speed_kmh} km/s</b></div>`
+      + `<div class="metric"><span>Sıcaklık / Nem</span><b>${whatifResult.weather.original.air_temp_c}°C / %${whatifResult.weather.original.relative_humidity_pct} → ${whatifResult.weather.scenario.air_temp_c}°C / %${whatifResult.weather.scenario.relative_humidity_pct}</b></div>`
       + `<div class="metric"><span>Hesap</span><b>${whatifResult.compute_ms} ms (hedef ≤${whatifResult.target_seconds} sn)</b></div>`;
     const added = (rec.delta && rec.delta.newly_threatened) || [];
     news.innerHTML = added.length
@@ -906,7 +924,7 @@
         if (whatifEnabled) { closeWhatif(); } else { openWhatif(); }
       });
     }
-    for (const id of ["whatif-dir", "whatif-speed"]) {
+    for (const id of ["whatif-dir", "whatif-speed", "whatif-temp", "whatif-humidity"]) {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", scheduleWhatif);
     }
@@ -922,6 +940,8 @@
       whatifReset.addEventListener("click", () => {
         document.getElementById("whatif-dir").value = "0";
         document.getElementById("whatif-speed").value = "100";
+        document.getElementById("whatif-temp").value = "0";
+        document.getElementById("whatif-humidity").value = "0";
         if (whatifEnabled) { runWhatif(); }
       });
     }

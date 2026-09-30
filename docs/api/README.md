@@ -265,10 +265,10 @@ canvas'ında uyarı **görsel bant** (kırmızı, yanıp sönen) + **sesli bip**
 (WebAudio — dosya yok) + titreşim olarak görünür; `🔔 Ses` düğmesi sesi aç/kapa
 yapar (tarayıcı otomatik-oynatma kilidi ilk kullanıcı hareketiyle açılır).
 
-### What-If Rüzgâr Senaryosu ve Dinamik Yeniden Hesaplama (EM-055)
+### What-If Rüzgâr + Hava Senaryosu ve Dinamik Yeniden Hesaplama (EM-055 / EM-061)
 ```
 GET  /api/v1/whatif/config  # yeniden hesaplama hedef süresi (sn) ve kalıcılık bilgisi
-POST /api/v1/whatif/wind    # rüzgâr yön/hız değişikliği için canlı what-if
+POST /api/v1/whatif/wind    # rüzgâr ve/veya sıcaklık/nem değişikliği için canlı what-if
 ```
 Operatör "rüzgâr 45° dönse ne olur?" sorusunu sorar. Uç nokta EM-015
 Rothermel motorunu **aynı çözülmüş girdilerle iki kez** çalıştırır: biri
@@ -279,6 +279,18 @@ alır: `wind_rotation_delta_deg` (yön değişimi, -360..360) ve
 mevcut **taban** rüzgârı taşır. Diğer girdi alanları (`air_temp_c`,
 `relative_humidity_pct`, `fuel_moisture_pct`, `slope_deg`, `aspect_deg`,
 `fuel_model`, `horizon_minutes`) opsiyoneldir.
+
+**EM-061 — sıcaklık ve nem kaydırıcıları:** aynı uç `temperature_delta_c`
+(°C, ±40) ve `humidity_delta_pct` (yüzde puanı, ±60) **delta** düğmelerini
+alır. Çözülmüş taban sıcaklık/nemi deltalarla bozulur; Rothermel motoru bu
+değerleri `fuel_moisture_pct` **sabitlenmediğinde** denge (ölü) yakıt nemi
+üzerinden tükettiği için daha sıcak/kuru senaryo yakıtı kurutup yayılımı
+hızlandırır, daha soğuk/nemli yavaşlatır — sonuç alan/talep, kapasite açığı
+ve tehdit sıralamasına yansır. Delta `0` ("Sıfırla") senaryoyu orijinalle
+birebir aynı değeri döndürür; senaryo sıcaklığı [-30, 60] °C ve bağıl nemi
+[1, 100] % aralığına kırpılır. Yanıta `weather` bloğu (orijinal/senaryo
+sıcaklık-nem + deltalar) eklenir. Uç `POST /api/v1/whatif/wind` EM-060
+kayyan p95 bütçesine danışır ve `perf_budget` alanını döndürür.
 
 Yanıt orijinal ve senaryo risk bölgesi poligonlarını (`forecasts[*]
 .polygon_geojson`, `area_ha`), **kapasite açığını** EM-028 biriminde

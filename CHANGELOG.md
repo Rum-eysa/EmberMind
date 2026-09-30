@@ -131,6 +131,24 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - Komutan paneli (`risk_panel`): **Yeniden Hesaplama Bütçesi** kartı —
     p95 / hedef / örnek sayısı ve durum (bütçe içi · yetersiz örnek ·
     aşıldı/kaba çözünürlük); ayarlar `PERF_BUDGET_*` (`.env.example`)
+- EM-061: Sıcaklık ve nem what-if parametreleri (E6)
+  - `src/services/whatif.py`: EM-055 rüzgâr senaryosu **hava** düğmelerine
+    genişletildi — `temperature_delta_c` (°C) ve `humidity_delta_pct` (yüzde
+    puanı). Senaryo, çözülmüş taban sıcaklık/nemini deltalarla bozar; Rothermel
+    motoru bu değerleri `fuel_moisture_pct` sabitlenmediğinde denge (ölü) yakıt
+    nemi üzerinden tüketir, dolayısıyla **daha sıcak/kuru** senaryo yakıtı
+    kurutup yayılımı hızlandırır, **daha soğuk/nemli** yavaşlatır — değişiklik
+    alan/talep, kapasite açığı ve tehdit sıralamasına **otomatik** yansır
+  - **Sıfırla = orijinal:** delta `0` iken senaryo çözülmüş taban hava
+    değerlerini geri verir ve orijinalle birebir aynı sonucu üretir
+    (tek-düğüm kontrol sözleşmesi korunur); senaryo sıcaklığı [-30, 60] °C,
+    bağıl nemi [1, 100] % aralığına kırpılır; uç değer ±40 °C / ±60 puan
+    aşarsa `WhatIfError` (→400)
+  - Yanıta **`weather`** bloğu eklendi (orijinal/senaryo sıcaklık-nem +
+    deltalar); `POST /api/v1/whatif/wind` gövdesi iki yeni opsiyonel alan alır
+    (EM-060 telemetrisiyle birlikte); operatör haritasındaki **What-If**
+    paneline **Sıcaklık Δ** ve **Nem Δ** kaydırıcıları + **Sıfırla**
+    davranışı eklendi, özet kartına "Sıcaklık / Nem" satırı geldi
 - EM-028: Kapasite biriminin tanımı ve normalizasyonu — kapasite açığı ve risk
   indeksi (E3)
   - `src/models/capacity.py` → `CapacityAssumption` (V016 migration): her

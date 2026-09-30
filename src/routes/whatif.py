@@ -31,7 +31,8 @@ from src.services.whatif import (
 
 
 class WhatIfRequest(BaseModel):
-    """Wind what-if inputs; omit wind knobs to only change rotation/factor."""
+    """What-if inputs: wind rotation/factor (EM-055) + temp/humidity deltas
+    (EM-061); omit a knob to leave that condition unchanged."""
 
     model_config = {"protected_namespaces": ()}
 
@@ -42,6 +43,8 @@ class WhatIfRequest(BaseModel):
     wind_speed_factor: float | None = None
     wind_from_deg: float | None = None
     wind_speed_kmh: float | None = None
+    temperature_delta_c: float | None = None
+    humidity_delta_pct: float | None = None
     air_temp_c: float | None = None
     relative_humidity_pct: float | None = None
     fuel_moisture_pct: float | None = None
@@ -76,13 +79,13 @@ def register_whatif_routes(api: FastAPI, database: Database, settings: Any) -> N
 
     @api.post("/api/v1/whatif/wind", tags=["whatif"])
     def whatif_wind(req: WhatIfRequest) -> dict[str, Any]:
-        """Recompute risk zones, capacity gap and recommendations for a
-        wind direction/speed change; original and scenario compared live.
+        """Recompute risk zones, capacity gap and recommendations for a wind
+        and/or temperature/humidity change; original and scenario compared live.
 
-        EM-060: the recompute consults the rolling p95 budget and, when it is
-        over target, automatically runs at a coarse resolution; the measured
-        duration is fed back as a latency sample (telemetry only, no forecast
-        is persisted).
+        EM-055 wind, EM-061 weather. EM-060: the recompute consults the rolling
+        p95 budget and, when it is over target, automatically runs at a coarse
+        resolution; the measured duration is fed back as a latency sample
+        (telemetry only, no forecast is persisted).
         """
         try:
             with database.session() as session:
