@@ -213,3 +213,27 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **Kapılar:** black(121)/mypy(82)/pylint(10.00)/bandit(0) yeşil;
   pytest **541** (521 + 20 yeni).
 - **Commit:** `feat(EM-060): ...` (bu dal).
+
+## Bitiş özeti
+
+- **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
+  EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60) — her biri kendi
+  commit'i ile `agent/task-automation` dalına push edildi; ilgili issue'lara
+  özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
+  alınıp tamamlandı (#55).
+- **BLOCKED:** bu turda yok. Kapsam dışı bırakılanlar (yukarıdaki eleme):
+  insan/altyapı isteyen epikler (E10 auth, E12 deploy, E13 E2E, E14 demo)
+  ve tek oturuma sığmayan devasa ML epikleri (E4, E7) — Mock ile "bitti"
+  göstermeme kuralı gereği girilmedi.
+- **Varsayımlar:** (1) görev listesi issue başlığına değil kod boşluğuna göre
+  süzüldü; (2) EM-060 ölçek küçültme poligon köşesi + ufuk setini kırpır,
+  gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
+  (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
+  ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
+- **Final kapılar:** black 121 değişmez · mypy Success (82) · pylint 10.00/10 ·
+  bandit 0 · pytest **541 passed**.
+- **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
+- **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
+  (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
+  uçtan uca yük testiyle doğrula; (c) tamamlanan issue'ları kapatma kararını
+  ver; (d) draft PR'ı inceleme sonrası merge et.
