@@ -5,6 +5,21 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-051: Kabul edilen öneriden saha görev kartı (E5)
+  - Saha ekibi lideri kısa bir **görev talimatı** ister: nereye (**hedef** —
+    olay adı + koordinat), ne zaman (**varış** — ETA dk / planlanan varış ETA),
+    ne kadar tehlikeli (**risk notu** — EM-029 tepe bandı)
+  - Kabul edilen birimler `en_route` olduğu için canlı EM-052 öneri listesinden
+    çıkar — kart bu yüzden **EM-047 denetim kaydından** (öneri anlık görüntüsü)
+    yeniden kurulur; kaynak silinmişse snapshot alanlarına düşer, hedef olay
+    silinmişse kart üretilmez
+  - `src/services/task_instruction.py` (`generate_task_cards`) — **canlı
+    hesap**, yeni kalıcılık yok; aynı (kaynak, olay) için **en yeni**
+    `accept`/`edit` kararı esas alınır, kartlar olay + ETA sırasıyla döner
+  - Uçlar: `GET /api/v1/recommendations/task-cards` (`?event_key=` opsiyonel;
+    bilinmeyen olay 404) + `GET /api/v1/recommendations/task-cards/config`
+  - Operatör haritası (`/ui`): Konuşlanma panelinde **Görev kartları** bölümü —
+    panel açıkken karar sonrası kartlar otomatik tazelenir
 - EM-053: Çifte atama ve kaynak çakışma önleme (E5)
   - Koordinatör **aynı kaynağın iki yangına atanmasını** engellemek ister ki
     gerçek kapasite (EM-028) doğru hesaplansın

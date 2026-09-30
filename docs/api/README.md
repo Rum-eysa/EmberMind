@@ -295,6 +295,25 @@ Operatör haritasındaki Konuşlanma panelinde **Atamalar** bölümü aktif atam
 listesini, satır başına **Müsaite al** düğmesini ve "Biten olayları otomatik
 müsaite al" işlemini sunar.
 
+### Saha Görev Kartları (EM-051)
+
+Kabul edilen bir öneri saha ekibi için kısa bir **görev kartına** dönüştürülür:
+**hedef** (olay adı + enlem/boylam), **varış** (`eta_minutes`, planlanan
+`arrival_eta`, yol kipi ve mesafe) ve **risk notu** (EM-029 tepe bandı: seviye,
+indeks, ufuk). Kabul edilen birimler `en_route` olduğu için canlı öneri
+listesinden düşer; kart bu yüzden **EM-047 denetim kaydındaki anlık
+görüntüden** yeniden kurulur — yeni kalıcılık yoktur.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/recommendations/task-cards` | `?event_key=` opsiyonel; verilirse yalnızca o olayın kartları (bilinmeyen olay **404**), verilmezse tüm olayların kartları — olay + ETA sıralı `{count, event_key, cards, attribution}` | 
+| `GET /api/v1/recommendations/task-cards/config` | Panel tanımlayıcısı: kaynak, alanlar, kalıcılık yok |
+
+Aynı (kaynak, olay) için **en yeni** `accept`/`edit` kararı esas alınır;
+hedef olayı silinmiş kararlar kart üretmez, silinmiş kaynak snapshot
+alanlarına düşer. Operatör haritasındaki Konuşlanma panelinde **Görev
+kartları** bölümü panel açıkken karar sonrası otomatik tazelenir.
+
 ### Komutan Kapasite ve Risk Paneli (EM-073)
 ```
 GET /panel                       # tek panel komuta arayüzü (koyu tema, 60 sn otomatik yenileme)

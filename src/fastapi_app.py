@@ -36,6 +36,7 @@ from src.routes.road_network import register_road_network_routes
 from src.routes.scenario_share import register_scenario_share_routes
 from src.routes.spread import register_spread_routes
 from src.routes.synthetic import register_synthetic_routes
+from src.routes.task_instruction import register_task_instruction_routes
 from src.routes.whatif import register_whatif_routes
 from src.routes.whatif_history import register_whatif_history_routes
 from src.services.data_governance import attribution_for
@@ -395,6 +396,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_recommendation_routes(api, database, settings)
     register_recommendation_explain_routes(api, database, settings)
     register_recommendation_impact_routes(api, database, settings)
+    register_task_instruction_routes(api, database, settings)
     register_risk_panel_routes(api, database, settings)
     register_risk_index_routes(api, database, settings)
     register_design_system_routes(api, database, settings)

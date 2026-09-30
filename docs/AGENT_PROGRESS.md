@@ -47,6 +47,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 14 | EM-049 Kaynak tipine göre ETA — kuş uçuşu vs yol ağı (#49) | E5 | DONE | hava kaynakları (helikopter/İHA) kuş uçuşu ETA, kara ekipleri yol ağı; öneri/rota/konuşlanmada `travel_mode` |
 | 15 | EM-048 Önerinin etki karşılaştırması (#48) | E5 | DONE | "uygulanırsa" vs "uygulanmazsa" risk ufuk bazında yan yana; EM-056 re-pricing motoru + EM-052 önerileri; canlı/tavsiye, kalıcılık yok |
 | 16 | EM-053 Çifte atama / kaynak çakışma önleme (#53) | E5 | DONE | kabul/düzenle artık başka olaya atanmış birimi 409 ile engeller; müsaite alma + görev bitişi otomatik müsait; atama EM-047 denetim kaydından türer (migration yok) |
+| 17 | EM-051 Kabul edilen öneriden saha görev kartı (#51) | E5 | DONE | hedef (olay+koordinat) + varış (ETA/arrival_eta) + risk notu (EM-029 tepe bandı); kart EM-047 denetim anlık görüntüsünden canlı kurulur, kalıcılık yok |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -512,11 +513,38 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **675** (659 + 16 yeni).
 - **Commit:** `feat(EM-053): ...` (bu dal).
 
+### EM-051 — Kabul edilen öneriden saha görev kartı (#51)
+
+- **Kapsam:** `src/services/task_instruction.py` (`generate_task_cards`),
+  `src/routes/task_instruction.py` (`task-cards` + `…/config`),
+  `fastapi_app.py` route kaydı, `operator_map.html` (**Görev kartları**
+  bölümü: `toggleTaskCards`/`loadTaskCards`/`renderTaskCard` +
+  `refreshTaskCards` karar sonrası otomatik tazeleme),
+  `tests/unit/test_task_instruction.py` (15 test), CHANGELOG + docs/api.
+  **Migration/model/settings/route sayısı yok** — mevcut EM-047 denetim
+  tablosu okunur, yeni kalıcılık yoktur.
+- **Varsayımlar:** (1) kabul edilen birim `en_route` olup canlı EM-052
+  öneri listesinden düştüğü için kart **denetim anlık görüntüsünden**
+  (detail_json) yeniden kurulur; (2) aynı (kaynak, olay) için **en yeni**
+  `accept`/`edit` esas alınır (`release` kart üretmez — EM-053 ile tutarlı);
+  (3) hedef olay silinmişse kart atlanır, kaynak silinmişse snapshot
+  alanlarına düşülür; (4) risk notu ölçülebilir talep yoksa (`peak_risk_index`
+  null) taşınmaz.
+- **Kanıt:** kabul → kart hedef/koordinat/ETA/risk `kritik` alanlarıyla dolu;
+  ret kart yok; edit `arrival_minutes`'a düşer; bilinmeyen olay
+  `TaskInstructionError` (uç 404); olay filtresi + filtresiz tüm liste;
+  yeniden kabulde en yeni snapshot; `en_route`'dayken de üretilir; travel_mode
+  + arrival_eta taşınır; silinen kaynak snapshot'a düşer; silinen olay kart
+  üretmez; uçlar task-cards(200/404)/config; UI bağlantısı.
+- **Kapılar:** black(147 değişmez)/mypy(97)/pylint(10.00)/bandit(0) yeşil;
+  pytest **690** (675 + 15 yeni).
+- **Commit:** `feat(EM-051): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -529,8 +557,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 144 değişmez · mypy Success (95) · pylint 10.00/10 ·
-  bandit 0 · pytest **675 passed**.
+- **Final kapılar:** black 147 değişmez · mypy Success (97) · pylint 10.00/10 ·
+  bandit 0 · pytest **690 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

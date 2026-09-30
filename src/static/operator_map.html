@@ -111,6 +111,13 @@
         }
     #positioning-panel .db-release { color: #0277bd; border-color: #0277bd; }
     #positioning-panel .db:disabled { opacity: .4; cursor: not-allowed; }
+    /* EM-051: saha görev karti (hedef + varis + risk notu) */
+    #positioning-panel .tc-card {
+      border: 1px solid var(--border-color); border-radius: 6px;
+      padding: 6px 8px; margin-top: 6px;
+    }
+    #positioning-panel .tc-h { display: flex; justify-content: space-between; font-weight: 600; }
+    #positioning-panel .tc-meta { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
         /* EM-046: "neden?" gerekçe paneli (satır altı, aç/kapa) */
     #positioning-panel .why {
           flex-basis: 100%; background: #f5f3ff; border-left: 3px solid #4527a0;
@@ -268,6 +275,9 @@
     <button type="button" id="positioning-assign-btn" class="pi-btn"
       onclick="toggleAssignments()">Atamalar — çakışma önleme (EM-053)</button>
     <div id="positioning-assign" hidden></div>
+<button type="button" id="positioning-taskcards-btn" class="pi-btn"
+      onclick="toggleTaskCards()">Görev kartları (EM-051)</button>
+<div id="positioning-taskcards" hidden></div>
   </div>
 
   <div id="whatif-panel" class="panel" aria-live="polite">
@@ -768,6 +778,7 @@
       const after = j.resource_status_after || "";
       setStatus(`Karar kaydedildi (${label}) — ${p.name || p.resource_key}: ${after}`);
       reloadPositioning();
+      refreshTaskCards();
     } catch (err) {
       setStatus("Karar hatasi: " + err);
     }
@@ -853,6 +864,77 @@
     } catch (err) {
       setStatus("Otomatik birakma hatasi: " + err);
     }
+  }
+
+  // EM-051: kabul edilen onerilerden saha gorev kartlarini ac/kapa.
+  function toggleTaskCards() {
+    const box = document.getElementById("positioning-taskcards");
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    loadTaskCards();
+  }
+
+  // EM-051: panel aciksa karar/atama sonrasi kartlari tazele.
+  function refreshTaskCards() {
+    const box = document.getElementById("positioning-taskcards");
+    if (box && !box.hidden) loadTaskCards();
+  }
+
+  async function loadTaskCards() {
+    const box = document.getElementById("positioning-taskcards");
+    if (!box) return;
+    box.innerHTML = '<div class="empty">Yukleniyor…</div>';
+    const qs = exposureEventKey
+      ? "?event_key=" + encodeURIComponent(exposureEventKey) : "";
+    try {
+      const res = await fetch("/api/v1/recommendations/task-cards" + qs);
+      const j = await res.json();
+      if (!res.ok) {
+        box.innerHTML = '<div class="empty">'
+          + escapeHtml((j && j.detail && j.detail.error) || "Kartlar alinamadi.")
+          + "</div>";
+        return;
+      }
+      const cards = j.cards || [];
+      let html = '<div class="as-h">Görev kartı: <b>' + cards.length + '</b>'
+        + (exposureEventKey ? ' · olay: ' + escapeHtml(exposureEventKey) : '') + '</div>';
+      if (!cards.length) {
+        html += '<div class="empty">Kabul edilmiş görev yok.</div>';
+      } else {
+        for (const c of cards) html += renderTaskCard(c);
+      }
+      box.innerHTML = html;
+    } catch (err) {
+      box.innerHTML = '<div class="empty">Kartlar alinamadi.</div>';
+    }
+  }
+
+  function renderTaskCard(c) {
+    const t = c.target || {};
+    const rn = c.risk_note;
+    const risk = rn
+      ? `<span class="lv lv-${escapeHtml(rn.level || "normal")}">${escapeHtml(rn.level || "-")}</span>`
+        + ` risk ${escapeHtml(rn.risk_index != null ? rn.risk_index : "—")}`
+        + ` (T+${escapeHtml(rn.horizon_minutes != null ? rn.horizon_minutes : "—")} dk)`
+      : "risk notu yok";
+    const eta = c.eta_minutes != null
+      ? `ETA ${escapeHtml(c.eta_minutes)} dk` : "ETA —";
+    const travel = c.travel_mode ? ` · ${escapeHtml(c.travel_mode)}` : "";
+    const dist = c.distance_km != null ? ` · ${escapeHtml(c.distance_km)} km` : "";
+    const arrival = c.arrival_eta ? ` · varış ${escapeHtml(c.arrival_eta)}` : "";
+    const by = c.decided_by ? ` · ${escapeHtml(c.decided_by)}` : "";
+    return '<div class="tc-card">'
+      + '<div class="tc-h"><span>' + escapeHtml(c.resource_name || c.resource_key)
+      + ' (' + escapeHtml(c.resource_type || "?") + ' → '
+      + escapeHtml(c.resource_status || "?") + ')</span>'
+      + '<span>' + escapeHtml(t.name || c.event_key || "—") + '</span></div>'
+      + '<div class="tc-meta">Hedef: ' + escapeHtml(t.name || "—")
+      + (t.latitude != null ? ` (${escapeHtml(t.latitude)}, ${escapeHtml(t.longitude)})` : "")
+      + ` · ${eta}${travel}${dist}${arrival}</div>`
+      + '<div class="tc-meta">' + risk + ' · kabul: '
+      + escapeHtml(c.accepted_at || "—") + by + '</div>'
+      + '</div>';
   }
 
   // EM-046: bir oneri satiri icin "neden?" panelini ac/kapa (gerekce + reddedilenler).
