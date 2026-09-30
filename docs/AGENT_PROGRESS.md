@@ -34,7 +34,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 1 | EM-031 Kapasite kullanılabilirlik durum yönetimi (#31) | E3 | DONE | `en_route` (yolda) durumu sözlükte yoktu; durum→kapasite bağı kısmen var |
 | 2 | EM-029 Risk indeksi hesaplama (#29) | E3 | DONE | Risk(t)=yayılım talebi/kapasite ufuk bazlı hiç yoktu; eşikler yapılandırılabilir eklendi |
 | 3 | EM-030 Kapasite açığı zaman çizelgesi (#30) | E3 | DONE | EM-029 verisi üzerine çizgi grafik + enterpolasyonlu ilk kritik aşım dakikası |
-| 4 | EM-032 Eşik aşımı uyarısı (#32) | E3 | TODO | EM-029/030'a bağlı; histerezis + canlı besleme (LIVE "alert") |
+| 4 | EM-032 Eşik aşımı uyarısı (#32) | E3 | DONE | EM-029/030'a bağlı; histerezis (besleme peak-latch) + canlı besleme "alert" + görsel/sesli |
 | 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | TODO | EM-055 what-if'ine kapasite delta'sı eklenir (bu dalda yeni) |
 | 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | TODO | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
 
@@ -63,6 +63,12 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   (1.2). Motor yalnızca kesikli ufukta tahmin verdiği için aşım dakikası
   komşu iki ufuk arasındaki oranda **doğrusal enterpolasyon** ile bulunur;
   kapasite zamanla sabit alınır (anlık etkin kapasite, EM-028).
+- **EM-032 histerezis:** yeni tablo/migration yerine mevcut append-only canlı
+  besleme (EM-090 `alert` satırları) durum deposu olarak okundu → süreçler
+  arası (Celery/API) tutarlı. **peak-latch:** yalnızca önceki en yüksek
+  uyarılan bandın üstüne çıkınca uyarı; bu muhafazakâr davranış düşüş-sonrası
+  aynı tepeye dönüşte tekrar uyarmaz (kabul kriteri "tekrarları bastır"
+  ile tutarlı). Ses = WebAudio bip (dosya asset yok, kapsam büyütmeme).
 
 ## Görev logları
 
@@ -123,3 +129,23 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **Kapılar:** black/mypy(77)/pylint(10.00)/bandit(0) yeşil;
   pytest **493** (485 + 8 yeni).
 - **Commit:** `feat(EM-030): ...` (bu dal).
+
+### EM-032 — Eşik aşımı uyarısı, histerezis (#32) — DONE
+- **Eksik analizi:** Canlı beslemede `alert` türü ve EM-090 WebSocket/REST
+  altyapısı zaten vardı; ancak risk **seviye eskalasyonunda** uyarı yazan
+  bir değerlendirici ve operatörde **sesli** bildirim yoktu. Harita alert'i
+  yalnızca metin olarak flash'lyordu.
+- **Kapsam:** `src/config/settings.py` + `.env.example`
+  (`RISK_ALERTS_ENABLED`), `src/services/risk_alert.py`
+  (`evaluate_risk_alerts`, beslemeden `_last_alerted_index` peak-latch
+  histerezisi; normal uyarmaz), `src/routes/risk_index.py`
+  (`POST /api/v1/risk-index/alerts/evaluate` — session commit ile kalıcı),
+  `operator_map.html` (`#alert-banner` görsel bant, `beepTwice` WebAudio
+  sesli bildirim, `🔔 Ses` aç/kapa + ilk-jest audio prime, `navigator.vibrate`,
+  30 sn'de bir evaluate yoklaması), `tests/unit/test_risk_alert.py`
+  (9 test), CHANGELOG + docs/api.
+- **Kanıt:** dikkat'e çıkışta 1 uyarı; aynı seviyede tekrar→0 (histerezis);
+  kritik'e daha çıkış→yeni uyarı; normal/forecast-yok/kapalı→0 (test).
+- **Kapılar:** black/mypy(78)/pylint(10.00)/bandit(0) yeşil;
+  pytest **502** (493 + 9 yeni).
+- **Commit:** `feat(EM-032): ...` (bu dal).

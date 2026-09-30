@@ -248,6 +248,23 @@ kartı talep (ha/saat) eğrisini yatay etkin kapasite çizgisi üzerine çizer
 (satır içi SVG — harici grafik kütüphanesi yok) ve ilk kritik dakikasını
 başlıkta gösterir.
 
+### Eşik Aşımı Uyarısı ve Histerezis (EM-032)
+```
+POST /api/v1/risk-index/alerts/evaluate  # aktif olayların risk seviyesini değerlendirir
+```
+Operatör ekranı sürekli izlemeden kritik anı yakalamak ister. Uç nokta EM-029
+`Risk(t)` pik seviyesini her olay için yeniden hesaplar; risk **bir üst seviye**
+çıktığında canlı beslemeye (EM-090 `alert`) tek bir kayıt yazar — WebSocket/REST
+ile bağlı tüm operatör haritalarına anında akar. **Histerezis** tekrar eden
+uyarıları bastırır: durum deposu olarak append-only besleme okunur (yeni
+migration yok, Celery/API süreçleri arası tutarlı); bir olay için yalnızca
+daha önce uyarılan en yüksek bandın **üstüne** çıkıldığında uyarı üretilir,
+aynı seviyedeki tekrar yoklamalar sessizdir; `normal` hiç uyarı üretmez.
+Özellik `RISK_ALERTS_ENABLED` (vars. `true`) ile kapatılabilir. Harita
+canvas'ında uyarı **görsel bant** (kırmızı, yanıp sönen) + **sesli bip**
+(WebAudio — dosya yok) + titreşim olarak görünür; `🔔 Ses` düğmesi sesi aç/kapa
+yapar (tarayıcı otomatik-oynatma kilidi ilk kullanıcı hareketiyle açılır).
+
 ### What-If Rüzgâr Senaryosu ve Dinamik Yeniden Hesaplama (EM-055)
 ```
 GET  /api/v1/whatif/config  # yeniden hesaplama hedef süresi (sn) ve kalıcılık bilgisi

@@ -248,6 +248,19 @@ class Config:
         os.getenv("RISK_INDEX_CRITICAL_NEAR_MAX", "1.2")
     )
 
+    # Threshold-crossing alert (EM-032, Epic E3)
+    # When an event's risk band escalates a level up we push one "alert"
+    # entry onto the live feed (visual + audio on the operator map). Repeat
+    # alerts for the same event are suppressed via hysteresis: an alert only
+    # fires above the highest band already alerted for that event (read back
+    # from the append-only feed), so re-evaluations at the same level are quiet.
+    RISK_ALERTS_ENABLED = os.getenv("RISK_ALERTS_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
     # Capacity unit definition & normalization (EM-028, Epic E3)
     # Default "effective suppression capacity" (hectare/hour) assumed per unit
     # of each deployable resource type. These seed the admin-editable

@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 
 from src.database import Database
+from src.services.risk_alert import evaluate_risk_alerts
 from src.services.risk_index import (
     RISK_ATTRIBUTION,
     RISK_LEVELS,
@@ -42,6 +43,16 @@ def register_risk_index_routes(api: FastAPI, database: Database, settings: Any) 
                 status_code=404,
                 detail={"status": "error", "error": str(exc)},
             ) from exc
+
+    @api.post("/api/v1/risk-index/alerts/evaluate", tags=["panel"])
+    def risk_index_alerts_evaluate() -> dict[str, Any]:
+        """Score active events and raise an escalation alert on the live feed.
+
+        EM-032: idempotent on re-evaluation — an alert is only written when an
+        event climbs above the highest band already alerted for it (hysteresis).
+        """
+        with database.session() as session:
+            return evaluate_risk_alerts(session, settings)
 
     @api.get("/api/v1/risk-index", tags=["panel"])
     def risk_index(

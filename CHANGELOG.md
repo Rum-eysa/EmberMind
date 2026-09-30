@@ -5,6 +5,22 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-032: Eşik aşımı uyarısı — histerezis (E3)
+  - `src/services/risk_alert.py`: aktif olayların EM-029 `Risk(t)` pik
+    seviyesini değerlendirir; risk **bir üst seviyeye çıktığında** canlı
+    beslemeye (EM-090) tek bir `alert` kaydı yazar (kaynak `risk_alert`)
+  - **Histerezis (tekrar bastırma):** durum deposu olarak append-only canlı
+    besleme okunur (yeni tablo/migration yok, süreçler arası çalışır);
+    bir olay için yalnızca **daha önce uyarılan en yüksek bandın üstüne**
+    çıkıldığında yeni uyarı üretilir — aynı seviyede tekrar yoklamalar
+    sessiz kalır; `normal` seviye hiç uyarı üretmez
+  - `POST /api/v1/risk-index/alerts/evaluate` — değerlendirmeyi çalıştırır
+    ve uyarıları beslemeye yazar (`RISK_ALERTS_ENABLED`, vars. `true`)
+  - Operatör haritası (`/ui`): uyarı geldiğinde **görsel bant** (kırmızı,
+    yanıp sönen `#alert-banner`) + **sesli bildirim** (WebAudio ile
+    üretilen iki-tonlu bip — ses dosyası yok) + titreşim; `🔔 Ses`
+    aç/kapa düğmesi; harita 30 sn'de bir değerlendirmeyi yoklar
+    (uyarılar WebSocket/REST ile tüm istemcilere akar)
 - EM-030: Kapasite açığı zaman çizelgesi (E3)
   - `capacity_gap_timeline` (EM-029 servisinde): her aktif olay için ufuk
     bazlı **zaman serisi** (dakika, talep, sabit etkin kapasite, açık,
