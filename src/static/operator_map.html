@@ -87,6 +87,23 @@
         }
     #positioning-panel .mode-air { background: #1565c0; }
     #positioning-panel .mode-road { background: #6d4c41; }
+    /* EM-048: etki karsilastirmasi butonu + yan yana risk tablosu */
+    #positioning-panel .pi-btn {
+          width: 100%; margin-top: 6px; padding: 5px 0; cursor: pointer;
+          font-size: var(--font-size-sm); border: 1px solid #4527a0;
+          border-radius: 4px; background: #ede7f6; color: #4527a0;
+        }
+    #positioning-panel .imp-h { margin-top: 6px; font-size: var(--font-size-sm); }
+    #positioning-panel .imp-c { color: var(--text-secondary); font-size: var(--font-size-xs); margin: 2px 0 6px; }
+    #positioning-panel .imp-t { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+    #positioning-panel .imp-t th, #positioning-panel .imp-t td {
+          border: 1px solid var(--border-color); padding: 2px 4px; text-align: center;
+        }
+    #positioning-panel .lv { border-radius: 3px; font-weight: 700; }
+    #positioning-panel .lv-normal { background: #e8f5e9; color: #1b5e20; }
+    #positioning-panel .lv-dikkat { background: #fff8e1; color: #f57f17; }
+    #positioning-panel .lv-kritik-yakin { background: #fff3e0; color: #e65100; }
+    #positioning-panel .lv-kritik { background: #ffebee; color: #b71c1c; }
     #positioning-panel .db:disabled { opacity: .4; cursor: not-allowed; }
         /* EM-046: "neden?" gerekçe paneli (satır altı, aç/kapa) */
     #positioning-panel .why {
@@ -239,6 +256,9 @@
   <div id="positioning-panel" class="panel" aria-live="polite">
     <h1>Konuşlanma Önerileri <span id="positioning-count" class="count"></span></h1>
     <div id="positioning-list"></div>
+    <button type="button" id="positioning-impact-btn" class="pi-btn" hidden
+      onclick="loadImpactComparison()">Etki karşılaştırması (uygulanırsa vs uygulanmazsa)</button>
+    <div id="positioning-impact" hidden></div>
   </div>
 
   <div id="whatif-panel" class="panel" aria-live="polite">
@@ -599,6 +619,11 @@
     const points = positioningFeatures.filter(
       f => f.properties && f.properties.kind === "deployment_point");
     if (countEl) countEl.textContent = points.length ? `(${points.length})` : "(0)";
+    // EM-048: uygulanirsA vs uygulanmazsa etki karsilastirmasi butonu.
+    const impactBtn = document.getElementById("positioning-impact-btn");
+    if (impactBtn) impactBtn.hidden = !points.length || !exposureEventKey;
+    const impactBox = document.getElementById("positioning-impact");
+    if (impactBox) { impactBox.hidden = true; impactBox.innerHTML = ""; }
     if (!points.length) {
       box.innerHTML = '<div class="empty">Öneri yok. Yukarıdan bir olay seçin; '
         + 'seçili olay için müsait kaynak ve yol ağı olmalı.</div>';
@@ -647,6 +672,55 @@
       });
       box.appendChild(row);
     }
+  }
+
+  // EM-048: öneri uygulanırsa/uygulanmazsa risk karsilastirmasini getir, yan yana göster.
+  async function loadImpactComparison() {
+    const box = document.getElementById("positioning-impact");
+    if (!box || !exposureEventKey) return;
+    if (!box.hidden && box.dataset.loaded === exposureEventKey) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<div class="empty">Hesaplanıyor…</div>';
+    try {
+      const res = await fetch("/api/v1/recommendations/impact?event_key="
+        + encodeURIComponent(exposureEventKey));
+      const j = await res.json();
+      if (!res.ok) {
+        box.innerHTML = '<div class="empty">'
+          + escapeHtml((j && j.detail && j.detail.error) || "Karsilastirma alinamadi.")
+          + "</div>";
+        return;
+      }
+      box.dataset.loaded = exposureEventKey;
+      box.innerHTML = renderImpact(j);
+    } catch (err) {
+      box.innerHTML = '<div class="empty">Karsilastirma alinamadi.</div>';
+    }
+  }
+
+  function renderImpact(j) {
+    const s = j.summary || {};
+    const cap = j.capacity || {};
+    const rows = (j.side_by_side || []).map(r => {
+      const na = r.if_not_applied || {}, ap = r.if_applied || {};
+      return "<tr>"
+        + `<td>T+${escapeHtml(r.horizon_minutes)} dk</td>`
+        + `<td class="lv lv-${escapeHtml(na.level || "normal")}">${escapeHtml(na.level || "-")}</td>`
+        + `<td class="lv lv-${escapeHtml(ap.level || "normal")}">${escapeHtml(ap.level || "-")}</td>`
+        + `<td>${escapeHtml(r.risk_index_delta != null ? r.risk_index_delta : "—")}</td>`
+        + "</tr>";
+    }).join("");
+    const committed = (j.committed_resources || [])
+      .map(c => `${escapeHtml(c.name || c.resource_key)} (${escapeHtml(c.resource_type)})`)
+      .join(", ") || "—";
+    const value = s.decision_has_value ? "Evet" : "Hayır";
+    return `<div class="imp-h">Kararın değeri: <b>${value}</b>`
+      + ` &middot; bu olaya ayrılan kapasite: <b>${escapeHtml(cap.committed_ha_h)}</b>`
+      + ` ${escapeHtml(j.unit || "")}/sa`
+      + `<div class="imp-c">Önerilen kaynaklar: ${committed}</div>`
+      + `<table class="imp-t"><thead><tr><th>Ufuk</th><th>Uygulanmazsa</th>`
+      + `<th>Uygulanırsa</th><th>Δ risk</th></tr></thead>`
+      + `<tbody>${rows}</tbody></table></div>`;
   }
 
   // EM-047: kabul/ret/düzenleme kararini sunucuya yaz ve kaynagi guncelle.

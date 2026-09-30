@@ -5,6 +5,23 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-048: Önerinin etki karşılaştırması — uygulanırsa vs uygulanmazsa (E5)
+  - Komutan **kararın değerini** görmek ister: EM-052 önerisi **uygulanırsa** ve
+    **uygulanmazsa** olayın risk seviyeleri **ufuk bazında yan yana**
+  - Karşılaştırma EM-056 re-pricing motorunu kullanır: **talip (yayılım talebi)
+    sabit**, yalnızca bu olaya ayrılan **kapasite** değişir — *uygulanırsa* önerilen
+    ulaşılabilir müdahale kaynakları olaya ayrılır (tam etkin kapasite),
+    *uygulanmazsa* general havuzda bekletilir ve bu olayın kapasitesi onların
+    ha/saat toplamı kadar düşürülür
+  - `src/services/recommendation_impact.py` (`compare_impact`) — **canlı**, hiçbir
+    kaynak rezerve edilmez/değiştirilmez/yazılmaz (yalnızca tavsiye)
+  - Uçlar: `GET /api/v1/recommendations/impact` (`?event_key=` zorunlu) +
+    `GET /…/impact/config`; olay yoksa **404**, yol ağı boşsa/ölçülecek tahmin
+    yoksa **409**. Yanıt: `side_by_side[]` (ufuk başına `if_not_applied`/`if_applied`
+    seviye+risk+`risk_index_delta`), `capacity` (applied/not_applied/committed),
+    `committed_resources`, `summary.decision_has_value`
+  - Operatör haritası (`/ui`): Konuşlanma Önerileri panelinde **Etki
+    karşılaştırması** düğmesi → uygulanırsa/uygulanmazsa risk tablosu
 - EM-049: Kaynak tipine göre varış süresi (ETA) — kuş uçuşu vs yol ağı (E5)
   - EM-052 tüm kaynakları (ekip, helikopter, İHA) yol ağı üzerinden
     puanlıyordu. EM-049 **seyahat modunu** ayırır: **hava** kaynakları

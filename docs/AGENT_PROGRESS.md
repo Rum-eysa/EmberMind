@@ -45,6 +45,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 12 | EM-047 Öneri kabul/ret/düzenleme (#47) | E5 | DONE | EM-052 önerisi üzerinde 3 aksiyon; kabul/düzenle kaynağı yolda'ya çeker; her karar denetim kaydı |
 | 13 | EM-046 Öneri gerekçesi / açıklanabilirlik (#46) | E5 | DONE | her öneri için "neden?" + reddedilen alternatifler ve gerekçeleri; build_proposals'ı açıklar, yeniden sıralamaz |
 | 14 | EM-049 Kaynak tipine göre ETA — kuş uçuşu vs yol ağı (#49) | E5 | DONE | hava kaynakları (helikopter/İHA) kuş uçuşu ETA, kara ekipleri yol ağı; öneri/rota/konuşlanmada `travel_mode` |
+| 15 | EM-048 Önerinin etki karşılaştırması (#48) | E5 | DONE | "uygulanırsa" vs "uygulanmazsa" risk ufuk bazında yan yana; EM-056 re-pricing motoru + EM-052 önerileri; canlı/tavsiye, kalıcılık yok |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -450,11 +451,37 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **647** (638 + 9 yeni).
 - **Commit:** `feat(EM-049): ...` (bu dal).
 
+### EM-048 — Önerinin etki karşılaştırması (#48) — DONE
+- **Eksik analizi:** EM-046/047 öneriyi açıklıyor ve karar verdiriyor AMA
+  "öneri **uygulanırsa** vs **uygulanmazsa**" riskin nasıl değiştiğini yan yana
+  gösteren hiçbir şey yoktu (`impact`/`compare`/`applied` araması boş). Komutan
+  kararın değerini görsün ister. E5 Must (sp3).
+- **Kapsam:** `src/services/recommendation_impact.py` (`compare_impact`),
+  `src/routes/recommendation_impact.py` (2 uç, `fastapi_app`'e kaydedildi),
+  `operator_map.html` (Konuşlanma panelinde **Etki karşılaştırması** düğmesi +
+  `loadImpactComparison`/`renderImpact` + tablo CSS),
+  `tests/unit/test_recommendation_impact.py` (12 test), CHANGELOG + docs/api.
+  **Migration/model/settings yok** — EM-056 + EM-029 motorları yeniden kullanılır.
+- **Varsayımlar:** (1) **talip sabit**, yalnızca bu olaya ayrılan EM-028 kapasite
+  değişir; uygulanırsa=tam etkin kapasite, uygulanmazsa=etkin − önerilen
+  ulaşılabilir kaynakların ha/saat toplamı; (2) yalnızca `kind==
+  suppression_resource` önerileri ayrılan sayılır (crew_bases zaten kapasiteye
+  girmez); (3) canlı/tavsiye — hiçbir kaynak rezerve edilmez; (4) karşılaştırılacak
+  yayılım tahmini yoksa `ImpactError`→409.
+- **Kanıt:** 2 müsait ekip (biri ulaşılabilir, biri ada/kopuk) → applied 4.0,
+  committed 2.0, not_applied 2.0; side_by_side 3 ufuk, tüm `risk_index_delta<=0`
+  ve en az biri <0, `decision_has_value` True; öneri yoksa committed 0 → delta 0 →
+  False; bilinmeyen olay→PositioningError; boş ağ→RoadNetworkError; tahmin yoksa
+  ImpactError; uçlar 200/404/422/config; UI `loadImpactComparison`/`positioning-impact`.
+- **Kapılar:** black(143 değişmez)/mypy(95)/pylint(10.00)/bandit(0) yeşil;
+  pytest **659** (647 + 12 yeni).
+- **Commit:** `feat(EM-048): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -467,8 +494,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 140 değişmez · mypy Success (93) · pylint 10.00/10 ·
-  bandit 0 · pytest **647 passed**.
+- **Final kapılar:** black 143 değişmez · mypy Success (95) · pylint 10.00/10 ·
+  bandit 0 · pytest **659 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

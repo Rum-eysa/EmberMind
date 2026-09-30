@@ -246,6 +246,28 @@ sayılarla çelişmez ve **canlı** hesaplanır (kayıt tutulmaz). Yanıtta:
 boşsa **409** döner. Operatör haritasındaki her öneri satırında **Neden?**
 düğmesi bu paneli satır altında açar.
 
+### Öneri Etki Karşılaştırması (EM-048)
+```
+GET /api/v1/recommendations/impact         # uygulanırsa vs uygulanmazsa risk (ufuk bazında)
+GET /api/v1/recommendations/impact/config  # panel tanımı
+```
+Komutan **kararın değerini** görmek ister. `impact`, EM-056 re-pricing motorunu
+kullanır: yayılım **talebi sabit** tutulur, yalnızca bu olaya ayrılan EM-028
+**kapasite** değiştirilir. *Uygulanırsa* = EM-052'nin önerdiği ulaşılabilir
+müdahale kaynakları olaya ayrılır (tam etkin kapasite); *uygulanmazsa* = bu
+kaynaklar general havuzda bekletilir ve olayın kapasitesi onların ha/saat
+toplamı kadar azalır. **Canlı** ve **yalnızca tavsiye**dir — hiçbir kaynak
+rezerve edilmez veya değiştirilmez. Yanıt:
+- `side_by_side[]`: her ufuk için `if_not_applied` ve `if_applied` (kapasite,
+  `gap_ha_h`, `risk_index`, `level`) + `risk_index_delta` (negatif = uygulamak
+  riske düşürür) + `resolves_gap`
+- `capacity`: `applied_ha_h` / `not_applied_ha_h` / `committed_ha_h`
+- `committed_resources`: karşılaştırmaya konu önerilen kaynaklar (EM-049
+  `travel_mode` dahil) ve `summary.decision_has_value`
+`event_key` (zorunlu) alır; olay bulunamazsa **404**, yol ağı boşsa ya da
+karşılaştırılacak yayılım tahmini yoksa **409** döner. Operatör haritasındaki
+Konuşlanma Önerileri panelinde **Etki karşılaştırması** düğmesi tabloyu açar.
+
 ### Komutan Kapasite ve Risk Paneli (EM-073)
 ```
 GET /panel                       # tek panel komuta arayüzü (koyu tema, 60 sn otomatik yenileme)
