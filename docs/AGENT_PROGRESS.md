@@ -33,7 +33,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 |---|-------|------|-------|---------|
 | 1 | EM-031 Kapasite kullanılabilirlik durum yönetimi (#31) | E3 | DONE | `en_route` (yolda) durumu sözlükte yoktu; durum→kapasite bağı kısmen var |
 | 2 | EM-029 Risk indeksi hesaplama (#29) | E3 | DONE | Risk(t)=yayılım talebi/kapasite ufuk bazlı hiç yoktu; eşikler yapılandırılabilir eklendi |
-| 3 | EM-030 Kapasite açığı zaman çizelgesi (#30) | E3 | TODO | EM-029'a bağlı; çizgi grafik + ilk eşik aşım zamanı |
+| 3 | EM-030 Kapasite açığı zaman çizelgesi (#30) | E3 | DONE | EM-029 verisi üzerine çizgi grafik + enterpolasyonlu ilk kritik aşım dakikası |
 | 4 | EM-032 Eşik aşımı uyarısı (#32) | E3 | TODO | EM-029/030'a bağlı; histerezis + canlı besleme (LIVE "alert") |
 | 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | TODO | EM-055 what-if'ine kapasite delta'sı eklenir (bu dalda yeni) |
 | 6 | EM-060 Yeniden hesaplama performans bütçesi (#60) | E6 | TODO | p95 ölçümü + aşım uyarısı + otomatik ölçek küçültme |
@@ -58,6 +58,11 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **EM-031**: `out_of_service` korunur, `en_route` eklenir; kapasite hesabı
   yalnızca `available` saydığı için `en_route` otomatik hariç → "durum değişimi
   indeksi hemen etkiler" kriteri bu yolla sağlanır.
+- **EM-030 ilk aşım tanımı:** "eşik aşımı" örnek metni ("T+47 dk'da kritik")
+  kritik bandına giriş olarak yorumlandı → eşik `RISK_INDEX_CRITICAL_NEAR_MAX`
+  (1.2). Motor yalnızca kesikli ufukta tahmin verdiği için aşım dakikası
+  komşu iki ufuk arasındaki oranda **doğrusal enterpolasyon** ile bulunur;
+  kapasite zamanla sabit alınır (anlık etkin kapasite, EM-028).
 
 ## Görev logları
 
@@ -99,3 +104,22 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 - **Kapılar:** black/mypy(77 dosya)/pylint(10.00)/bandit(0) yeşil;
   pytest **485** (467 + 18 yeni).
 - **Commit:** `feat(EM-029): ...` (bu dal).
+
+### EM-030 — Kapasite açığı zaman çizelgesi (#30) — DONE
+- **Eksik analizi:** EM-029 olay×ufuk verisini sayısal tablo olarak
+  veriyordu; issue zaman ekseninde **çizgi grafik** + "ilk eşik aşım
+  zamanı" istiyordu. Ayrı depolama/servis gerekmez → EM-029 servisinde
+  `capacity_gap_timeline` + `_first_exceedance` eklendi (veri kaynakları
+  yeniden kullanıldı).
+- **Kapsam:** `src/services/risk_index.py` (`capacity_gap_timeline`,
+  `_first_exceedance` enterpolasyonu), `src/routes/risk_index.py`
+  (`GET /api/v1/risk-index/timeline`), `risk_panel.html` **Kapasite Açığı
+  Zaman Çizelgesi** kartı (satır içi SVG talep vs kapasite çizgisi, kritik
+  aşım işaretçisi, başlıkta T+dk), `tests/unit/test_risk_index.py` (+8
+  timeline testi: seri/enterpolasyon T+100, aşım yok, sıfır kapasite,
+  en-erken-özet, endpoint 200/404, HTML), CHANGELOG + docs/api.
+- **Karar:** harici grafik kütüphanesi eklenmedi (kapsam büyütmeme);
+  token tabanlı satır içi SVG. Enterpolasyon varsayımı yukarıda.
+- **Kapılar:** black/mypy(77)/pylint(10.00)/bandit(0) yeşil;
+  pytest **493** (485 + 8 yeni).
+- **Commit:** `feat(EM-030): ...` (bu dal).

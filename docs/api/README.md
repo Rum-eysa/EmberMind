@@ -231,6 +231,23 @@ varsa oran ölçülemez: `risk_index: null`, seviye `kritik`. Bilinmeyen
 kartı olay × ufuk tablosunu renk kodlu gösterir. EM-073 bölge panelinin
 FWI tabanlı `risk_index` alanından **bağımsızdır**, onu değiştirmez.
 
+### Kapasite Açığı Zaman Çizelgesi (EM-030)
+```
+GET /api/v1/risk-index/timeline  # olay bazlı talep/kapasite zaman serisi + ilk kritik aşım
+```
+Komutanın "kapasitem ne zaman yetmez?" sorusu. Aynı talep/kapasite verisini
+ufuk boyunca **zaman serisine** dökür (`series[*] = {minute, demand_ha_h,
+capacity_ha_h, gap_ha_h, risk_index, level}`). Motor yalnızca kesikli
+ufuklarda (30/60/120) birikimli tahmin ürettiği için, kritik banda giriş
+(`risk_index >= RISK_INDEX_CRITICAL_NEAR_MAX`) **ufuklar arası doğrusal
+enterpolasyonla** bir dakikaya indirgenir (`first_exceedance_minute`,
+örn. `T+47`); ilk ufuk zaten aşmışsa o ufuk (muhafazakâr üst sınır),
+ufuk penceresi içinde hiç aşılmazsa `null` döner. `summary` en erken
+aşım yapan olayı işaret eder. Panelde **Kapasite Açığı Zaman Çizelgesi**
+kartı talep (ha/saat) eğrisini yatay etkin kapasite çizgisi üzerine çizer
+(satır içi SVG — harici grafik kütüphanesi yok) ve ilk kritik dakikasını
+başlıkta gösterir.
+
 ### What-If Rüzgâr Senaryosu ve Dinamik Yeniden Hesaplama (EM-055)
 ```
 GET  /api/v1/whatif/config  # yeniden hesaplama hedef süresi (sn) ve kalıcılık bilgisi

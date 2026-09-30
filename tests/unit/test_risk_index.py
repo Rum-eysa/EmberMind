@@ -12,6 +12,7 @@ from src.models.spatial import FireEvent, FireForecast
 from src.services.risk_index import (
     RISK_LEVELS,
     RiskIndexError,
+    capacity_gap_timeline,
     classify_risk,
     compute_risk_index,
     demand_ha_h,
@@ -301,3 +302,114 @@ def test_panel_page_embeds_risk_index_card(client):
     html = response.text
     assert 'id="risk-index"' in html
     assert "/api/v1/risk-index" in html
+
+
+# ---------------------------------------------------- EM-030 timeline -----
+
+
+def _seed_timeline_scene(session):
+    """Five crews (10.0 ha/h) with demand 4/6/15 ha/h across 30/60/120.
+
+    Risk ratio is 0.4/0.6/1.5, so the kritik band (>=1.2) is first crossed
+    between the 60 and 120 dk horizons; linear interpolation lands on T+100.
+    """
+    _event(session, key="EVT-TL")
+    for index in range(1, 6):
+        _resource(session, f"TL-C{index}")
+    _forecast(session, "EVT-TL", 30, 2.0)  # 2/30*60 = 4.0
+    _forecast(session, "EVT-TL", 60, 6.0)  # 6/60*60 = 6.0
+    _forecast(session, "EVT-TL", 120, 30.0)  # 30/120*60 = 15.0
+
+
+def test_timeline_series_shape_and_gap(session):
+    _seed_timeline_scene(session)
+    payload = capacity_gap_timeline(session, _Settings())
+    assert payload["panel"] == "capacity_gap_timeline"
+    assert payload["unit"] == "ha/saat"
+    assert payload["exceedance_level"] == "kritik"
+    event = payload["events"][0]
+    assert event["event_key"] == "EVT-TL"
+    minutes = [row["minute"] for row in event["series"]]
+    assert minutes == [30, 60, 120]
+    by_min = {row["minute"]: row for row in event["series"]}
+    assert by_min[30]["capacity_ha_h"] == pytest.approx(10.0)
+    assert by_min[30]["gap_ha_h"] == pytest.approx(0.0)
+    assert by_min[120]["demand_ha_h"] == pytest.approx(15.0)
+    assert by_min[120]["gap_ha_h"] == pytest.approx(5.0)
+    assert by_min[120]["level"] == "kritik"
+
+
+def test_timeline_first_exceedance_interpolates_minute(session):
+    _seed_timeline_scene(session)
+    payload = capacity_gap_timeline(session, _Settings())
+    event = payload["events"][0]
+    assert event["exceedance_threshold"] == pytest.approx(1.2)
+    # 0.6 -> 1.5 across 60..120 dk crosses 1.2 at 60 + (0.6/0.9)*60 = 100.
+    assert event["first_exceedance_minute"] == pytest.approx(100.0)
+    assert event["first_exceedance_level"] == "kritik"
+    assert payload["summary"]["first_exceedance_event"] == "EVT-TL"
+    assert payload["summary"]["first_exceedance_minute"] == pytest.approx(100.0)
+
+
+def test_timeline_no_exceedance_within_horizon_window(session):
+    _event(session, key="EVT-TL")
+    _resource(session, "TL-C1")  # capacity 2.0
+    _resource(session, "TL-C2")
+    _resource(session, "TL-C3")
+    _resource(session, "TL-C4")
+    _resource(session, "TL-C5")  # 10.0 total; demand 2 -> ratio 0.2 always low
+    _forecast(session, "EVT-TL", 30, 1.0)  # demand 2.0 -> ratio 0.2
+    payload = capacity_gap_timeline(session, _Settings())
+    event = payload["events"][0]
+    assert event["first_exceedance_minute"] is None
+    assert event["first_exceedance_level"] is None
+    assert payload["summary"]["events_over_threshold"] == 0
+
+
+def test_timeline_zero_capacity_exceeds_at_first_horizon(session):
+    _event(session, key="EVT-TL")
+    _forecast(session, "EVT-TL", 30, 2.0)
+    _forecast(session, "EVT-TL", 60, 6.0)
+    payload = capacity_gap_timeline(session, _Settings())
+    event = payload["events"][0]
+    # No capacity -> risk unmeasurable (None) -> worst case at first horizon.
+    assert event["series"][0]["risk_index"] is None
+    assert event["first_exceedance_minute"] == pytest.approx(30.0)
+
+
+def test_timeline_summary_picks_soonest_event(session):
+    _seed_timeline_scene(session)
+    _event(session, key="EVT-TL2", lat=39.0, lon=28.0)
+    _forecast(session, "EVT-TL2", 30, 20.0)  # demand 40 -> ratio 4.0 immediately
+    payload = capacity_gap_timeline(session, _Settings())
+    # EVT-TL2 already over at its first horizon (30 dk) -> soonest.
+    assert payload["summary"]["first_exceedance_event"] == "EVT-TL2"
+    assert payload["summary"]["first_exceedance_minute"] == pytest.approx(30.0)
+
+
+def test_timeline_endpoint_returns_series(client, session):
+    _seed_timeline_scene(session)
+    session.flush()
+    response = client.get("/api/v1/risk-index/timeline")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["panel"] == "capacity_gap_timeline"
+    assert body["events"][0]["series"]
+
+
+def test_timeline_endpoint_404_for_unknown_event(client, session):
+    _event(session)
+    session.flush()
+    response = client.get(
+        "/api/v1/risk-index/timeline", params={"event_key": "EVT-YOK"}
+    )
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"]["error"]
+
+
+def test_panel_page_embeds_timeline_chart(client):
+    response = client.get("/panel")
+    assert response.status_code == 200
+    html = response.text
+    assert 'id="gap-chart"' in html
+    assert "/api/v1/risk-index/timeline" in html

@@ -5,6 +5,18 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-030: Kapasite açığı zaman çizelgesi (E3)
+  - `capacity_gap_timeline` (EM-029 servisinde): her aktif olay için ufuk
+    bazlı **zaman serisi** (dakika, talep, sabit etkin kapasite, açık,
+    risk, seviye) ve **ilk eşik aşım dakikası** — kritik banda
+    (`risk_index >= RISK_INDEX_CRITICAL_NEAR_MAX`) giriş, ufuklar arası
+    **doğrusal enterpolasyonla** bulunur (örn. `T+47 dk`); ilk ufuk zaten
+    aşmışsa o ufuk (muhafazakâr üst sınır), hiç aşılmazsa `null`
+  - Özet: en erken aşım yapan olay ve dakikası (`first_exceedance_event`)
+  - `GET /api/v1/risk-index/timeline[?event_key=]` (bilinmeyen olay 404)
+  - Komutan paneli (`/panel`): **Kapasite Açığı Zaman Çizelgesi** kartı —
+    talep vs kapasite **çizgi grafiği** (satır içi SVG, harici kütüphane
+    yok) ve başlıkta "Kapasite ne zaman yetmez? T+dk'da kritik"
 - EM-029: Operasyonel risk indeksi — Risk(t) (E3)
   - `src/services/risk_index.py`: **Risk(t) = yayılım talebi / etkin
     kapasite** (iki taraf da EM-028 ha/saat biriminde, oran birimsiz);

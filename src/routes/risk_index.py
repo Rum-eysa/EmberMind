@@ -8,6 +8,7 @@ from src.services.risk_index import (
     RISK_ATTRIBUTION,
     RISK_LEVELS,
     RiskIndexError,
+    capacity_gap_timeline,
     compute_risk_index,
     level_thresholds,
 )
@@ -27,6 +28,20 @@ def register_risk_index_routes(api: FastAPI, database: Database, settings: Any) 
             ),
             "attribution": RISK_ATTRIBUTION,
         }
+
+    @api.get("/api/v1/risk-index/timeline", tags=["panel"])
+    def risk_index_timeline(
+        event_key: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        """Capacity-gap time series + first kritik exceedance minute (EM-030)."""
+        try:
+            with database.session() as session:
+                return capacity_gap_timeline(session, settings, event_key)
+        except RiskIndexError as exc:
+            raise HTTPException(
+                status_code=404,
+                detail={"status": "error", "error": str(exc)},
+            ) from exc
 
     @api.get("/api/v1/risk-index", tags=["panel"])
     def risk_index(

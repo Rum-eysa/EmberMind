@@ -217,3 +217,109 @@ def compute_risk_index(
             "level_counts": level_counts,
         },
     }
+
+
+def _first_exceedance(
+    points: list[tuple[int, float | None]], threshold: float
+) -> float | None:
+    """Earliest minute the risk ratio reaches ``threshold`` (entering kritik).
+
+    ``points`` are ``(horizon_minute, risk_ratio)`` ascending by horizon, where
+    ``risk_ratio`` may be ``None`` (no capacity to measure against). Because the
+    engine only produces a cumulative forecast at discrete horizons, the exact
+    crossing minute is linearly interpolated between the last below-threshold
+    horizon and the first at/above one (e.g. ``T+47``). If the very first
+    horizon already exceeds the threshold we cannot resolve an earlier minute,
+    so that horizon is reported (a conservative upper bound); if no horizon
+    reaches the threshold the gap never opens within the forecast window.
+    """
+    prev_minute: int = 0
+    prev_ratio: float | None = None
+    for minute, ratio in points:
+        if ratio is None:
+            return float(minute)  # no capacity -> unmeasurable, worst-case now
+        if ratio >= threshold:
+            if prev_ratio is None or prev_ratio >= threshold or ratio == prev_ratio:
+                return float(minute)
+            fraction = (threshold - prev_ratio) / (ratio - prev_ratio)
+            return round(prev_minute + fraction * (minute - prev_minute), 1)
+        prev_minute, prev_ratio = minute, ratio
+    return None
+
+
+def capacity_gap_timeline(
+    session: Session, settings: Any, event_key: str | None = None
+) -> dict[str, Any]:
+    """Per-event capacity-gap timeline and the first ``kritik`` exceedance.
+
+    EM-030 answers "when does my capacity run out?": for every scored event it
+    exposes the same horizon rows as :func:`compute_risk_index` as a time
+    series (demand, constant effective capacity, the gap and the risk band per
+    minute) plus the interpolated minute at which the ratio first enters the
+    ``kritik`` band (``>= RISK_INDEX_CRITICAL_NEAR_MAX``).
+    """
+    thresholds = level_thresholds(settings)
+    horizon_minutes = [
+        int(h) for h in getattr(settings, "SPREAD_HORIZON_MINUTES", [30, 60, 120])
+    ]
+    capacity = effective_capacity(session, settings)
+    total_capacity = float(capacity["total_effective_ha_per_hour"])
+    events = _active_events(session, event_key)
+    forecasts = _latest_forecasts(session, {str(e.event_key) for e in events})
+    kritik = thresholds["critical_near_max"]
+
+    scored: list[dict[str, Any]] = []
+    for event in events:
+        rows = _horizons_for(
+            str(event.event_key), forecasts, horizon_minutes, total_capacity, thresholds
+        )
+        series = [
+            {
+                "minute": row["horizon_minutes"],
+                "area_ha": row["area_ha"],
+                "demand_ha_h": row["demand_ha_h"],
+                "capacity_ha_h": round(total_capacity, 3),
+                "gap_ha_h": row["gap_ha_h"],
+                "risk_index": row["risk_index"],
+                "level": row["level"],
+            }
+            for row in rows
+        ]
+        first = _first_exceedance(
+            [(row["horizon_minutes"], row["risk_index"]) for row in rows], kritik
+        )
+        scored.append(
+            {
+                "event_key": str(event.event_key),
+                "name": event.name,
+                "latitude": float(event.latitude),
+                "longitude": float(event.longitude),
+                "status": str(event.status),
+                "series": series,
+                "first_exceedance_minute": first,
+                "first_exceedance_level": "kritik" if first is not None else None,
+                "exceedance_threshold": kritik,
+            }
+        )
+
+    over = [e for e in scored if e["first_exceedance_minute"] is not None]
+    soonest = min(over, key=lambda e: e["first_exceedance_minute"], default=None)
+    return {
+        "panel": "capacity_gap_timeline",
+        "generated_at": to_utc_iso(utc_now()),
+        "unit": capacity["unit"],
+        "capacity_effective_ha_h": total_capacity,
+        "thresholds": thresholds,
+        "levels": list(RISK_LEVELS),
+        "exceedance_level": "kritik",
+        "attribution": RISK_ATTRIBUTION,
+        "events": scored,
+        "summary": {
+            "events_scored": len(scored),
+            "events_over_threshold": len(over),
+            "first_exceedance_event": soonest["event_key"] if soonest else None,
+            "first_exceedance_minute": soonest["first_exceedance_minute"]
+            if soonest
+            else None,
+        },
+    }

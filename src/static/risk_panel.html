@@ -50,6 +50,12 @@
                   margin-bottom: 8px; }
     .assume-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
     #assume-status { font-size: var(--font-size-xs); color: var(--text-secondary); }
+    /* EM-030 capacity-gap timeline (inline SVG, no external chart lib). */
+    #gap-chart svg { width: 100%; height: 168px; display: block; }
+    .gap-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px;
+                  font-size: 11px; color: var(--text-secondary); }
+    .gap-legend i { display: inline-block; width: 14px; height: 3px;
+                    vertical-align: middle; margin-right: 4px; }
     @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -91,6 +97,15 @@
         </table>
         <div class="kv" style="margin-top:6px"><span>En yüksek risk</span>
           <b id="ri-max">–</b></div>
+      </div>
+      <div class="card">
+        <h2>Kapasite Açığı Zaman Çizelgesi</h2>
+        <div class="muted-note">Talep (ha/saat) etkin kapasiteyi ne zaman aşıyor?
+          Çizgi grafik zaman ekseninde; ilk kritik eşiği başlıkta. EM-030</div>
+        <div class="kv"><span>Kapasite ne zaman yetmez?</span>
+          <b id="tl-first">–</b></div>
+        <div id="gap-chart" style="margin-top:8px"></div>
+        <div id="tl-legend" class="gap-legend"></div>
       </div>
     </section>
     <section class="card">
@@ -270,6 +285,87 @@
       setText("status", "panel verisi alınamadı: " + err.message);
     }
     refreshRiskIndex();
+    refreshTimeline();
+  }
+
+  // EM-030: "kapasite ne zaman yetmez?" — talep vs kapasite çizgi grafiği ve
+  // kritik bant ilk aşım dakikası (ufuklar arası doğrusal enterpolasyon).
+  const TL_FEED = "/api/v1/risk-index/timeline";
+
+  function renderGapChart(ev, capacity) {
+    const pts = ev.series;
+    if (!pts.length) return '<div class="muted-note">yayılım tahmini yok</div>';
+    const W = 320, H = 168, padL = 34, padR = 10, padT = 12, padB = 24;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const maxMin = Math.max.apply(null, pts.map((p) => p.minute));
+    const maxDemand = Math.max.apply(null, pts.map((p) => p.demand_ha_h));
+    const maxVal = Math.max(capacity, maxDemand) * 1.1 || 1;
+    const X = (min) => padL + (min / maxMin) * plotW;
+    const Y = (val) => padT + plotH - (val / maxVal) * plotH;
+    const demandPts = [[0, 0]].concat(pts.map((p) => [p.minute, p.demand_ha_h]));
+    const dLine = demandPts
+      .map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1))
+      .join(" ");
+    const capY = Y(capacity).toFixed(1);
+    const ticks = pts
+      .map((p) => '<line x1="' + X(p.minute).toFixed(1) + '" y1="' + (padT + plotH)
+        + '" x2="' + X(p.minute).toFixed(1) + '" y2="' + (padT + plotH + 4)
+        + '" stroke="var(--border-color)"/><text x="' + X(p.minute).toFixed(1)
+        + '" y="' + (H - 8) + '" font-size="9" fill="var(--text-secondary)" text-anchor="middle">T+' + p.minute + "</text>")
+      .join("");
+    let marker = "";
+    if (ev.first_exceedance_minute !== null) {
+      const mx = X(ev.first_exceedance_minute).toFixed(1);
+      marker = '<line x1="' + mx + '" y1="' + padT + '" x2="' + mx + '" y2="'
+        + (padT + plotH) + '" stroke="var(--color-danger)" stroke-dasharray="3 3"/>'
+        + '<text x="' + mx + '" y="' + (padT + 8) + '" font-size="9" fill="var(--color-danger)" text-anchor="middle">kritik</text>';
+    }
+    return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="kapasite açığı çizgi grafik">'
+      + '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (padL + plotW) + '" y2="' + (padT + plotH) + '" stroke="var(--border-color)"/>'
+      + '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="var(--border-color)"/>'
+      + '<line x1="' + padL + '" y1="' + capY + '" x2="' + (padL + plotW) + '" y2="' + capY + '" stroke="var(--color-success)" stroke-width="2"/>'
+      + '<text x="' + (padL - 4) + '" y="' + (Number(capY) + 3) + '" font-size="9" fill="var(--color-success)" text-anchor="end">kap</text>'
+      + '<polyline points="' + dLine + '" fill="none" stroke="var(--color-accent)" stroke-width="2"/>'
+      + marker + ticks
+      + "</svg>";
+  }
+
+  async function refreshTimeline() {
+    const holder = document.getElementById("gap-chart");
+    const firstEl = document.getElementById("tl-first");
+    const legend = document.getElementById("tl-legend");
+    try {
+      const res = await fetch(TL_FEED);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      if (!data.events.length) {
+        firstEl.textContent = "aktif olay yok";
+        holder.innerHTML = "";
+        legend.innerHTML = "";
+        return;
+      }
+      const over = data.events
+        .filter((e) => e.first_exceedance_minute !== null)
+        .sort((a, b) => a.first_exceedance_minute - b.first_exceedance_minute);
+      const ev = over.length
+        ? over[0]
+        : data.events.slice().sort((a, b) => {
+            const la = a.series.length ? a.series[a.series.length - 1].demand_ha_h : -1;
+            const lb = b.series.length ? b.series[b.series.length - 1].demand_ha_h : -1;
+            return lb - la;
+          })[0];
+      firstEl.textContent = ev.first_exceedance_minute !== null
+        ? ev.event_key + " · T+" + ev.first_exceedance_minute + " dk'da kritik"
+        : "ufuk penceresinde aşılmıyor";
+      holder.innerHTML = renderGapChart(ev, data.capacity_effective_ha_h);
+      legend.innerHTML =
+        '<span><i style="background:var(--color-accent)"></i>talep (ha/saat)</span>'
+        + '<span><i style="background:var(--color-success)"></i>etkin kapasite</span>'
+        + '<span><i style="background:var(--color-danger)"></i>ilk kritik</span>';
+    } catch (err) {
+      firstEl.textContent = "çizelge alınamadı";
+      holder.innerHTML = "";
+    }
   }
 
   // EM-029: olay bazında ufukluk Risk(t) tablosu (yayılım talebi / kapasite).
