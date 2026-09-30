@@ -72,6 +72,32 @@
     .route-eta { background: #00695c; color: #fff; border: none; font-weight: 700;
                    box-shadow: 0 1px 3px rgba(0,0,0,.4); }
     .route-eta::before { display: none; }
+    /* EM-055: what-if rüzgâr senaryosu — kaydırıcı paneli ve özet */
+    #whatif-panel {
+      position: absolute; top: 70px; left: 556px; z-index: 1000;
+      width: 280px; max-height: 60vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #whatif-panel h1 { margin-bottom: 4px; }
+    #whatif-panel .row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    #whatif-panel label { flex: 0 0 auto; }
+    #whatif-panel input[type=range] { flex: 1; min-width: 0; accent-color: #1565c0; }
+    #whatif-panel .val { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #whatif-panel .btns { display: flex; gap: 6px; margin: 6px 0; }
+    #whatif-panel button { flex: 1; font-size: var(--font-size-xs); padding: 3px 6px;
+      cursor: pointer; }
+    #whatif-summary .metric { display: flex; justify-content: space-between;
+      padding: 2px 0; border-bottom: 1px solid var(--border-color); }
+    #whatif-summary .metric b { font-weight: 700; }
+    #whatif-summary .ok { color: #2e7d32; }
+    #whatif-summary .bad { color: #c62828; }
+    #whatif-ignition { color: var(--text-secondary); font-style: italic; margin: 2px 0; }
+    #whatif-newlist { margin-top: 4px; }
+    #whatif-newlist .tag { color: #1565c0; font-weight: 700; }
+    #whatif-chip { font-size: var(--font-size-xs); font-weight: 700; padding: 2px 8px;
+      border-radius: 10px; background: #9e9e9e; color: #fff; white-space: nowrap; }
+    #whatif-chip.on { background: #1565c0; }
+    #whatif-chip.slow { background: #f9a825; color: #3a2b00; }
     /* EM-020: model güveni rozeti — ufuk çubuğunun içinde gösterilir */
     #confidence-badge { font-size: var(--font-size-xs); font-weight: 700;
                         padding: 2px 8px; border-radius: 10px;
@@ -99,6 +125,10 @@
            aria-label="Yayılım ufku kaydırıcısı">
     <div class="ticks" id="horizon-ticks"></div>
     <label><input type="checkbox" id="horizon-cumulative" checked> kümülatif</label>
+    <button type="button" id="whatif-open"
+      style="font-size:12px;cursor:pointer;padding:2px 8px;border:1px solid var(--border-color);border-radius:6px;background:none;"
+      title="EM-055 rüzgar senaryosu yeniden hesaplama">What-If (Rüzgar)</button>
+    <span id="whatif-chip" title="EM-055 senaryo durumu">What-If: kapalı</span>
     <span id="confidence-badge" title="EM-020 model güveni — girdi kaynaklarının güvenilirliğinden hesaplanır">Model güveni: —</span>
     <span id="live-chip" class="off" title="EM-090 canlı güncelleme — sayfa yenilemeden olay/tahmin/uyarı akışı">● canlı değil</span>
   </div>
@@ -126,6 +156,7 @@
     <div class="row"><span class="swatch" style="background:#ce93d8"></span> Tehdit altındaki yapı — ≤120 dk (EM-023)</div>
         <div class="row"><span class="swatch" style="background:#26a69a;border-radius:50%"></span> Konuşlanma noktası (EM-052)</div>
         <div class="row"><span class="swatch" style="background:#00897b"></span> Önerilen kaynak rotası + ETA (EM-052)</div>
+        <div class="row"><span class="swatch" style="background:rgba(21,101,192,.25);border:1.5px dashed #1565c0"></span> What-if senaryo bölgesi (EM-055)</div>
     <div class="row"><a href="/panel" style="color:#c0392b;font-weight:700">→ Komutan Kapasite &amp; Risk Paneli</a></div>
     <div class="row"><a href="/inventory">→ Kaynak Envanteri (koordinatör)</a></div>
     <div class="row"><a href="/styleguide">→ Tasarım Sistemi (styleguide)</a></div>
@@ -146,6 +177,29 @@
   <div id="positioning-panel" class="panel" aria-live="polite">
     <h1>Konuşlanma Önerileri <span id="positioning-count" class="count"></span></h1>
     <div id="positioning-list"></div>
+  </div>
+
+  <div id="whatif-panel" class="panel" aria-live="polite">
+    <h1>What-If — Rüzgâr Senaryosu</h1>
+    <div id="whatif-ignition">İgnisyon noktası: bir olay seçin veya haritaya tıklayın.</div>
+    <div class="row">
+      <label for="whatif-dir">Yön değişimi</label>
+      <input type="range" id="whatif-dir" min="-180" max="180" step="5" value="0"
+             aria-label="Rüzgâr yön değişimi kaydırıcısı (derece)">
+      <span class="val" id="whatif-dir-val">0°</span>
+    </div>
+    <div class="row">
+      <label for="whatif-speed">Hız çarpanı</label>
+      <input type="range" id="whatif-speed" min="50" max="200" step="5" value="100"
+             aria-label="Rüzgâr hız çarpanı kaydırıcısı (yüzde)">
+      <span class="val" id="whatif-speed-val">%100</span>
+    </div>
+    <div class="btns">
+      <button type="button" id="whatif-rot45" title="Kabul kriteri senaryosu: rüzgâr 45° dönsün">45° döndür</button>
+      <button type="button" id="whatif-reset">Sıfırla</button>
+    </div>
+    <div id="whatif-summary"></div>
+    <div id="whatif-newlist"></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -209,6 +263,13 @@
   // EM-052: son konumlandırma katmanı ögeleri ve rota referansları (odaklama için).
   let positioningFeatures = [];
   let positioningLayerRefs = {};   // proposal_id -> Leaflet rota katmanı
+  // EM-055: what-if rüzgar senaryosu durumu.
+  let whatifEnabled = false;
+  let whatifResult = null;         // son what-if yanıtı (poligon+metrik)
+  let whatifScenarioLayer = null;  // senaryo poligon katmanı (L.GeoJSON)
+  let whatifAbort = null;          // devam eden istek iptal edici
+  let whatifTimer = null;          // kaydırıcı debounce zamanlayıcısı
+  let mapClickPoint = null;        // haritaya son tıklanan ignisyon noktası
 
   // EM-090: canlı güncelleme (WebSocket) durumu.
   let catalogLayers = [];      // kataloğun meta listesi (canlı yenileme için)
@@ -329,7 +390,12 @@
         const p = f.properties || {};
         if (p.kind === "fire_event" && p.event_key && !seen.has(p.event_key)) {
           seen.add(p.event_key);
-          fireEvents.push({ event_key: p.event_key, name: p.name });
+          const c = (f.geometry && f.geometry.coordinates) || [];
+          // EM-055: what-if ignisyon noktası olay koordinatını kullanır.
+          fireEvents.push({
+            event_key: p.event_key, name: p.name,
+            latitude: c.length ? c[1] : null, longitude: c.length ? c[0] : null,
+          });
         }
       }
       populateExposureEvents();
@@ -480,6 +546,7 @@
         features: uncertaintyAll.features.filter(
           f => f.properties && f.properties.horizon_minutes === selected)});
     }
+    renderWhatifScenario();  // EM-055: senaryo poligonları seçili ufkla üst üste
     renderTicks();
   }
 
@@ -501,6 +568,145 @@
       });
       box.appendChild(el);
     });
+  }
+
+  // --- EM-055: what-if rüzgar senaryosu (kaydırıcı + canlı yeniden hesaplama) ---
+  const WHATIF_SCENARIO_STYLE = () => ({
+    color: "#1565c0", weight: 2, dashArray: "8 4",
+    fillColor: "#1565c0", fillOpacity: 0.12, opacity: 0.95,
+  });
+  function setWhatifChip(cls, text) {
+    const chip = document.getElementById("whatif-chip");
+    if (!chip) return;
+    chip.className = cls;
+    chip.textContent = text;
+  }
+  function whatifIgnition() {
+    if (exposureEventKey) {
+      const ev = fireEvents.find(e => e.event_key === exposureEventKey);
+      if (ev && ev.latitude != null && ev.longitude != null) {
+        return { latitude: ev.latitude, longitude: ev.longitude,
+          event_key: ev.event_key, label: ev.name || ev.event_key };
+      }
+    }
+    if (mapClickPoint) {
+      return { latitude: mapClickPoint.lat, longitude: mapClickPoint.lng,
+        event_key: null, label: "harita tıklaması" };
+    }
+    return null;
+  }
+  function updateWhatifIgnitionHint() {
+    const el = document.getElementById("whatif-ignition");
+    const ign = whatifIgnition();
+    if (!el) return;
+    el.textContent = ign
+      ? `İgnisyon: ${ign.label} (${ign.latitude.toFixed(3)}, ${ign.longitude.toFixed(3)})`
+      : "İgnisyon noktası: bir olay seçin veya haritaya tıklayın.";
+  }
+  function scheduleWhatif() {
+    if (!whatifEnabled) return;
+    clearTimeout(whatifTimer);
+    whatifTimer = setTimeout(runWhatif, 400);
+  }
+  async function runWhatif() {
+    const ign = whatifIgnition();
+    if (!ign) { setWhatifChip("", "What-If: nokta seçin"); return; }
+    const dir = Number(document.getElementById("whatif-dir").value);
+    const speedPct = Number(document.getElementById("whatif-speed").value);
+    document.getElementById("whatif-dir-val").textContent = `${dir > 0 ? "+" : ""}${dir}°`;
+    document.getElementById("whatif-speed-val").textContent = `%${speedPct}`;
+    if (whatifAbort) whatifAbort.abort();
+    whatifAbort = new AbortController();
+    setWhatifChip("slow", "What-If: hesaplanıyor…");
+    const body = {
+      latitude: ign.latitude, longitude: ign.longitude, event_key: ign.event_key,
+      wind_rotation_delta_deg: dir, wind_speed_factor: speedPct / 100,
+    };
+    try {
+      const res = await fetch("/api/v1/whatif/wind", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body), signal: whatifAbort.signal,
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const j = await res.json(); msg = (j.detail && j.detail.error) || msg; }
+        catch (err) { /* biçimsiz hata gövdesi */ }
+        setWhatifChip("", `What-If: hata — ${msg}`);
+        return;
+      }
+      whatifResult = await res.json();
+      renderHorizons();  // senaryo katmanını seçili ufkla yeniden çiz
+      renderWhatifSummary();
+      const chipCls = whatifResult.within_target ? "on" : "slow";
+      setWhatifChip(chipCls, `What-If: ${(whatifResult.compute_ms / 1000).toFixed(1)} sn`);
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      setWhatifChip("", `What-If: hata — ${err.message}`);
+    }
+  }
+  function renderWhatifScenario() {
+    if (whatifScenarioLayer) { map.removeLayer(whatifScenarioLayer); whatifScenarioLayer = null; }
+    if (!whatifEnabled || !whatifResult || !whatifResult.scenario) return;
+    const selected = HORIZONS[sliderIndex];
+    const cumulative = document.getElementById("horizon-cumulative").checked;
+    const feats = (whatifResult.scenario.forecasts || []).filter(f => {
+      const h = f.horizon_minutes;
+      return cumulative ? h <= selected : h === selected;
+    }).map(f => ({
+      type: "Feature",
+      properties: { horizon_minutes: f.horizon_minutes, area_ha: f.area_ha,
+        head_distance_m: f.head_distance_m, spread_direction_deg: f.spread_direction_deg },
+      geometry: f.polygon_geojson,
+    })).filter(f => f.geometry && f.geometry.coordinates && f.geometry.coordinates.length);
+    whatifScenarioLayer = L.geoJSON({ type: "FeatureCollection", features: feats }, {
+      style: WHATIF_SCENARIO_STYLE,
+      onEachFeature: (f, layer) => layer.bindPopup(popupHtml(f)),
+    }).addTo(map);
+  }
+  function gapCell(cls, text) { return `<span class="${cls}">${text}</span>`; }
+  function renderWhatifSummary() {
+    const box = document.getElementById("whatif-summary");
+    const news = document.getElementById("whatif-newlist");
+    if (!whatifResult) { box.innerHTML = ""; news.innerHTML = ""; return; }
+    const o = whatifResult.original, s = whatifResult.scenario;
+    const cap = whatifResult.capacity, rec = whatifResult.recommendations;
+    const fmt = v => (v === null || v === undefined ? "—" : v);
+    const scenGap = cap.scenario.gap_ha_h;
+    const gapCls = scenGap <= 0 ? "ok" : "bad";
+    const gapLabel = scenGap <= 0 ? "yeterli" : `${scenGap} ha/saat açık`;
+    box.innerHTML =
+      `<div class="metric"><span>Alan (${s.max_horizon_minutes} dk)</span><b>${fmt(o.area_ha)} → ${fmt(s.area_ha)} ha</b></div>`
+      + `<div class="metric"><span>Talep</span><b>${fmt(o.demand_ha_h)} → ${fmt(s.demand_ha_h)} ha/saat</b></div>`
+      + `<div class="metric"><span>Etkin kapasite</span><b>${fmt(cap.effective_ha_h)} ha/saat</b></div>`
+      + `<div class="metric"><span>Kapasite açığı</span><b>${gapCell(gapCls, `${fmt(cap.original.gap_ha_h)} → ${gapLabel}`)}</b></div>`
+      + `<div class="metric"><span>Tehdit altındaki yapı</span><b>${rec.original.count} → ${rec.scenario.count}</b></div>`
+      + `<div class="metric"><span>En erken etki</span><b>T+${fmt(rec.original.earliest_impact_minutes)} → T+${fmt(rec.scenario.earliest_impact_minutes)} dk</b></div>`
+      + `<div class="metric"><span>Rüzgar</span><b>${whatifResult.wind.original.from_deg}/${whatifResult.wind.original.speed_kmh} → ${whatifResult.wind.scenario.from_deg}/${whatifResult.wind.scenario.speed_kmh} km/s</b></div>`
+      + `<div class="metric"><span>Hesap</span><b>${whatifResult.compute_ms} ms (hedef ≤${whatifResult.target_seconds} sn)</b></div>`;
+    const added = (rec.delta && rec.delta.newly_threatened) || [];
+    news.innerHTML = added.length
+      ? `<b>Yeni tehdit (${added.length}):</b>` + added.map(a =>
+        `<div class="item"><span class="tag">YENİ</span> ${escapeHtml(a.name || a.asset_key)} <i>T+${escapeHtml(a.first_impact_minutes)} dk</i></div>`
+      ).join("")
+      : "";
+  }
+  function openWhatif() {
+    whatifEnabled = true;
+    document.getElementById("whatif-panel").style.display = "block";
+    setWhatifChip("", "What-If: hazır");
+    updateWhatifIgnitionHint();
+    runWhatif();
+  }
+  function closeWhatif() {
+    whatifEnabled = false;
+    whatifResult = null;
+    clearTimeout(whatifTimer);
+    if (whatifAbort) { whatifAbort.abort(); whatifAbort = null; }
+    if (whatifScenarioLayer) { map.removeLayer(whatifScenarioLayer); whatifScenarioLayer = null; }
+    document.getElementById("whatif-panel").style.display = "none";
+    document.getElementById("whatif-summary").innerHTML = "";
+    document.getElementById("whatif-newlist").innerHTML = "";
+    setWhatifChip("", "What-If: kapalı");
   }
 
   // --- EM-090: canlı güncelleme (WebSocket + REST yedeği) ------------------
@@ -616,6 +822,39 @@
     });
     document.getElementById("horizon-cumulative").addEventListener("change", renderHorizons);
 
+    // EM-055: what-if rüzgar senaryosu panelini bağla.
+    const whatifOpen = document.getElementById("whatif-open");
+    if (whatifOpen) {
+      whatifOpen.addEventListener("click", () => {
+        if (whatifEnabled) { closeWhatif(); } else { openWhatif(); }
+      });
+    }
+    for (const id of ["whatif-dir", "whatif-speed"]) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", scheduleWhatif);
+    }
+    const whatifRot45 = document.getElementById("whatif-rot45");
+    if (whatifRot45) {
+      whatifRot45.addEventListener("click", () => {
+        document.getElementById("whatif-dir").value = "45";
+        runWhatif();
+      });
+    }
+    const whatifReset = document.getElementById("whatif-reset");
+    if (whatifReset) {
+      whatifReset.addEventListener("click", () => {
+        document.getElementById("whatif-dir").value = "0";
+        document.getElementById("whatif-speed").value = "100";
+        if (whatifEnabled) { runWhatif(); }
+      });
+    }
+    // Haritaya tıklama, olay seçili değilken ignisyon noktası olur.
+    map.on("click", ev => {
+      mapClickPoint = ev.latlng;
+      updateWhatifIgnitionHint();
+      if (whatifEnabled) { scheduleWhatif(); }
+    });
+
     // EM-023: olay filtresi değişince hem listeyi hem harita katmanını yenile.
     const exposureSel = document.getElementById("exposure-event");
     if (exposureSel) {
@@ -634,6 +873,9 @@
         } else {
           document.getElementById("positioning-panel").style.display = "none";
         }
+        // EM-055: olay değişince what-if ignisyon noktası da güncellenir.
+        updateWhatifIgnitionHint();
+        if (whatifEnabled) { scheduleWhatif(); }
       });
     }
 

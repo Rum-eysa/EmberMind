@@ -246,6 +246,12 @@ class Config:
     )
     CAPACITY_HA_PER_HOUR_UAV = float(os.getenv("CAPACITY_HA_PER_HOUR_UAV", "4.0"))
 
+    # EM-055: wind what-if live recomputation (Epic E6)
+    # Wall-clock budget the ephemeral two-run recompute is graded against.
+    WHATIF_RECOMPUTE_TARGET_SECONDS = float(
+        os.getenv("WHATIF_RECOMPUTE_TARGET_SECONDS", "10.0")
+    )
+
     # USGS / SRTM Topography
     USGS_SRTM_BASE_URL = os.getenv(
         "USGS_SRTM_BASE_URL", "https://api.open-elevation.com/api/v1"

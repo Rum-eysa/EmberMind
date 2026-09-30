@@ -5,6 +5,32 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-055: What-If ve dinamik yeniden hesaplama — rüzgâr değişimi senaryosu
+  (E6)
+  - `src/services/whatif.py`: operatör "rüzgâr 45° dönse ne olur?" diye
+    sorduğunda EM-015 Rothermel motorunu **aynı çözülmüş girdilerle iki kez**
+    çalıştırır — biri sarsılmamış (orijinal), biri rüzgâr yön/hız
+    değişikliğiyle (senaryo). `predict_spread` `event_key` verilmediğinde
+    yazmadığı için what-if **tamamen geçicidir (persist yok)**; iki taraf
+    eşit koşullarda karşılaştırılır. Kaydırmalar **delta/çarpan** üretir
+    (`wind_rotation_delta_deg`, `wind_speed_factor`); request'teki rüzgâr
+    mevcut taban koşulunu taşır
+  - **Kapasite açığı** EM-028'in tek biriminde: talep = senaryonun
+    birikimli poligon alan büyümesi (ha/saat), arz = `effective_capacity`,
+    açık = fark; orijinal ve senaryo için `gap_delta` ile
+  - **Öneriler**: EM-023 maruziyet sıralaması geçici senaryo poligonlarına
+    karşı yeniden hesaplanır — rüzgâr dönünce hangi yapıların **yeni**
+    tehdit altına girdiği (`newly_threatened`) görünür
+  - Hız hedefi: `compute_ms` ölçülür, `WHATIF_RECOMPUTE_TARGET_SECONDS`
+    (varsayılan **10 sn**) ile `within_target` yanıta yazılır
+  - `src/routes/whatif.py`: **`POST /api/v1/whatif/wind`** ve
+    **`GET /api/v1/whatif/config`**
+  - Operatör haritası (`operator_map`): **What-If (Rüzgâr)** paneli — yön
+    değişimi ve hız çarpanı kaydırıcıları + "45° döndür" kısayolu; senaryo
+    poligonları orijinalin **üzerine kesik mavi katman** olarak bindirilir,
+    sayısal özet (alan, talep, etkin kapasite, kapasite açığı, tehdit
+    sayısı, en erken etki, hesap süresi) panelde yan yana; 400 ms debounce +
+    `AbortController` ile kaydırırken bile 10 sn içinde güncellenir
 - EM-028: Kapasite biriminin tanımı ve normalizasyonu — kapasite açığı ve risk
   indeksi (E3)
   - `src/models/capacity.py` → `CapacityAssumption` (V016 migration): her

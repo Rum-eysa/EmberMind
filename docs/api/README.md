@@ -210,6 +210,32 @@ varsayımı) ile envanter ha/saat cinsinden tek bir rakama indirgenir; panel
 beslemesi `capacity.assumptions` ve `capacity.effective` alanlarını taşır.
 Geçersiz/negatif tip düzenlemesi **400** döner.
 
+### What-If Rüzgâr Senaryosu ve Dinamik Yeniden Hesaplama (EM-055)
+```
+GET  /api/v1/whatif/config  # yeniden hesaplama hedef süresi (sn) ve kalıcılık bilgisi
+POST /api/v1/whatif/wind    # rüzgâr yön/hız değişikliği için canlı what-if
+```
+Operatör "rüzgâr 45° dönse ne olur?" sorusunu sorar. Uç nokta EM-015
+Rothermel motorunu **aynı çözülmüş girdilerle iki kez** çalıştırır: biri
+sarsılmamış (**orijinal**), biri kaydırıcı değişiklikleriyle (**senaryo**).
+Gövde `latitude`/`longitude` (zorunlu) ve isteğe bağlı rüzgâr düğmeleri
+alır: `wind_rotation_delta_deg` (yön değişimi, -360..360) ve
+`wind_speed_factor` (hız çarpanı, 0..5); `wind_from_deg`/`wind_speed_kmh`
+mevcut **taban** rüzgârı taşır. Diğer girdi alanları (`air_temp_c`,
+`relative_humidity_pct`, `fuel_moisture_pct`, `slope_deg`, `aspect_deg`,
+`fuel_model`, `horizon_minutes`) opsiyoneldir.
+
+Yanıt orijinal ve senaryo risk bölgesi poligonlarını (`forecasts[*]
+.polygon_geojson`, `area_ha`), **kapasite açığını** EM-028 biriminde
+(talep = ha/saat alan büyümesi, arz = `effective_capacity`, `gap_ha_h`,
+`gap_delta_ha_h`, `coverage_pct`) ve **önerileri** (EM-023 maruziyet
+sıralamasının iki hali + `delta.newly_threatened`) döndürür. `compute_ms`
+ölçülür ve `WHATIF_RECOMPUTE_TARGET_SECONDS` (vars. **10 sn**) hedefiyle
+`within_target` işaretlenir. What-if **kalıcı değildir** (`persistence:
+"none"`; `FireForecast` satırı yazılmaz). Geçersiz koordinat/rüzgâr **400**
+döner. Harita tarafında **What-If (Rüzgâr)** paneli senaryo poligonlarını
+orijinalin üzerine kesik mavi katman olarak bindirir.
+
 ### Tasarım Sistemi ve Bileşen Kütüphanesi (EM-075)
 ```
 GET /styleguide        # bileşen vitrini (renk/tipografi/boşluk + buton, kart, panel, rozet, tablo, form)
