@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-053: Çifte atama ve kaynak çakışma önleme (E5)
+  - Koordinatör **aynı kaynağın iki yangına atanmasını** engellemek ister ki
+    gerçek kapasite (EM-028) doğru hesaplansın
+  - `record_decision` (**kabul/düzenle**) artık **çakışma bekçisi** taşır: bir
+    kaynak başka bir olaya `en_route`/`deployed` olarak **zaten atanmışsa**,
+    farklı bir `event_key` ile kabul **`ConflictError`** (uçta **409**) verir;
+    aynı olaya tekrar kabul ise **idempotent** geçer. Atama, ayrı bir tablo
+    yerine **EM-047 denetim kaydından** türetilir (en yeni `accept`/`edit`,
+    sonra gelen `release` ile temizlenir) — **migration/model yok**
+  - **Müsaite alma**: `release_assignment` kaynağı `available`'a çeker, planlanan
+    varış ETA'sını temizler ve `release` denetim satırı yazar; boş kaynağa
+    dokunmaz (no-op). `event_key` verilirse mevcut atamayla eşleşmek zorunda
+  - **Otomatik müsaite**: `release_completed_assignments` — olay artık `active`
+    değilse (veya satırı silinmişse) o olaya atanmış birimler **otomatik**
+    `available` olur ("görev bitince kaynak otomatik müsait olur")
+  - Uçlar: `POST /api/v1/recommendations/decisions/release`,
+    `GET /api/v1/recommendations/assignments`,
+    `POST /api/v1/recommendations/assignments/release-completed`; `…/config`
+    artık `conflict_prevention` bloğunu taşır (`actions` üçlüsü korunur)
+  - Operatör haritası (`/ui`): Konuşlanma panelinde **Atamalar** bölümü — aktif
+    atama listesi + satır başına **Müsaite al** + "Biten olayları otomatik
+    müsaite al"; çakışma uyarısı karar çubuğunda gösterilir
 - EM-048: Önerinin etki karşılaştırması — uygulanırsa vs uygulanmazsa (E5)
   - Komutan **kararın değerini** görmek ister: EM-052 önerisi **uygulanırsa** ve
     **uygulanmazsa** olayın risk seviyeleri **ufuk bazında yan yana**

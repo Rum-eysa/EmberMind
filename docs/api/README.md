@@ -268,6 +268,33 @@ rezerve edilmez veya değiştirilmez. Yanıt:
 karşılaştırılacak yayılım tahmini yoksa **409** döner. Operatör haritasındaki
 Konuşlanma Önerileri panelinde **Etki karşılaştırması** düğmesi tabloyu açar.
 
+### Çifte Atama ve Kaynak Çakışma Önleme (EM-053)
+```
+POST /api/v1/recommendations/decisions            # kabul/düzenle — çakışmada 409
+POST /api/v1/recommendations/decisions/release    # birimi müsaite al (available)
+GET  /api/v1/recommendations/assignments          # aktif atamalar (kaynak×olay)
+POST /api/v1/recommendations/assignments/release-completed  # biten olayları otomatik bırak
+```
+Koordinatör **aynı kaynağın iki yangına** atanmasını engellemek ister (gerçek
+kapasite EM-028 doğru hesaplansın). EM-047 kabul/düzenle ucuna **çakışma
+bekçisi** eklendi: bir kaynak başka bir olaya `en_route`/`deployed` olarak
+**zaten atanmışsa**, farklı `event_key` ile kabul **`ConflictError`** döner ve
+uç **409** (`detail.status="conflict"`) verir; aynı olaya tekrar kabul
+**idempotent**tir. Atama durumu **ayrı bir tablo değil** — EM-047 denetim
+kayıttından türetilir: bir birimin en yeni kararı `accept`/`edit` ise ve kaynak
+hâlâ meşgulse o olaya bağlıdır; sonraki bir `release` bağı temizler.
+- **Müsaite alma** `release_assignment`: kaynağı `available`'a çeker, planlanan
+  varış ETA'sını temizler ve `release` denetim satırı yazar. Boş kaynakta
+  no-op (`released:false`). `event_key` verilirse mevcut atamayla eşleşmeli.
+- **Otomatik müsaite** `release_completed_assignments`: olay artık `active`
+  değilse (contained/closed) ya da satırı yoksa, o olaya bağlı birimler
+  otomatik `available` olur.
+`…/decisions/config` artık `conflict_prevention` bloğunu taşır (yalnızca
+`release` için kullanılır; `actions` üçlüsü **kabul/ret/düzenle** olarak kalır).
+Operatör haritasındaki Konuşlanma panelinde **Atamalar** bölümü aktif atama
+listesini, satır başına **Müsaite al** düğmesini ve "Biten olayları otomatik
+müsaite al" işlemini sunar.
+
 ### Komutan Kapasite ve Risk Paneli (EM-073)
 ```
 GET /panel                       # tek panel komuta arayüzü (koyu tema, 60 sn otomatik yenileme)

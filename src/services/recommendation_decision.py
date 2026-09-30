@@ -24,15 +24,29 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.models.inventory import SuppressionResource
 from src.models.recommendation import DECISION_ACTIONS, RecommendationDecision
+from src.models.spatial import FireEvent
 from src.services.inventory import get_resource, update_resource
 
 # Committing status applied by an accept / edit (EM-031 "yolda").
 _COMMIT_STATUS = "en_route"
 
+# Statuses that mean a unit is already spoken for (EM-053 double-booking guard).
+_BUSY_STATUSES = frozenset({"en_route", "deployed"})
+
+# Audit actions that commit an assignment (versus a later ``release`` that frees
+# it). EM-053 derives the current booking from the newest of these.
+_ASSIGN_ACTIONS = ("accept", "edit")
+
 
 class DecisionError(RuntimeError):
     """Raised for an invalid decision (unknown action, missing resource)."""
+
+
+class ConflictError(RuntimeError):
+    """Raised when accepting a unit already assigned to a different incident
+    (EM-053: a resource may serve only one task at a time)."""
 
 
 def _new_key() -> str:
@@ -48,6 +62,37 @@ def _clean(value: Any, maximum: int) -> str | None:
     if not text:
         return None
     return text[:maximum]
+
+
+def _latest_decision_row(
+    session: Session, resource_key: str
+) -> RecommendationDecision | None:
+    """Newest audit row for one resource, whatever the action."""
+    return session.scalar(
+        select(RecommendationDecision)
+        .where(RecommendationDecision.resource_key == resource_key)
+        .order_by(RecommendationDecision.id.desc())
+        .limit(1)
+    )
+
+
+def _active_assignment_event(
+    session: Session, resource: SuppressionResource
+) -> str | None:
+    """Incident a busy unit is currently committed to (EM-053).
+
+    A booking is active only while the resource is still ``en_route`` /
+    ``deployed`` *and* its newest audit row is an ``accept``/``edit`` (a later
+    ``release`` clears it). Returns ``None`` when the unit is free or was
+    committed without a recorded incident, so the guard never blocks on
+    provenance it cannot see.
+    """
+    if str(resource.status) not in _BUSY_STATUSES:
+        return None
+    row = _latest_decision_row(session, str(resource.resource_key))
+    if row is None or row.action not in _ASSIGN_ACTIONS:
+        return None
+    return str(row.event_key) if row.event_key else None
 
 
 def record_decision(
@@ -76,6 +121,16 @@ def record_decision(
     resource = get_resource(session, resource_key)
     if resource is None:
         raise DecisionError(f"resource '{resource_key}' not found")
+
+    # EM-053: a unit committed to one incident cannot be booked for another.
+    if action in _ASSIGN_ACTIONS and event_key:
+        assigned = _active_assignment_event(session, resource)
+        if assigned is not None and assigned != str(event_key):
+            raise ConflictError(
+                f"resource '{resource_key}' is already assigned to incident "
+                f"'{assigned}' ({resource.status}); release it before assigning "
+                f"it to '{event_key}'"
+            )
 
     status_before = str(resource.status)
     status_after = status_before
@@ -145,3 +200,126 @@ def get_decision(session: Session, decision_key: str) -> dict[str, Any]:
     if row is None:
         raise DecisionError(f"decision '{decision_key}' not found")
     return row.as_dict
+
+
+def release_assignment(
+    session: Session,
+    *,
+    resource_key: str,
+    event_key: str | None = None,
+    decided_by: str | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Free a committed unit back to ``available`` (EM-053 task completion).
+
+    Releasing an idle unit is a harmless no-op (``released: False``); releasing
+    a booked one clears its status and scheduled arrival ETA and writes a
+    ``release`` audit row, so the double-booking guard stops seeing it. When
+    ``event_key`` is supplied it must match the current booking, preventing a
+    coordinator from freeing a unit another incident is relying on.
+    """
+    resource = get_resource(session, resource_key)
+    if resource is None:
+        raise DecisionError(f"resource '{resource_key}' not found")
+
+    status_before = str(resource.status)
+    assigned = _active_assignment_event(session, resource)
+    if status_before not in _BUSY_STATUSES:
+        return {
+            "released": False,
+            "reason": "not_assigned",
+            "resource_status": status_before,
+            "status_changed": False,
+            "decision": None,
+        }
+    if event_key and assigned is not None and str(event_key) != assigned:
+        raise ConflictError(
+            f"resource '{resource_key}' is assigned to '{assigned}', "
+            f"not '{event_key}'"
+        )
+
+    updated = update_resource(
+        session, resource_key, {"status": "available", "arrival_minutes": None}
+    )
+    status_after = str(updated.status)
+    row = RecommendationDecision(
+        decision_key=_new_key(),
+        event_key=_clean(event_key or assigned, 64),
+        proposal_id=None,
+        resource_key=resource_key,
+        action="release",
+        reason=_clean(reason, 255),
+        decided_by=_clean(decided_by, 64),
+        detail_json=json.dumps(
+            {
+                "action": "release",
+                "released_from": status_before,
+                "assigned_event": assigned,
+            },
+            default=str,
+        ),
+        resource_status_before=status_before,
+        resource_status_after=status_after,
+    )
+    session.add(row)
+    session.flush()
+    return {
+        "released": True,
+        "resource_status_before": status_before,
+        "resource_status_after": status_after,
+        "status_changed": status_before != status_after,
+        "decision": row.as_dict,
+    }
+
+
+def list_active_assignments(session: Session) -> list[dict[str, Any]]:
+    """Every busy unit and the incident it is currently booked to (EM-053)."""
+    busy = list(
+        session.scalars(
+            select(SuppressionResource).where(
+                SuppressionResource.status.in_(tuple(sorted(_BUSY_STATUSES)))
+            )
+        )
+    )
+    assignments: list[dict[str, Any]] = []
+    for resource in busy:
+        assigned = _active_assignment_event(session, resource)
+        if assigned is None:
+            continue
+        event = session.scalar(select(FireEvent).where(FireEvent.event_key == assigned))
+        assignments.append(
+            {
+                "resource_key": str(resource.resource_key),
+                "resource_status": str(resource.status),
+                "event_key": assigned,
+                "event_status": str(event.status) if event is not None else None,
+            }
+        )
+    return assignments
+
+
+def release_completed_assignments(session: Session) -> dict[str, Any]:
+    """Auto-free every unit whose incident is no longer active (EM-053).
+
+    "Görev bitince kaynak otomatik müsait olur": once a fire event is contained
+    /closed (or its row is gone) its booked units return to ``available`` so
+    global capacity (EM-028) is computed correctly without a manual release.
+    """
+    released: list[dict[str, Any]] = []
+    for assignment in list_active_assignments(session):
+        if assignment["event_status"] == "active":
+            continue
+        result = release_assignment(
+            session,
+            resource_key=assignment["resource_key"],
+            event_key=assignment["event_key"],
+            reason="incident completed - automatic release (EM-053)",
+        )
+        if result["released"]:
+            released.append(
+                {
+                    "resource_key": assignment["resource_key"],
+                    "event_key": assignment["event_key"],
+                }
+            )
+    return {"released": released, "count": len(released)}

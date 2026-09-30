@@ -104,6 +104,12 @@
     #positioning-panel .lv-dikkat { background: #fff8e1; color: #f57f17; }
     #positioning-panel .lv-kritik-yakin { background: #fff3e0; color: #e65100; }
     #positioning-panel .lv-kritik { background: #ffebee; color: #b71c1c; }
+    #positioning-panel .as-h { margin-top: 6px; font-size: var(--font-size-sm); }
+    #positioning-panel .as-t { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+    #positioning-panel .as-t th, #positioning-panel .as-t td {
+          border: 1px solid var(--border-color); padding: 2px 4px; text-align: left;
+        }
+    #positioning-panel .db-release { color: #0277bd; border-color: #0277bd; }
     #positioning-panel .db:disabled { opacity: .4; cursor: not-allowed; }
         /* EM-046: "neden?" gerekçe paneli (satır altı, aç/kapa) */
     #positioning-panel .why {
@@ -259,6 +265,9 @@
     <button type="button" id="positioning-impact-btn" class="pi-btn" hidden
       onclick="loadImpactComparison()">Etki karşılaştırması (uygulanırsa vs uygulanmazsa)</button>
     <div id="positioning-impact" hidden></div>
+    <button type="button" id="positioning-assign-btn" class="pi-btn"
+      onclick="toggleAssignments()">Atamalar — çakışma önleme (EM-053)</button>
+    <div id="positioning-assign" hidden></div>
   </div>
 
   <div id="whatif-panel" class="panel" aria-live="polite">
@@ -767,6 +776,83 @@
   // EM-047: karar sonrasi oneri listesini (ve kaynak durumunu) tazele.
   function reloadPositioning() {
     loadLayer("positioning").catch(() => {});
+  }
+
+  // EM-053: aktif atamalari goster; her satirda musaite al + bitenleri otomatik birak.
+  function toggleAssignments() {
+    const box = document.getElementById("positioning-assign");
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    loadAssignments();
+  }
+
+  async function loadAssignments() {
+    const box = document.getElementById("positioning-assign");
+    if (!box) return;
+    box.innerHTML = '<div class="empty">Yukleniyor…</div>';
+    try {
+      const res = await fetch("/api/v1/recommendations/assignments");
+      const j = await res.json();
+      if (!res.ok) { box.innerHTML = '<div class="empty">Atamalar alinamadi.</div>'; return; }
+      const rows = j.assignments || [];
+      let html = '<div class="as-h">Aktif atama: <b>' + rows.length + '</b></div>';
+      if (!rows.length) {
+        html += '<div class="empty">Atanmis kaynak yok.</div>';
+      } else {
+        html += '<table class="as-t"><thead><tr><th>Kaynak</th><th>Olay</th><th>Olay durumu</th><th></th></tr></thead><tbody>';
+        for (const a of rows) {
+          const evSt = a.event_status || "(bulunamadi)";
+          html += '<tr>'
+            + '<td>' + escapeHtml(a.resource_key) + '</td>'
+            + '<td>' + escapeHtml(a.event_key || "—") + '</td>'
+            + '<td>' + escapeHtml(evSt) + '</td>'
+            + '<td><button type="button" class="db db-release"'
+            + ' data-key="' + escapeHtml(a.resource_key) + '"'
+            + ' data-event="' + escapeHtml(a.event_key || "") + '">Müsaite al</button></td>'
+            + '</tr>';
+        }
+        html += '</tbody></table>';
+      }
+      html += '<button type="button" class="pi-btn" onclick="releaseCompleted()">'
+        + 'Biten olaylari otomatik musaite al</button>';
+      box.innerHTML = html;
+      box.querySelectorAll(".db-release").forEach(btn => {
+        btn.addEventListener("click", () => releaseAssignment(
+          btn.getAttribute("data-key"), btn.getAttribute("data-event") || null));
+      });
+    } catch (err) {
+      box.innerHTML = '<div class="empty">Atamalar alinamadi.</div>';
+    }
+  }
+
+  async function releaseAssignment(resourceKey, eventKey) {
+    try {
+      const res = await fetch("/api/v1/recommendations/decisions/release", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resource_key: resourceKey, event_key: eventKey }),
+      });
+      const j = await res.json();
+      if (!res.ok) { setStatus("Musaite alinamadi: " + (j.detail && j.detail.error ? j.detail.error : res.status)); return; }
+      setStatus(j.released ? (`Kaynak musaite alindi: ${resourceKey}`) : (`Kaynak zaten musaitti: ${resourceKey}`));
+      loadAssignments();
+      reloadPositioning();
+    } catch (err) {
+      setStatus("Musaite hatasi: " + err);
+    }
+  }
+
+  async function releaseCompleted() {
+    try {
+      const res = await fetch("/api/v1/recommendations/assignments/release-completed", { method: "POST" });
+      const j = await res.json();
+      if (!res.ok) { setStatus("Otomatik birakma basarisiz."); return; }
+      setStatus(`Otomatik musaite alinan: ${(j.count != null ? j.count : (j.released || []).length)}`);
+      loadAssignments();
+      reloadPositioning();
+    } catch (err) {
+      setStatus("Otomatik birakma hatasi: " + err);
+    }
   }
 
   // EM-046: bir oneri satiri icin "neden?" panelini ac/kapa (gerekce + reddedilenler).

@@ -46,6 +46,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 13 | EM-046 Öneri gerekçesi / açıklanabilirlik (#46) | E5 | DONE | her öneri için "neden?" + reddedilen alternatifler ve gerekçeleri; build_proposals'ı açıklar, yeniden sıralamaz |
 | 14 | EM-049 Kaynak tipine göre ETA — kuş uçuşu vs yol ağı (#49) | E5 | DONE | hava kaynakları (helikopter/İHA) kuş uçuşu ETA, kara ekipleri yol ağı; öneri/rota/konuşlanmada `travel_mode` |
 | 15 | EM-048 Önerinin etki karşılaştırması (#48) | E5 | DONE | "uygulanırsa" vs "uygulanmazsa" risk ufuk bazında yan yana; EM-056 re-pricing motoru + EM-052 önerileri; canlı/tavsiye, kalıcılık yok |
+| 16 | EM-053 Çifte atama / kaynak çakışma önleme (#53) | E5 | DONE | kabul/düzenle artık başka olaya atanmış birimi 409 ile engeller; müsaite alma + görev bitişi otomatik müsait; atama EM-047 denetim kaydından türer (migration yok) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -477,11 +478,45 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **659** (647 + 12 yeni).
 - **Commit:** `feat(EM-048): ...` (bu dal).
 
+### EM-053 — Çifte atama ve kaynak çakışma önleme (#53) — DONE
+- **Eksik analizi:** EM-047 `record_decision` kabul/düzenle'de kaynağı koşulsuz
+  `en_route`'a çekiyordu; **aynı birimin ikinci bir olaya atanmasını engelleyen**
+  bir bekçi ve **görev bitişi kaynağı müsaite döndüren** bir mekanizma yoktu
+  (`conflict`/`release`/`assignment` araması boş). Kabul kriterleri: tek görev
+  ataması + çakışmada açıklamalı uyarı + görev bitince otomatik müsait. E5 Should (sp3).
+- **Kapsam:** `src/services/recommendation_decision.py` (`ConflictError`,
+  `_BUSY_STATUSES`, `_active_assignment_event`, `record_decision` içine çakışma
+  bekçisi, `release_assignment`, `list_active_assignments`,
+  `release_completed_assignments`), `src/routes/recommendation_decision.py`
+  (4 yeni uç + `…/config` `conflict_prevention` bloğu; `DecisionRecord` 409),
+  `operator_map.html` (**Atamalar** bölümü: `toggleAssignments`/`loadAssignments`/
+  `releaseAssignment`/`releaseCompleted` + tablo + CSS),
+  `tests/unit/test_recommendation_conflict.py` (16 test), CHANGELOG + docs/api.
+  **Migration/model/settings/route-kaydı yok** — mevcut EM-047 tablosu/servisi genişletilir.
+- **Varsayımlar:** (1) atama **ayrı tablo değil**, EM-047 denetim kaydından türer:
+  en yeni karar `accept`/`edit` ve kaynak hâlâ meşgulse (`en_route`/`deployed`)
+  o olaya bağlı; sonraki `release` bağı temizler; (2) `release` yeni bir
+  `DECISION_ACTIONS` **değildir** (EM-047 `actions` üçlüsü ve config testi
+  korunur) — ayrı `release_assignment` fonksiyonu `release` satırı yazar;
+  (3) çakışma yalnızca `event_key` verilip mevcut atama **farklıysa** tetiklenir
+  (geriye dönük uyum: `event_key`'siz kabuller eskisi gibi serbest);
+  (4) "görev bitti" = olay `status != "active"` ya da satırı yok.
+- **Kanıt:** RES EVT-A'ya kabul → EVT-B'ye kabul `ConflictError` (uç 409);
+  aynı EVT-A tekrar → idempotent; release → `available` + ETA temiz + sonra
+  EVT-B'ye kabul OK; boş kaynakta release no-op; yanlış `event_key` release →
+  ConflictError; `list_active_assignments` 1 satır; sweep: aktif olay bağlı
+  kalır, contained/silinen olayın birimi otomatik `available`; uçlar
+  release(200/404)/assignments(200)/release-completed(200)/config; UI
+  `toggleAssignments`/`db-release`/`Müsaite al`.
+- **Kapılar:** black(144 değişmez)/mypy(95)/pylint(10.00)/bandit(0) yeşil;
+  pytest **675** (659 + 16 yeni).
+- **Commit:** `feat(EM-053): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -494,8 +529,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 143 değişmez · mypy Success (95) · pylint 10.00/10 ·
-  bandit 0 · pytest **659 passed**.
+- **Final kapılar:** black 144 değişmez · mypy Success (95) · pylint 10.00/10 ·
+  bandit 0 · pytest **675 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
