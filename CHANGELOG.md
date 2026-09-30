@@ -5,6 +5,21 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-054: Öneri kabul/ret geri bildirim döngüsü — analiz (E5)
+  - Komutan önerileri kabul/rettikçe **biriken karar sinyali** veri bilimci için
+    motoru iyileştirecek ham maddeye dönüşür: hangi kaynak tipleri ne sıklıkla
+    reddediliyor, hangi gerekçeler öne çıkıyor, hangi backlog fikri üretilmeli
+  - `src/services/recommendation_feedback.py`: `feedback_summary`, EM-047 karar
+    denetimi üzerinde **salt okunur** toplulaştırma — genel kabul/ret/düzenleme
+    oranları, kaynak tipi bazında kırılım, en çok reddedilen tipler, ret
+    gerekçesi sayımları ve eşik/anasayfa sezgileriyle üretilen **iyileştirme
+    fikirleri**. `release` satırları (EM-053 yaşam döngüsü) analizden hariç
+  - Uçlar: `GET /api/v1/recommendations/feedback` (isteğe bağlı `event_key`
+    kapsamı) + `GET /api/v1/recommendations/feedback/config` (neyi/nasıl
+    ölçtüğünü bildirir). Operatör haritasında **Kabul/ret geri bildirimi** paneli
+    karar sonrası otomatik tazelenir
+  - **Kayıt yok / canlı / salt danışmanlık:** yeni tablo veya migration yok,
+    yalnızca mevcut EM-047 denetiminden türetilir; `persistence: none`
 - EM-045: Kaynak önerisi motoru — öneri başına beklenen risk düşüşü (E5)
   - Komutan "şimdi ne yapmalıyım?" sorusuna **sıralı** öneri listesi ister; her
     öneri artık **beklenen risk düşüşü** (`expected_risk_reduction`) değerini

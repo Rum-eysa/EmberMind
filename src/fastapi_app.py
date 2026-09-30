@@ -29,6 +29,9 @@ from src.routes.perf_budget import register_perf_budget_routes
 from src.routes.positioning import register_positioning_routes
 from src.routes.recommendation_decision import register_recommendation_routes
 from src.routes.recommendation_explain import register_recommendation_explain_routes
+from src.routes.recommendation_feedback import (
+    register_recommendation_feedback_routes,
+)
 from src.routes.recommendation_impact import register_recommendation_impact_routes
 from src.routes.risk_index import register_risk_index_routes
 from src.routes.risk_panel import register_risk_panel_routes
@@ -396,6 +399,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_recommendation_routes(api, database, settings)
     register_recommendation_explain_routes(api, database, settings)
     register_recommendation_impact_routes(api, database, settings)
+    register_recommendation_feedback_routes(api, database, settings)
     register_task_instruction_routes(api, database, settings)
     register_risk_panel_routes(api, database, settings)
     register_risk_index_routes(api, database, settings)

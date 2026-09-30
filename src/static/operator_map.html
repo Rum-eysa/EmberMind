@@ -120,6 +120,11 @@
     #positioning-panel .tc-meta { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
     /* EM-050: kısıt nedeniyle elenen öneriler */
     #positioning-panel .rj-h { margin-top: 8px; font-size: var(--font-size-xs); color: var(--text-muted); }
+    /* EM-054: kabul/ret geri bildirim döngüsü raporu */
+    #positioning-panel .fb-rates { display: flex; gap: 10px; flex-wrap: wrap;
+      font-size: var(--font-size-xs); margin-top: 6px; }
+    #positioning-panel .fb-idea { border-left: 3px solid var(--border-color);
+      padding: 2px 8px; margin-top: 4px; font-size: var(--font-size-xs); }
     #positioning-panel .rj-item {
       border: 1px dashed var(--border-color); border-radius: 6px;
       padding: 4px 8px; margin-top: 4px; font-size: var(--font-size-xs);
@@ -286,6 +291,9 @@
 <button type="button" id="positioning-taskcards-btn" class="pi-btn"
       onclick="toggleTaskCards()">Görev kartları (EM-051)</button>
 <div id="positioning-taskcards" hidden></div>
+<button type="button" id="positioning-feedback-btn" class="pi-btn"
+      onclick="toggleFeedback()">Kabul/ret geri bildirimi (EM-054)</button>
+<div id="positioning-feedback" hidden></div>
   </div>
 
   <div id="whatif-panel" class="panel" aria-live="polite">
@@ -821,6 +829,7 @@
       setStatus(`Karar kaydedildi (${label}) — ${p.name || p.resource_key}: ${after}`);
       reloadPositioning();
       refreshTaskCards();
+      refreshFeedback();
     } catch (err) {
       setStatus("Karar hatasi: " + err);
     }
@@ -977,6 +986,78 @@
       + '<div class="tc-meta">' + risk + ' · kabul: '
       + escapeHtml(c.accepted_at || "—") + by + '</div>'
       + '</div>';
+  }
+
+  // EM-054: kabul/ret geri bildirim döngüsü raporunu ac/kapa.
+  function toggleFeedback() {
+    const box = document.getElementById("positioning-feedback");
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    loadFeedback();
+  }
+
+  // EM-054: panel aciksa karar sonrasi raporu tazele.
+  function refreshFeedback() {
+    const box = document.getElementById("positioning-feedback");
+    if (box && !box.hidden) loadFeedback();
+  }
+
+  function _fbPct(v) {
+    return v == null ? "—" : (Math.round(v * 100) + "%");
+  }
+
+  async function loadFeedback() {
+    const box = document.getElementById("positioning-feedback");
+    if (!box) return;
+    box.innerHTML = '<div class="empty">Yukleniyor…</div>';
+    const qs = exposureEventKey
+      ? "?event_key=" + encodeURIComponent(exposureEventKey) : "";
+    try {
+      const res = await fetch("/api/v1/recommendations/feedback" + qs);
+      const j = await res.json();
+      if (!res.ok) {
+        box.innerHTML = '<div class="empty">'
+          + escapeHtml((j && j.detail && j.detail.error) || "Geri bildirim alinamadi.")
+          + "</div>";
+        return;
+      }
+      box.innerHTML = renderFeedback(j);
+    } catch (err) {
+      box.innerHTML = '<div class="empty">Geri bildirim alinamadi.</div>';
+    }
+  }
+
+  function renderFeedback(j) {
+    const t = j.totals || {}, r = j.rates || {};
+    let html = '<div class="as-h">Kabul/ret analizi · kapsam: '
+      + escapeHtml(j.scope || "tumu") + ' · karar: <b>' + escapeHtml(t.decisions || 0) + '</b></div>';
+    html += '<div class="fb-rates">'
+      + '<span>Kabul: <b>' + _fbPct(r.accept_rate) + '</b> (' + escapeHtml(t.accept || 0) + ')</span>'
+      + '<span>Ret: <b>' + _fbPct(r.reject_rate) + '</b> (' + escapeHtml(t.reject || 0) + ')</span>'
+      + '<span>Düzenle: <b>' + _fbPct(r.edit_rate) + '</b> (' + escapeHtml(t.edit || 0) + ')</span>'
+      + '</div>';
+    const rej = j.most_rejected_types || [];
+    if (rej.length) {
+      html += '<div class="rj-h">En çok reddilen tipler</div>';
+      for (const row of rej) {
+        html += '<div class="rj-item">' + escapeHtml(row.resource_type)
+          + ' · ret ' + escapeHtml(row.reject) + ' (' + _fbPct(row.reject_rate) + ')</div>';
+      }
+    }
+    const reasons = j.rejection_reasons || [];
+    if (reasons.length) {
+      html += '<div class="rj-h">Sık ret gerekçeleri</div>';
+      for (const x of reasons) {
+        html += '<div class="rj-item">' + escapeHtml(x.reason) + ' (' + escapeHtml(x.count) + ')</div>';
+      }
+    }
+    const ideas = j.improvement_ideas || [];
+    if (ideas.length) {
+      html += '<div class="rj-h">İyileştirme fikirleri (backlog)</div>';
+      for (const idea of ideas) html += '<div class="fb-idea">' + escapeHtml(idea) + '</div>';
+    }
+    return html;
   }
 
   // EM-046: bir oneri satiri icin "neden?" panelini ac/kapa (gerekce + reddedilenler).

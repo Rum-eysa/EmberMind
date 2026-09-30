@@ -50,6 +50,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 17 | EM-051 Kabul edilen öneriden saha görev kartı (#51) | E5 | DONE | hedef (olay+koordinat) + varış (ETA/arrival_eta) + risk notu (EM-029 tepe bandı); kart EM-047 denetim anlık görüntüsünden canlı kurulur, kalıcılık yok |
 | 18 | EM-050 Kısıt tabanlı optimizasyon (#50) | E5 | DONE | menzil/mesai/gece/yol kapalılığı ihlali olan öneri üretilmez + nedeni gösterilir; opsiyonel limit kolonları (V022 ADD-only, NULL=sınırsız); EM-046/katman sıralama sözleşmesi korunur |
 | 19 | EM-045 Kaynak önerisi motoru — öneri başına beklenen risk düşüşü (#45) | E5 | DONE | sıralı öneri listesinde her satır `expected_risk_reduction` taşır (tek birimin tepe EM-029 riskine varış-duyarlı marjinal etkisi); `build_proposals` saf kalır, zenginleştirme uçta katman |
+| 20 | EM-054 Öneri kabul/ret geri bildirim döngüsü — analiz (#54) | E5 | DONE | EM-047 karar denetimi üzerinde salt okunur toplulaştırma: kabul/ret oranları, tip bazında kırılım, en çok reddedilen tipler, ret gerekçeleri + iyileştirme fikirleri; `release` hariç, tablo/migration yok |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -603,11 +604,40 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **710** (702 + 8 yeni).
 - **Commit:** `feat(EM-045): ...` (bu dal).
 
+### EM-054 — Öneri kabul/ret geri bildirim döngüsü — analiz (#54) — DONE
+- **Eksik analizi:** EM-047 kararları (kabul/ret/düzenleme) denetim tablosuna
+  yazılıyor ama **hiçbir yerden toplulaştırılmıyordu**; operatörün ret
+  sinyali motoru iyileştirecek bir rapora/fikre dönüşmüyordu (`feedback`/
+  `accept_rate`/`reject_rate` araması boş). Kabul kriterleri: kabul/ret
+  oranları + tip bazında kırılım + en çok reddedilenler + gerekçeler +
+  iyileştirme fikirleri. E5 Could (sp3).
+- **Kapsam:** `src/services/recommendation_feedback.py` (`feedback_summary`
+  + sezgi/sabitler), `src/routes/recommendation_feedback.py` (2 uç,
+  `fastapi_app`'e kaydedildi), `operator_map.html` (**Kabul/ret geri bildirimi**
+  düğmesi + `toggleFeedback`/`refreshFeedback`/`renderFeedback`, karar sonrası
+  otomatik tazeleme), `tests/unit/test_recommendation_feedback.py` (10 test),
+  CHANGELOG + docs/api. **Migration/model/settings yok** — EM-047 denetiminden
+  salt okunur türetilir.
+- **Varsayımlar:** (1) `release` satırları (EM-053 yaşam döngüsü) karardan
+  sayılmaz (`DECISION_ACTIONS` filtresi); (2) kaynak tipi önce karar anlık
+  görüntüsünden, yoksa envanterden çözülür (fallback `bilinmeyen`); (3) oran
+  paydası ilgili tipin **toplam kararı**; (4) fikirler eşik sezgileriyle
+  (ret oranı ≥ %50, genel kabul < %50) + gerekçe anahtar kelimelerinden üretilir.
+- **Kanıt:** karar yok → oranlar `None` + "operatör kararı yok" fikri; 2 kabul/3
+  ret/1 düzen → `accept_rate 0.333`/`reject 0.5`/`edit 0.167`; `release` hariç
+  (2 sayılıyor); crew 3/3 → `reject_rate 1.0` + `most_rejected_types[0]=crew`;
+  gerekçeler `yavaş`=2/`uzak`=1 → ETA+Mesafe fikirleri; tipi eksik karar →
+  envanter `helicopter`; `event_key` kapsam filtresi; uç 200 totals + config
+  (`excludes:['release']`).
+- **Kapılar:** black(153 değişmez)/mypy(100)/pylint(10.00)/bandit(0) yeşil;
+  pytest **720** (710 + 10 yeni).
+- **Commit:** `feat(EM-054): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -620,8 +650,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 150 değişmez · mypy Success (98) · pylint 10.00/10 ·
-  bandit 0 · pytest **710 passed**.
+- **Final kapılar:** black 153 değişmez · mypy Success (100) · pylint 10.00/10 ·
+  bandit 0 · pytest **720 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

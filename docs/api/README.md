@@ -295,6 +295,26 @@ Operatör haritasındaki Konuşlanma panelinde **Atamalar** bölümü aktif atam
 listesini, satır başına **Müsaite al** düğmesini ve "Biten olayları otomatik
 müsaite al" işlemini sunar.
 
+### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
+
+Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir
+geri bildirim raporuna dönüştürülür: genel kabul/ret/düzenleme oranları, kaynak
+tipi bazında kırılım, en çok reddedilen tipler, ret gerekçesi sayımları ve bu
+sinyallerden damıtılan **iyileştirme fikirleri**. EM-053 `release` satırları
+analizden **hariçtir** (yaşam döngüsü olayı, karar sinyali değildir). Rapor yeni
+bir tablo gerektirmez; tümü mevcut denetimden canlı türetilir (`persistence: none`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/recommendations/feedback` | Kabul/ret analizi; isteğe bağlı `event_key` ile tek olaya daraltılır (varsayılan: tümü) |
+| `GET /api/v1/recommendations/feedback/config` | Tanımlayıcı: hangi aksiyonları ölçer, `release` hariç, hangi metrikleri üretir |
+
+Operatör haritasında **Kabul/ret geri bildirimi (EM-054)** paneli, bir öneri
+kararı verildikten sonra otomatik tazelenir. Eşikler: bir tipin ret oranı
+`_REJECT_RATE_ALERT` (%50) üzerine çıkarsa "uygunluk/önceliklendirmeyi gözden
+geçir" fikri üretilir; genel kabul oranı `%50` altında ve yeterli örneklem varsa
+"motor beklentiyi karşılamıyor" uyarısı düşer.
+
 ### Kaynak Önerisi Motoru — Beklenen Risk Düşüşü (EM-045)
 
 Öneri motoru, sıralı konuşlanma listesinin **her satırına** bir `expected_risk_reduction`
