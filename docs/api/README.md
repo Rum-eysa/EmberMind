@@ -386,6 +386,25 @@ mevcut kaydırıcıları adlandırılmış senaryo olarak kaydeder, kayıtlı bi
 senaryoyu kaydırıcılara yükleyip yeniden hesaplar ve paylaşım bağlantısını
 panoya kopyalar.
 
+### What-If Koşu Geçmişi ve Geri Alma (EM-062)
+```
+GET    /api/v1/whatif/history/config  # etkin + tutulan koşu sayısı (limit)
+POST   /api/v1/whatif/history         # bir koşuyu (girdileri) geçmişe ekle
+GET    /api/v1/whatif/history         # son N koşu (event_key/kind/limit)
+GET    /api/v1/whatif/history/{id}    # geri alma için tek koşu
+DELETE /api/v1/whatif/history         # geçmişi temizle (tümü veya bir olay)
+```
+EM-059'dan farklı olarak geçmiş **otomatik** doldurulur: her başarılı what-if
+koşusu yuvarlanan bir listeye eklenir ve yalnızca son `WHATIF_HISTORY_LIMIT`
+(vars. **10**) koşu tutulur — yaşlılar yeni geldikçe budanır. En yeni ile
+**birebir aynı** girdi tekrar kaydedilmez (debounce). `record` özeti
+`recorded` (`true`/`false` + `reason`: `disabled`/`duplicate`), `count` ve
+`dropped` döner. Yalnızca **girdiler** saklanır; **Geri dön** mevcut
+`/whatif/wind` ucundan koşuyu **yeniden oynatır** (sonuç önbelleği yok).
+Bulunamayan `{id}` **404**. `WHATIF_HISTORY_ENABLED` (vars. `true`) kapalıyken
+kayıt yapılmaz. Operatör haritasındaki (`/ui`) **Geçmiş — son koşular** aracı
+koşu sonrası otomatik güncellenir ve seçili koşuya tek tıkla dönülür.
+
 ### Yeniden Hesaplama Performans Bütçesi (EM-060)
 ```
 GET  /api/v1/perf-budget          # kayan p95 gecikme okuması (durum paneli)

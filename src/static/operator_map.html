@@ -106,6 +106,13 @@
     #whatif-scen-link { font-size: var(--font-size-xs); word-break: break-all;
           color: #1565c0; margin-top: 2px; }
     #whatif-scen-link.err { color: #c62828; }
+        #whatif-history { border-top: 1px solid var(--border-color); margin-top: 6px;
+          padding-top: 6px; }
+        #whatif-history .scen-head { font-size: var(--font-size-xs); font-weight: 700;
+          color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; }
+        #whatif-history select { flex: 1; min-width: 0; font-size: var(--font-size-xs);
+          padding: 3px 4px; }
+        #whatif-history button { flex: 0 0 auto; }
     #whatif-chip { font-size: var(--font-size-xs); font-weight: 700; padding: 2px 8px;
       border-radius: 10px; background: #9e9e9e; color: #fff; white-space: nowrap; }
     #whatif-chip.on { background: #1565c0; }
@@ -252,6 +259,14 @@
         <button type="button" id="whatif-scen-load" title="Seçili senaryoyu kaydırıcılara yükle ve yeniden hesapla">Yükle</button>
       </div>
       <div id="whatif-scen-link"></div>
+    </div>
+    <div id="whatif-history">
+      <div class="scen-head">Geçmiş — son koşular (EM-062)</div>
+      <div class="row">
+        <select id="whatif-hist-list" aria-label="Son what-if koşuları"></select>
+        <button type="button" id="whatif-hist-revert" title="Seçili koşunun değerlerine geri dön">Geri dön</button>
+        <button type="button" id="whatif-hist-clear" title="Geçmişi temizle">Temizle</button>
+      </div>
     </div>
     <div id="whatif-summary"></div>
     <div id="whatif-newlist"></div>
@@ -702,6 +717,7 @@
       whatifResult = await res.json();
       renderHorizons();  // senaryo katmanını seçili ufkla yeniden çiz
       renderWhatifSummary();
+      recordWhatifHistory(body, ign.event_key);  // EM-062: bu koşuyu geçmişe ekle
       const chipCls = whatifResult.within_target ? "on" : "slow";
       setWhatifChip(chipCls, `What-If: ${(whatifResult.compute_ms / 1000).toFixed(1)} sn`);
     } catch (err) {
@@ -762,6 +778,7 @@
     setWhatifChip("", "What-If: hazır");
     updateWhatifIgnitionHint();
     refreshScenarioList();
+    refreshHistoryList();
     runWhatif();
   }
   function closeWhatif() {
@@ -872,6 +889,82 @@
       if (navigator.clipboard) { try { await navigator.clipboard.writeText(url); } catch (e) { /* pano izni yok */ } }
       await refreshScenarioList();
     } catch (err) { scenLink(`Paylaşılamadı: ${err.message}`, true); }
+  }
+
+  // --- EM-062: yuvarlanan koşu geçmişi + tek tık geri alma -----------------
+  function histLabel(p) {
+    const dir = p.wind_rotation_delta_deg || 0;
+    const spd = Math.round((p.wind_speed_factor || 1) * 100);
+    const t = p.temperature_delta_c || 0;
+    const h = p.humidity_delta_pct || 0;
+    return `${dir > 0 ? "+" : ""}${dir}° · %${spd} · ${t > 0 ? "+" : ""}${t}°C · ${h > 0 ? "+" : ""}${h}%`;
+  }
+  async function recordWhatifHistory(params, eventKey) {
+    const sig = JSON.stringify(params);
+    if (sig === recordWhatifHistory._last) return;  // istemci tarafı debounce
+    recordWhatifHistory._last = sig;
+    try {
+      await fetch("/api/v1/whatif/history", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "wind", event_key: eventKey || null,
+          label: histLabel(params), params,
+        }),
+      });
+      await refreshHistoryList();
+    } catch (err) { /* geçmiş kaydı sessiz — ana işlev etkilenmez */ }
+  }
+  async function refreshHistoryList() {
+    const sel = document.getElementById("whatif-hist-list");
+    if (!sel) return;
+    const prev = sel.value;
+    try {
+      const res = await fetch("/api/v1/whatif/history?kind=wind&limit=10");
+      if (!res.ok) return;
+      const data = await res.json();
+      sel.innerHTML = "";
+      for (const h of (data.history || [])) {
+        const opt = document.createElement("option");
+        opt.value = String(h.id);
+        const when = (h.created_at || "").slice(11, 16);
+        opt.textContent = `${when} · ${h.label || histLabel(h.params)}`;
+        sel.appendChild(opt);
+      }
+      if (prev) sel.value = prev;
+    } catch (err) { /* listeme hatası sessiz */ }
+  }
+  function applyWhatifParams(p, eventKey) {
+    if (p.latitude == null || p.longitude == null) return false;
+    mapClickPoint = { lat: p.latitude, lng: p.longitude };
+    if (eventKey) exposureEventKey = eventKey;
+    document.getElementById("whatif-dir").value = String(p.wind_rotation_delta_deg || 0);
+    document.getElementById("whatif-speed").value = String(Math.round((p.wind_speed_factor || 1) * 100));
+    document.getElementById("whatif-temp").value = String(p.temperature_delta_c || 0);
+    document.getElementById("whatif-humidity").value = String(p.humidity_delta_pct || 0);
+    updateWhatifIgnitionHint();
+    return true;
+  }
+  async function revertHistory() {
+    const sel = document.getElementById("whatif-hist-list");
+    const id = sel && sel.value;
+    if (!id) { scenLink("Gerı donelecek kosu secin", true); return; }
+    try {
+      const res = await fetch(`/api/v1/whatif/history/${encodeURIComponent(id)}`);
+      const j = await res.json();
+      if (!res.ok) { scenLink(`Geri alınamadı: ${(j.detail && j.detail.error) || res.status}`, true); return; }
+      const p = j.entry.params || {};
+      if (!applyWhatifParams(p, j.entry.event_key)) { scenLink("Koşu ignisyon noktası eksik", true); return; }
+      scenLink(`Geri dönüldü: ${j.entry.label || histLabel(p)}`);
+      if (!whatifEnabled) { openWhatif(); } else { runWhatif(); }
+    } catch (err) { scenLink(`Geri alınamadı: ${err.message}`, true); }
+  }
+  async function clearHistory() {
+    try {
+      await fetch("/api/v1/whatif/history", { method: "DELETE" });
+      recordWhatifHistory._last = null;
+      scenLink("Geçmiş temizlendi");
+      await refreshHistoryList();
+    } catch (err) { scenLink(`Temizlenemedi: ${err.message}`, true); }
   }
 
   // --- EM-090: canlı güncelleme (WebSocket + REST yedeği) ------------------
@@ -1091,6 +1184,11 @@
     if (scenLoad) scenLoad.addEventListener("click", loadScenario);
     const scenShare = document.getElementById("whatif-scen-share");
     if (scenShare) scenShare.addEventListener("click", shareScenario);
+    // EM-062: geçmiş geri alma / temizleme düğmeleri.
+    const histRevert = document.getElementById("whatif-hist-revert");
+    if (histRevert) histRevert.addEventListener("click", revertHistory);
+    const histClear = document.getElementById("whatif-hist-clear");
+    if (histClear) histClear.addEventListener("click", clearHistory);
     // Haritaya tıklama, olay seçili değilken ignisyon noktası olur.
     map.on("click", ev => {
       mapClickPoint = ev.latlng;

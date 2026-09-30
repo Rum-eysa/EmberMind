@@ -55,6 +55,37 @@ class WhatIfScenario(BaseModel):
         }
 
 
+class WhatIfHistory(BaseModel):
+    """An auto-captured what-if run in the operator's rolling history (EM-062).
+
+    Unlike a :class:`WhatIfScenario` (deliberately *named* and kept until
+    deleted), a history row is recorded automatically after each run and the
+    table is trimmed to the last N entries, so the operator can scroll back
+    through what they just tried and jump to any one of them in a single click.
+    """
+
+    __tablename__ = "whatif_history"
+
+    event_key = Column(String(64), nullable=True, index=True)
+    kind = Column(String(16), nullable=False, default="wind")
+    label = Column(String(120), nullable=True)
+    params_json = Column(Text, nullable=False)
+
+    __table_args__ = (Index("idx_whatif_history_event_created", "event_key", "id"),)
+
+    @property
+    def as_dict(self) -> dict[str, Any]:
+        """Return an API-friendly representation with the decoded params."""
+        return {
+            "id": self.id,
+            "event_key": self.event_key,
+            "kind": self.kind,
+            "label": self.label,
+            "params": _decode_params(self.params_json),
+            "created_at": to_utc_iso(self.created_at),
+        }
+
+
 def _decode_params(raw: Any) -> dict[str, Any]:
     """Best-effort decode of the stored ``params_json`` into a dict."""
     if not raw:

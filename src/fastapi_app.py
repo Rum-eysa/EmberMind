@@ -34,6 +34,7 @@ from src.routes.scenario_share import register_scenario_share_routes
 from src.routes.spread import register_spread_routes
 from src.routes.synthetic import register_synthetic_routes
 from src.routes.whatif import register_whatif_routes
+from src.routes.whatif_history import register_whatif_history_routes
 from src.services.data_governance import attribution_for
 from src.services.effis import EffisSourceError, import_effis_perimeters
 from src.services.fire_sync import sync_firms, sync_status
@@ -395,6 +396,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_capacity_routes(api, database, settings)
     register_whatif_routes(api, database, settings)
     register_scenario_share_routes(api, database, settings)
+    register_whatif_history_routes(api, database, settings)
     register_perf_budget_routes(api, database, settings)
     register_synthetic_routes(api, database, settings)
     register_live_routes(api, database, settings)

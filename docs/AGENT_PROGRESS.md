@@ -41,6 +41,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 8 | EM-033 Zamana bağlı kapasite modeli (#33) | E3 | DONE | yoldaki kaynağın varış ETA'sı ile çizelge kapasitesi basamaklanır (sabit değil) |
 | 9 | EM-057 Dinamik otomatik yeniden hesaplama (#57) | E6 | DONE | rüzgâr/konum/kapasite değişince plan otomatik yenilenir + "ne değişti?" özeti |
 | 10 | EM-059 Senaryo kaydetme ve paylaşma (#59) | E6 | DONE | geçici what-if koşularının üzerine girdi-kaydı + token'lı paylaşım bağlantısı |
+| 11 | EM-062 What-if geçmişi ve geri alma (#62) | E6 | DONE | otomatik yuvarlanan son-10 koşu listesi + tek tık geri alma |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -337,11 +338,38 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   pytest **603** (583 + 20 yeni; V019 migration `test_spatial` yeşil).
 - **Commit:** `feat(EM-059): ...` (bu dal).
 
+### EM-062 — What-if geçmişi ve geri alma (#62) — DONE
+- **Eksik analizi:** EM-059 **adlandırılmış/kalıcı** senaryoları saklar; AMA
+  operatörün **otomatik**, kendiliğinden budalanan "ne denedim?" geçmişi yoktu.
+  Kabul kriterleri: son 10 koşu listelenir + tek tıkla geri dönülür + oturum
+  boyunca saklanır. Geçici koşular (EM-055/061) hiçbir yerde birikmiyordu.
+  E6 Could (sp3).
+- **Kapsam:** `src/models/scenario.py` (`WhatIfHistory`, `whatif_history`,
+  V020 migration), `src/services/whatif_history.py` (`record_history`,
+  `list_history`, `get_history`, `clear_history`), `src/routes/whatif_history.py`
+  (5 uç, `fastapi_app`'e kaydedildi), `src/config/settings.py` +
+  `.env.example` (`WHATIF_HISTORY_ENABLED/LIMIT`), `operator_map.html`
+  (**Geçmiş — son koşular** aracı: koşu sonrası otomatik `recordWhatifHistory`,
+  `revertHistory` tek tık, `clearHistory`), `tests/unit/test_whatif_history.py`
+  (12 test), CHANGELOG + docs/api.
+- **Varsayım (EM-059'dan ayrım):** geçmiş **otomatik** + sınırlı (son N) ve
+  adlandırılmamış; yalnızca **girdi** saklar, geri alma `/whatif/wind`'den
+  **yeniden oynatır** (sonuç önbelleği yok). En yeniyle birebir aynı girdi
+  tekrar kaydedilmez (istemci + sunucu debounce). Budama: yeni kayıt sonrası
+  `id` azalan sırayla son `limit` dışındakiler silinir.
+- **Kanıt:** 12 koşu limit=3 → son 3 kalır [11,10,9]; disabled → `recorded:false
+  reason:disabled`; duplicate → `reason:duplicate`; get(missing) → HistoryError;
+  clear event-scoped + tümü; uçlar config/list/record/get(404)/delete; UI
+  `whatif-hist-revert` + `recordWhatifHistory(body` + `/api/v1/whatif/history`.
+- **Kapılar:** black(132)/mypy(88)/pylint(10.00)/bandit(0) yeşil;
+  pytest **615** (603 + 12 yeni; V020 migration `test_spatial` yeşil).
+- **Commit:** `feat(EM-062): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -354,8 +382,8 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 129 değişmez · mypy Success (86) · pylint 10.00/10 ·
-  bandit 0 · pytest **603 passed**.
+- **Final kapılar:** black 132 değişmez · mypy Success (88) · pylint 10.00/10 ·
+  bandit 0 · pytest **615 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

@@ -10,7 +10,7 @@ from .live import LiveUpdate
 from .perf_budget import RecomputeLatencySample
 from .pipeline import PipelineJobHistory
 from .road_network import CrewBase, RoadClosure, RoadSegment
-from .scenario import WhatIfScenario
+from .scenario import WhatIfHistory, WhatIfScenario
 from .spread_metrics import SpreadEvaluationMetric
 from .spread_perf import SpreadPerformanceRun
 from .spatial import (
@@ -47,6 +47,7 @@ __all__ = [
     "SilentRegion",
     "SimulationScenario",
     "SpatialSource",
+    "WhatIfHistory",
     "WhatIfScenario",
     "SpreadEvaluationMetric",
     "SpreadPerformanceRun",

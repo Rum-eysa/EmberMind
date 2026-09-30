@@ -308,6 +308,16 @@ class Config:
         os.getenv("WHATIF_RECOMPUTE_TARGET_SECONDS", "10.0")
     )
 
+    # EM-062: rolling what-if run history (Epic E6)
+    # How many recent what-if runs are kept for scroll-back + one-click revert.
+    WHATIF_HISTORY_ENABLED = os.getenv("WHATIF_HISTORY_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    # Maximum history entries retained (oldest trimmed as new runs arrive).
+    WHATIF_HISTORY_LIMIT = int(os.getenv("WHATIF_HISTORY_LIMIT", "10"))
+
     # EM-060: recompute performance budget + auto scale-down (Epic E6)
     # p95 of recent recompute latencies must stay under the target; when it
     # does not, a warning is raised and subsequent recomputes automatically

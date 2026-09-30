@@ -5,6 +5,23 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-062: What-if geçmişi ve geri alma (E6)
+  - Operatör **denediği koşuları** geriye doğru görmek ve tek tıkla birine
+    dönmek ister (karşılaştırmalı çalışma). EM-059'dan farklı olarak geçmiş
+    **otomatik** doldurulur ve yalnızca son `WHATIF_HISTORY_LIMIT` (vars. 10)
+    koşuyu tutar (kendini budar); adlandırılmış/kalıcı senaryo değildir
+  - `src/models/scenario.py` (`WhatIfHistory`, `whatif_history` tablosu, `V020`
+    migration) + `src/services/whatif_history.py` (`record_history`,
+    `list_history`, `get_history`, `clear_history`); en yeni ile **birebir
+    aynı** girdi tekrar kaydedilmez (istemci + sunucu debounce)
+  - Yalnızca **girdiler** (`params_json`) saklanır; geri alma mevcut
+    `/whatif/wind` ucundan **yeniden oynatır** (fizik çoğaltılmaz, bayat sonuç
+    olmaz)
+  - Uçlar: `POST/GET/DELETE /api/v1/whatif/history`, `GET /…/history/config`,
+    `GET /…/history/{id}` (`WHATIF_HISTORY_ENABLED`, vars. `true`)
+  - Operatör haritası (`/ui`): koşu başarılı olduğunda **Geçmiş — son koşular**
+    otomatik güncellenir; açılır listeden bir koşu seçip **Geri dön** ile
+    kaydırıcılar + ignisyon noktası eski değerlerine döner ve yeniden hesaplanır
 - EM-059: What-if senaryosu kaydetme ve paylaşma (E6)
   - EM-055/056/061/057 what-if yeniden hesaplamaları kasıtlı olarak geçiciydi;
     EM-059 bunların **üzerine** ince bir kalıcılık katmanı ekler: bir komutan
