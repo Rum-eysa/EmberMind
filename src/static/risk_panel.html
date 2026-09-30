@@ -79,6 +79,19 @@
         <h2>Eşik Renkleri</h2>
         <div id="legend"></div>
       </div>
+      <div class="card">
+        <h2>Olay Risk İndeksi — Risk(t)</h2>
+        <div class="muted-note">Yayılım talebi / etkin kapasite (ha/saat);
+          eşikler yönetici ayarında. EM-029</div>
+        <table id="risk-index">
+          <thead><tr><th>Olay</th><th class="num" id="ri-h0">T+?</th>
+            <th class="num" id="ri-h1">T+?</th><th class="num" id="ri-h2">T+?</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="kv" style="margin-top:6px"><span>En yüksek risk</span>
+          <b id="ri-max">–</b></div>
+      </div>
     </section>
     <section class="card">
       <h2>Bölgeler — Risk İndeksi ve İlk Aşım</h2>
@@ -142,11 +155,17 @@
   <script>
   "use strict";
   const FEED = "/api/v1/panel/capacity-risk";
+  const RISK_FEED = "/api/v1/risk-index";
   const CATEGORY_TR = {
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
   };
   const RESOURCE_TR = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
+  // EM-029 severity bands -> colors (tokens.css scale; kritik-yakin arası).
+  const RISK_LEVEL_COLOR = {
+    normal: "var(--color-success)", dikkat: "var(--color-warning)",
+    "kritik-yakin": "#e67e22", kritik: "var(--color-danger)",
+  };
 
   function setText(id, value) { document.getElementById(id).textContent = value; }
 
@@ -249,6 +268,46 @@
       render(await res.json());
     } catch (err) {
       setText("status", "panel verisi alınamadı: " + err.message);
+    }
+    refreshRiskIndex();
+  }
+
+  // EM-029: olay bazında ufukluk Risk(t) tablosu (yayılım talebi / kapasite).
+  async function refreshRiskIndex() {
+    const body = document.querySelector("#risk-index tbody");
+    try {
+      const res = await fetch(RISK_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const horizons = data.horizon_minutes.slice(0, 3);
+      ["ri-h0", "ri-h1", "ri-h2"].forEach((id, i) => {
+        setText(id, horizons[i] ? "T+" + horizons[i] : "—");
+      });
+      body.innerHTML = "";
+      if (!data.events.length) {
+        body.innerHTML = '<tr><td colspan="4">aktif yangın olayı yok</td></tr>';
+        return;
+      }
+      for (const ev of data.events) {
+        const cells = horizons.map((h) => {
+          const row = ev.horizons.find((x) => x.horizon_minutes === h);
+          if (!row) return '<td class="num">\u2014</td>';
+          const color = RISK_LEVEL_COLOR[row.level] || "var(--text-primary)";
+          const val = row.risk_index === null ? "\u221e" : row.risk_index.toFixed(2);
+          const tip = `${row.level} \u00b7 talep ${row.demand_ha_h} ha/saat \u00b7 a\u00e7\u0131k ${row.gap_ha_h} ha/saat`;
+          return `<td class="num" title="${tip}"><b style="color:${color}">${val}</b></td>`;
+        });
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${ev.event_key}</td>${cells.join("")}`;
+        body.appendChild(tr);
+      }
+      const s = data.summary;
+      const peak = s.max_risk_event
+        ? `${s.max_risk_event}: ${s.max_risk_index === null ? "kritik (kapasite sıfır)" : s.max_risk_index.toFixed(2)} (${s.max_risk_level})`
+        : "–";
+      setText("ri-max", peak);
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="4">risk indeksi alınamadı</td></tr>`;
     }
   }
 

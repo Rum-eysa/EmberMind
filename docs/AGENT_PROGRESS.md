@@ -32,7 +32,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | # | Görev | Epic | Durum | Gerekçe |
 |---|-------|------|-------|---------|
 | 1 | EM-031 Kapasite kullanılabilirlik durum yönetimi (#31) | E3 | DONE | `en_route` (yolda) durumu sözlükte yoktu; durum→kapasite bağı kısmen var |
-| 2 | EM-029 Risk indeksi hesaplama (#29) | E3 | TODO | Risk(t)=yayılım talebi/kapasite ufuk bazlı hiç yok; eşikler yapılandırılabilir olacak |
+| 2 | EM-029 Risk indeksi hesaplama (#29) | E3 | DONE | Risk(t)=yayılım talebi/kapasite ufuk bazlı hiç yoktu; eşikler yapılandırılabilir eklendi |
 | 3 | EM-030 Kapasite açığı zaman çizelgesi (#30) | E3 | TODO | EM-029'a bağlı; çizgi grafik + ilk eşik aşım zamanı |
 | 4 | EM-032 Eşik aşımı uyarısı (#32) | E3 | TODO | EM-029/030'a bağlı; histerezis + canlı besleme (LIVE "alert") |
 | 5 | EM-056 Kapasite değişimi senaryosu (#56) | E6 | TODO | EM-055 what-if'ine kapasite delta'sı eklenir (bu dalda yeni) |
@@ -47,6 +47,11 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   elle çalıştırılıyor.
 - **Issue kapatma yok**: tamamlanan görevlerin issue'su kapatılmaz (kullanıcı
   kararı); issue'ya yalnızca özet yorum atılır.
+- **EM-029 formül yorumu:** issue'nun sözel formülü `alan(t)/kapasite(t)`
+  boyutsal olarak saat verir; yerine EM-055'in yayınlanan `gap = talep −
+  kapasite` semantiğiyle tutarlı **birimsiz oran** (ha/saat talep ÷ ha/saat
+  etkin kapasite) seçildi — `>1` yangının kapasiteden hızlı büyümesi demek.
+  Ufuklar `SPREAD_HORIZON_MINUTES`'ten (30/60/120) okunur, sabitlenmez.
 - **EM-029 risk indeksi**, mevcut EM-073 panelindeki `risk_index` (şu an FWI
   aynalama) alanını **değiştirmez**; yeni bağımsız `Risk(t)` endeksi ayrı
   servis/endpoint olarak eklenir (EM-073 kabul testleri bozulmaz).
@@ -73,3 +78,24 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   kolon, CHECK yok).
 - **Kapılar:** black/mypy/pylint(10.00)/bandit(0) yeşil; pytest **467**.
 - **Commit:** `feat(EM-031): ...` (bu dal).
+
+### EM-029 — Operasyonel risk indeksi Risk(t) (#29) — DONE
+- **Eksik analizi:** Olay bazlı, ufuk bazlı Risk(t) hiç yoktu; EM-073 paneli
+  yalnızca FWI tabanlı BÖLGE riski gösteriyordu. Kapasite (EM-028) ve talep
+  tanımı (EM-055 `demand_ha_h`) mevcuttu → yeni bağımsız servis bunların
+  üzerine kuruldu, hiçbiri değiştirilmedi.
+- **Kapsam:** `src/config/settings.py` + `.env.example`
+  (`RISK_INDEX_NORMAL_MAX/CAUTION_MAX/CRITICAL_NEAR_MAX`),
+  `src/services/risk_index.py` (demand/band sınıflandırma/en güncel
+  `FireForecast` seçimi/boş kapasite → `null`+`kritik`/peak+summary),
+  `src/routes/risk_index.py` (`GET /api/v1/risk-index[?event_key=]` 404
+  dahil, `GET /api/v1/risk-index/config`), `src/fastapi_app.py` kaydı,
+  `risk_panel.html` **Olay Risk İndeksi — Risk(t)** kartı (renk kodlu
+  olay×ufuk tablosu, tooltip, özet), `tests/unit/test_risk_index.py`
+  (18 test), CHANGELOG + docs/api.
+- **Bağlantılar:** EM-031 — meşgul/yolda kaynak kapasiteye girmediği için
+  indesten otomatik düşer (testyle kilitli). EM-030 bu payload'ın
+  `gap_ha_h` alanını çizecek; EM-032 `level` değişimini izleyecek.
+- **Kapılar:** black/mypy(77 dosya)/pylint(10.00)/bandit(0) yeşil;
+  pytest **485** (467 + 18 yeni).
+- **Commit:** `feat(EM-029): ...` (bu dal).

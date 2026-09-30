@@ -26,6 +26,7 @@ from src.routes.inventory import register_inventory_routes
 from src.routes.live import register_live_routes
 from src.routes.map_layers import register_map_layer_routes
 from src.routes.positioning import register_positioning_routes
+from src.routes.risk_index import register_risk_index_routes
 from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
 from src.routes.spread import register_spread_routes
@@ -386,6 +387,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_map_layer_routes(api, database, settings)
     register_positioning_routes(api, database, settings)
     register_risk_panel_routes(api, database, settings)
+    register_risk_index_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
     register_inventory_routes(api, database, settings)
     register_capacity_routes(api, database, settings)

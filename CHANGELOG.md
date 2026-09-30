@@ -5,6 +5,24 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-029: Operasyonel risk indeksi — Risk(t) (E3)
+  - `src/services/risk_index.py`: **Risk(t) = yayılım talebi / etkin
+    kapasite** (iki taraf da EM-028 ha/saat biriminde, oran birimsiz);
+    talep en güncel `FireForecast` birikimli poligonunun ortalama alan
+    büyümesi (`area_ha / horizon_dk × 60`, EM-055 ile aynı tanım)
+  - Yapılandırılabilir seviye bantları: `RISK_INDEX_NORMAL_MAX` (0.6),
+    `RISK_INDEX_CAUTION_MAX` (0.9), `RISK_INDEX_CRITICAL_NEAR_MAX` (1.2)
+    → `normal / dikkat / kritik-yakin / kritik`; kapasite 0 ve talep > 0
+    iken `risk_index: null` + `kritik`
+  - Meşgul/yolda kaynaklar etkin kapasiteye girmediği için indesten
+    otomatik düşer (EM-031 bağlantısı); EM-073 bölge panelinin FWI
+    `risk_index` alanına dokunulmaz (bağımsız servis)
+  - `src/routes/risk_index.py`: **`GET /api/v1/risk-index`** (aktif tüm
+    olaylar veya `?event_key=`; bilinmeyen olay 404) ve
+    **`GET /api/v1/risk-index/config`**
+  - Komutan paneli (`/panel`): **Olay Risk İndeksi — Risk(t)** kartı —
+    olay × ufuk (T+30/60/120) renk kodlu tablo, talep/açık tooltip'i,
+    en yüksek risk özeti
 - EM-031: Kapasite kullanılabilirliği durum yönetimi (E3)
   - Durum sözlüğüne **`en_route` (yolda)** eklendi — müdahaleye tahsis
     edilmiş ancak henüz istasyonda olmayan kaynak; artık beş durum:

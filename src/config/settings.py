@@ -236,6 +236,18 @@ class Config:
     # threshold; the panel reports the first day each zone crossed it.
     RISK_PANEL_THRESHOLD = float(os.getenv("RISK_PANEL_THRESHOLD", "30.0"))
 
+    # Operational risk index (EM-029, Epic E3)
+    # Risk(t) = spread demand(t) / effective suppression capacity, both kept in
+    # hectare/hour so the ratio is a unitless severity the bands classify. These
+    # three maxima are the configurable level boundaries; anything above the
+    # last one is critical ("<0.6 normal, 0.6-0.9 dikkat, 0.9-1.2 kritik-yakin,
+    # >1.2 kritik").
+    RISK_INDEX_NORMAL_MAX = float(os.getenv("RISK_INDEX_NORMAL_MAX", "0.6"))
+    RISK_INDEX_CAUTION_MAX = float(os.getenv("RISK_INDEX_CAUTION_MAX", "0.9"))
+    RISK_INDEX_CRITICAL_NEAR_MAX = float(
+        os.getenv("RISK_INDEX_CRITICAL_NEAR_MAX", "1.2")
+    )
+
     # Capacity unit definition & normalization (EM-028, Epic E3)
     # Default "effective suppression capacity" (hectare/hour) assumed per unit
     # of each deployable resource type. These seed the admin-editable

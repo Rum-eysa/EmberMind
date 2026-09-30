@@ -210,6 +210,27 @@ varsayımı) ile envanter ha/saat cinsinden tek bir rakama indirgenir; panel
 beslemesi `capacity.assumptions` ve `capacity.effective` alanlarını taşır.
 Geçersiz/negatif tip düzenlemesi **400** döner.
 
+### Operasyonel Risk İndeksi (EM-029)
+```
+GET /api/v1/risk-index          # aktif her olay için ufukluk Risk(t) (?event_key=... ile tek olay)
+GET /api/v1/risk-index/config   # eşik bantları, seviye sırası, ufuk dk
+```
+Komutanın "bu olay T+30/60/120 dk'da ne kadar zor?" sorusu. **Risk(t) =
+yayılım talebi / etkin kapasite**; her iki taraf da EM-028'in tek birimine
+(ha/saat) normalize edildiği için oran birimsizdir. Talep, en güncel
+`FireForecast` birikimli poligonunun ortalama alan büyümesidir
+(`area_ha / horizon_dk × 60`, EM-055 ile aynı tanım) — `risk_index > 1`
+yangının mevcut müdahale kapasitesinden hızlı büyüdüğü anlamına gelir.
+Seviye bantları yapılandırılabilir: `RISK_INDEX_NORMAL_MAX` (vars. 0.6) →
+`normal`, `RISK_INDEX_CAUTION_MAX` (0.9) → `dikkat`,
+`RISK_INDEX_CRITICAL_NEAR_MAX` (1.2) → `kritik-yakin`, üzeri → `kritik`.
+Etkin kapasite yalnızca `available` kaynakları saydığı için meşgul/yolda
+kaynaklar indesten **otomatik** düşer (EM-031). Kapasite sıfır ve talep
+varsa oran ölçülemez: `risk_index: null`, seviye `kritik`. Bilinmeyen
+`event_key` **404** döner. Panelde (`/panel`) **Olay Risk İndeksi — Risk(t)**
+kartı olay × ufuk tablosunu renk kodlu gösterir. EM-073 bölge panelinin
+FWI tabanlı `risk_index` alanından **bağımsızdır**, onu değiştirmez.
+
 ### What-If Rüzgâr Senaryosu ve Dinamik Yeniden Hesaplama (EM-055)
 ```
 GET  /api/v1/whatif/config  # yeniden hesaplama hedef süresi (sn) ve kalıcılık bilgisi
