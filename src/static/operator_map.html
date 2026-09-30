@@ -80,6 +80,13 @@
     #positioning-panel .db-edit { color: #00695c; border-color: #00695c; }
     #positioning-panel .db-reject { color: #b71c1c; border-color: #b71c1c; }
     #positioning-panel .db-why { color: #4527a0; border-color: #4527a0; }
+    /* EM-049: seyahat modu rozeti (Hava = kuş uçuşu, Kara = yol ağı) */
+    #positioning-panel .mode {
+          font-size: var(--font-size-xs); padding: 0 4px; border-radius: 3px;
+          color: #fff; vertical-align: middle;
+        }
+    #positioning-panel .mode-air { background: #1565c0; }
+    #positioning-panel .mode-road { background: #6d4c41; }
     #positioning-panel .db:disabled { opacity: .4; cursor: not-allowed; }
         /* EM-046: "neden?" gerekçe paneli (satır altı, aç/kapa) */
     #positioning-panel .why {
@@ -395,11 +402,13 @@
     if (p.kind === "positioning_route" || p.kind === "deployment_point") {
       const eta = p.eta_minutes != null ? `T+${escapeHtml(p.eta_minutes)} dk` : "—";
       const km = p.distance_km != null ? ` &bull; ${escapeHtml(p.distance_km)} km` : "";
+      const mode = p.travel_mode === "air" ? " &bull; Hava (kuş uçuşu)"
+        : p.travel_mode === "road" ? " &bull; Kara (yol ağı)" : "";
       const head = p.kind === "deployment_point" ? "KONUŞLANMA" : "ROTA";
       return `<div style="font-size:12px;line-height:1.4">`
         + `<b>${head}: ${escapeHtml(p.name || "kaynak")}</b><br>`
         + `Tahmini varış: <b>${eta}</b>${km}<br>`
-        + `<i>${escapeHtml(p.resource_type || "")}</i></div>`;
+        + `<i>${escapeHtml(p.resource_type || "")}${mode}</i></div>`;
     }
     // EM-023: tehdit listesi ögeleri komutan-dili özet; diğerleri ham alan listesi.
     if (p.asset_type) {
@@ -604,10 +613,12 @@
       const eta = p.eta_minutes != null ? `T+${escapeHtml(p.eta_minutes)} dk` : "—";
       const km = p.distance_km != null ? ` &middot; ${escapeHtml(p.distance_km)} km` : "";
       const type = p.resource_type ? escapeHtml(p.resource_type) : "";
+      const modeBadge = p.travel_mode === "air" ? ' <span class="mode mode-air">Hava</span>'
+        : p.travel_mode === "road" ? ' <span class="mode mode-road">Kara</span>' : "";
       const decided = p.resource_key ? "" : " disabled";
       row.innerHTML =
         `<span><b>${escapeHtml(p.name || "kaynak")}</b>`
-        + `${type ? ` <i>(${type})</i>` : ""}${km}</span>`
+        + `${type ? ` <i>(${type})</i>` : ""}${modeBadge}${km}</span>`
         + `<span class="t">${eta}</span>`
         + `<span class="decide">`
         + `<button type="button" class="db db-why">Neden?</button>`

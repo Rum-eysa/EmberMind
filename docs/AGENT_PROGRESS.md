@@ -44,6 +44,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 11 | EM-062 What-if geçmişi ve geri alma (#62) | E6 | DONE | otomatik yuvarlanan son-10 koşu listesi + tek tık geri alma |
 | 12 | EM-047 Öneri kabul/ret/düzenleme (#47) | E5 | DONE | EM-052 önerisi üzerinde 3 aksiyon; kabul/düzenle kaynağı yolda'ya çeker; her karar denetim kaydı |
 | 13 | EM-046 Öneri gerekçesi / açıklanabilirlik (#46) | E5 | DONE | her öneri için "neden?" + reddedilen alternatifler ve gerekçeleri; build_proposals'ı açıklar, yeniden sıralamaz |
+| 14 | EM-049 Kaynak tipine göre ETA — kuş uçuşu vs yol ağı (#49) | E5 | DONE | hava kaynakları (helikopter/İHA) kuş uçuşu ETA, kara ekipleri yol ağı; öneri/rota/konuşlanmada `travel_mode` |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -424,11 +425,36 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   pytest **638** (627 + 11 yeni).
 - **Commit:** `feat(EM-046): ...` (bu dal).
 
+### EM-049 — Kaynak tipine göre ETA — kuş uçuşu vs yol ağı (#49) — DONE
+- **Eksik analizi:** EM-052 `build_proposals` **tüm** kaynakları (ekip,
+helikopter, İHA) yol ağı grafiğinden routing yapıyordu; kaynak **tipine göre**
+seyahat modu (hava = kuş uçuşu, kara = yol ağı) hiç yoktu (`air_speed`/`flight`/
+`travel_mode` araması boş). Kabul kriterleri: ETA tipe göre hız+rota ile
+hesaplanır; önerilerde görünür. E5 Must (sp5).
+- **Kapsam:** `src/services/positioning.py` (hava/kara dalı + `travel_mode`),
+  `src/config/settings.py` + `.env.example` (`POSITIONING_AIR_SPEED_KMH`),
+  `operator_map.html` (**Hava/Kara** rozeti + açılır pencere mod etiketi + CSS),
+  `tests/unit/test_positioning_travel_mode.py` (9 test), CHANGELOG + docs/api.
+  **Migration/model/route yok** — mevcut `/proposals` ucu genişletilir.
+- **Varsayımlar:** (1) hava kaynağı = `resource_type ∈ {helicopter, uav}`;
+  crew_bases (kara ekibi) daima `road`; (2) hava ETA'sı = `haversine_km/air_speed*60`,
+  kapatmalar uçuşu etkilemez → `reachable=true`, `delay=0`, iki noktalı düz rota;
+  (3) boş yol ağı hâlâ `RoadNetworkError` (pilot bölgesinde ağ varsayılır);
+  (4) "kaynak listesinde ETA" = envanter `arrival_eta` (EM-033) zaten mevcut.
+- **Kanıt:** ekip→`travel_mode:road`; heli→`air`, `distance_km`==haversine,
+  `eta==round(km/220*60,2)`, rota 2 nokta; ada helikopteri ulaşılabilir + ada
+  ekibi ulaşılamaz (hava öne sıralanır); kapatma hava ETA'sını değiştmez;
+  110↔440 km/sa hız-ETA ters orantısı; layer/özellik `travel_mode`; uç
+  `travel_mode` döner; UI `mode-air`/`mode-road`/`travel_mode`.
+- **Kapılar:** black(140 değişmez)/mypy(93)/pylint(10.00)/bandit(0) yeşil;
+  pytest **647** (638 + 9 yeni).
+- **Commit:** `feat(EM-049): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -441,8 +467,8 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 139 değişmez · mypy Success (93) · pylint 10.00/10 ·
-  bandit 0 · pytest **638 passed**.
+- **Final kapılar:** black 140 değişmez · mypy Success (93) · pylint 10.00/10 ·
+  bandit 0 · pytest **647 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

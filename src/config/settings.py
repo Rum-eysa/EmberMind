@@ -362,6 +362,9 @@ class Config:
     # Proactive resource positioning (EM-052)
     # How many nearest-resource deployment proposals to surface per event.
     POSITIONING_MAX_PROPOSALS = int(os.getenv("POSITIONING_MAX_PROPOSALS", "5"))
+    # Aerial assets (helicopter / uav) fly great-circle instead of road-routed
+    # (EM-049); this cruise speed in km/h turns straight-line distance into ETA.
+    POSITIONING_AIR_SPEED_KMH = float(os.getenv("POSITIONING_AIR_SPEED_KMH", "220"))
 
     # EFFIS historical fire perimeters (EM-011)
     EFFIS_BASE_URL = os.getenv(

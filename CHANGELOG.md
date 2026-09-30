@@ -5,6 +5,21 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-049: Kaynak tipine göre varış süresi (ETA) — kuş uçuşu vs yol ağı (E5)
+  - EM-052 tüm kaynakları (ekip, helikopter, İHA) yol ağı üzerinden
+    puanlıyordu. EM-049 **seyahat modunu** ayırır: **hava** kaynakları
+    (helikopter/İHA) olaya **kuş uçuşu** (büyük-daire mesafesi / seyir hızı)
+    ile uçar; **kara** ekipleri kapanış-duyarlı **yol ağı** rotasında kalır
+  - Hava ETA'sı `haversine_km(origin, hedef) / POSITIONING_AIR_SPEED_KMH * 60`;
+    yol kapatmaları uçuşu etkilemez → hava önerileri her zaman ulaşılabilir ve
+    `delay_vs_open_minutes = 0`. Kopuk (ada) kaynağı kara için ulaşılamazken
+    hava için ulaşılabilir olur ve sıralamada öne çıkar
+  - `build_proposals` her öneriye `travel_mode` (`"air"`/`"road"`) ekler; bu alan
+    rota + konuşlanma GeoJSON özelliklerine ve `/proposals` yanıtına taşınır
+  - Ayar: `POSITIONING_AIR_SPEED_KMH` (vars. 220 km/sa) — `settings.py` +
+    `.env.example`. Yeni kalıcılık/migration **yok** (canlı hesaplama)
+  - Operatör haritası (`/ui`): öneri satırında **Hava/Kara** rozeti ve harita
+    açılır penceresinde mod etiketi
 - EM-046: Öneri gerekçesi / açıklanabilirlik (E5)
   - Komutan, EM-052'nin bir öneriyi **neden** yaptığını görüp güvenip
     güvenmeyeceğine karar verir. Her öneri için bir **"neden?" paneli**:

@@ -198,6 +198,17 @@ LineString), `eta_minutes`, `distance_km` ve `delay_vs_open_minutes` taşır.
 **409**, olay bulunamazsa **404** döner. Harita gösterimi `positioning` katmanı
 ve **Konuşlanma Önerileri** paneliyle yapılır (öneri seçilince harita odaklanır).
 
+#### Kaynak Tipine Göre ETA — Kuş Uçuşu vs Yol Ağı (EM-049)
+Aynı `GET /api/v1/positioning/proposals` ucu artık **seyahat modunu** ayırt eder:
+her öneri `travel_mode` (`"air"` | `"road"`) taşır. **Hava** kaynakları
+(helikopter/İHA) olaya **kuş uçuşu** uçar — ETA = `haversine_km(mesafe) /
+POSITIONING_AIR_SPEED_KMH * 60` (vars. 220 km/sa); yol kapatmaları uçuşu
+etkilemediği için hava önerileri her zaman `reachable=true` ve
+`delay_vs_open_minutes=0` döner, rota iki noktalı düz çizgidir. **Kara**
+ekipleri kapanış-duyarlı yol ağı rotasında kalır. Bu alan rota/konuşlanma
+GeoJSON özelliklerinde de görünür; operatör haritasında **Hava/Kara** rozeti
+çizilir.
+
 ### Öneri Kabul / Ret / Düzenleme (EM-047)
 ```
 GET  /api/v1/recommendations/decisions/config   # aksiyonlar + durum sözlüğü

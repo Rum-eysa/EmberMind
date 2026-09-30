@@ -26,6 +26,16 @@ POSITIONING_ATTRIBUTION = (
     "Önerilen konuşlanma ve rotalar: EmberMind yol ağı routing motoru (EM-052)"
 )
 
+# Resource kinds that fly great-circle instead of following the road graph
+# (EM-049). Ground crews (and crew bases) remain closure-aware road-routed.
+AIRBORNE_TYPES = frozenset({"helicopter", "uav"})
+
+
+def _is_airborne(resource_type: str) -> bool:
+    """True when the resource type flies (helicopter / uav), else ground."""
+    return str(resource_type).strip().lower() in AIRBORNE_TYPES
+
+
 # A resource origin/destination is described as a ``(latitude, longitude)`` pair.
 Coord = tuple[float, float]
 
@@ -115,6 +125,7 @@ def build_proposals(
         raise RoadNetworkError("road network is empty; import it before positioning")
 
     access_speed = float(getattr(settings, "ROAD_ACCESS_SPEED_KMH", 40.0))
+    air_speed = float(getattr(settings, "POSITIONING_AIR_SPEED_KMH", 220.0))
     excluded = active_closure_keys(session)
     graph = RoadNetworkGraph.from_segments(
         segments, access_speed_kmh=access_speed, excluded_segment_keys=excluded
@@ -135,18 +146,39 @@ def build_proposals(
 
     proposals: list[dict[str, Any]] = []
     for idx, origin in enumerate(origins):
-        minutes, km, path = graph.shortest_route(origin["coord"], destination)
-        reachable = not math.isinf(minutes)
+        airborne = _is_airborne(origin["resource_type"])
         delay = 0.0
-        if reachable and open_graph is not None:
-            open_minutes, _, _ = open_graph.shortest_route(origin["coord"], destination)
-            if not math.isinf(open_minutes):
-                delay = max(0.0, minutes - open_minutes)
-        coords = (
-            _route_coordinates(origin["coord"], destination, path, segment_geom)
-            if reachable
-            else []
-        )
+        if airborne:
+            # Aerial assets fly great-circle at cruise speed; road closures never
+            # block them, so they are always reachable and incur no detour delay.
+            origin_lat, origin_lon = origin["coord"]
+            km = haversine_km(origin_lat, origin_lon, destination[0], destination[1])
+            minutes = (km / air_speed * 60.0) if air_speed > 0 else float("inf")
+            reachable = air_speed > 0
+            travel_mode = "air"
+            coords = (
+                [
+                    [origin["coord"][1], origin["coord"][0]],
+                    [destination[1], destination[0]],
+                ]
+                if reachable
+                else []
+            )
+        else:
+            minutes, km, path = graph.shortest_route(origin["coord"], destination)
+            reachable = not math.isinf(minutes)
+            travel_mode = "road"
+            if reachable and open_graph is not None:
+                open_minutes, _, _ = open_graph.shortest_route(
+                    origin["coord"], destination
+                )
+                if not math.isinf(open_minutes):
+                    delay = max(0.0, minutes - open_minutes)
+            coords = (
+                _route_coordinates(origin["coord"], destination, path, segment_geom)
+                if reachable
+                else []
+            )
         proposal = {
             "proposal_id": f"prop-{idx}-{origin['resource_key']}",
             "kind": origin["kind"],
@@ -154,6 +186,7 @@ def build_proposals(
             "name": origin["name"],
             "resource_type": origin["resource_type"],
             "event_key": event_key,
+            "travel_mode": travel_mode,
             "reachable": reachable,
             "eta_minutes": round(minutes, 2) if reachable else None,
             "distance_km": round(km, 3) if reachable else None,
@@ -170,6 +203,7 @@ def build_proposals(
                     "proposal_id": f"prop-{idx}-{origin['resource_key']}",
                     "name": origin["name"],
                     "resource_type": origin["resource_type"],
+                    "travel_mode": travel_mode,
                     "eta_minutes": round(minutes, 2) if reachable else None,
                     "distance_km": round(km, 3) if reachable else None,
                 },
@@ -225,6 +259,7 @@ def positioning_layer(
                     "event_key": proposal["event_key"],
                     "name": proposal["name"],
                     "resource_type": proposal["resource_type"],
+                    "travel_mode": proposal["travel_mode"],
                     "eta_minutes": proposal["eta_minutes"],
                     "distance_km": proposal["distance_km"],
                 },
