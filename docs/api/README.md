@@ -337,6 +337,25 @@ son tarihi** verilir. Yeni tablo/migration yoktur (`persistence: none`).
 Komuta panelinde **Dış Destek Erken Tahmini (EM-065)** kartı her olayın ilk açık
 dakikasını ve gereken takviye birimini gösterir.
 
+### Sınır Ötesi Ortak Durum (EM-066)
+
+İki ülkeyi izleyen koordinatör için **tek ortak ekran**: her aktif olay bir
+**pilot sınır boylamına** (`CROSSBORDER_BORDER_LONGITUDE`, varsayılan 26.5) göre
+TR (doğu) veya GR (batı) ülkesine atanır ve ülke ülke toplanır — ülke başına
+aktif yangınlar, **tepe risk bandı** (EM-029) ve **tahmini dış destek ihtiyacı**
+(EM-065). **Veri paylaşım kapsamı ayarlanabilir**dır: `fire` / `risk` /
+`support` alan gruplarının yalnızca seçilen alt kümesi yayımlanır, gerisi tamamen
+gizlenir. Ülke bazlı *yetki* politikası EM-070'in konusudur. Yeni
+tablo/migration yoktur (`persistence: none`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/crossborder/situation` | Ülke blokları (`country`, `label`, `event_count`, `peak_level`, `total_support_units`, olay satırları) + `shared_fields` + `summary`; `?fields=fire,risk` ile kapsam daraltma (geçersiz alan → 400) |
+| `GET /api/v1/crossborder/config` | `border_longitude`, ülkeler, `shareable_fields`, `default_shared_fields` |
+
+Komuta panelinde **Sınır Ötesi Durum (EM-066)** kartı, paylaşım kapsamı
+kutularıyla (Yangın/Risk/Destek) ülke ülke ortak tabloyu canlı gösterir.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

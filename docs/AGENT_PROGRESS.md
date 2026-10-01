@@ -54,6 +54,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 21 | EM-063 Saat dilimi, birim ve koordinat standardizasyonu (#63) | E7 | DONE | sunum katmanı: UTC→yerel (IANA, TR/GR varsayılanı) + 16 yön pusula + ayarlanabilir koordinat formatı (decimal/DMS) + metrik birim tanımı; durumsuz uçlar, tablo/migration yok |
 | 22 | EM-064 Ülke bazlı ayrış envanter (#64) | E7 | DONE | kapasite **ülke ayrı ayrı** toplanır/gösterilir; `merged_by_default:False` + açık `atanmamış` kovası → iki ülke sessizce birleştirilmez; `country` kolonu zaten mevcut, tablo/migration yok |
 | 23 | EM-065 Dış destek ihtiyacının erken tahmini (#65) | E7 | DONE | EM-030/033 açık çizelgesi üzerinde deterministik ileri projeksiyon: "ulusal kapasite T+X dk yetersiz, ≈ Y birim dış destek" + talep-gönderme son tarihi; açığın gerçekleşmesinden önce uyarı, tablo/migration yok |
+| 24 | EM-066 Sınır ötesi ortak durum görünümü (#66) | E7 | DONE | coord→ülke atfı (pilot sınır boylamı TR/GR) ile ülke ülke yangın+risk+dış destek tek ortak ekranda; **ayarlanabilir veri paylaşım kapsamı** (fire/risk/support alt kümesi); tablo/migration yok, yetki politikası EM-070'e bırakıldı |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -716,11 +717,43 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **760** (748 + 12 yeni).
 - **Commit:** `feat(EM-065): ...` (bu dal).
 
+### EM-066 — Sınır ötesi ortak durum görünümü (#66) — DONE
+- **Eksik analizi:** `FireEvent` ülkesiz (yalnız lat/lon); sınır ötesi **ortak
+  durum ekranı** yoktu (`crossborder`/`border`/`shared_field`/`situation`
+  araması sadece EM-063 saat dilimi/EM-065 docstring metinlerini donuyordu).
+  Kabul kriterleri: TR+GR yetkilileri için paylaşımlı özet (yangın, risk
+  seviyesi, tahmini dış destek ihtiyacı) + ülke bazlı veri paylaşım kapsamı
+  ayarlanabilir. E7 Must (sp5).
+- **Kapsam:** `src/services/crossborder_situation.py`
+  (`crossborder_situation` — koordinat→ülke atfı + ülke bazında EM-029 risk /
+  EM-065 dış destek toplama + `fire`/`risk`/`support` paylaşım kapsamı filtresi),
+  `src/config/settings.py` + `.env.example` (`CROSSBORDER_BORDER_LONGITUDE`,
+  `CROSSBORDER_SHARED_FIELDS`), `src/routes/crossborder.py` (2 uç) +
+  `fastapi_app.py` kaydı, `risk_panel.html` (**Sınır Ötesi Durum** kartı +
+  `refreshCrossborder` + kapsam kutuları), `tests/unit/test_crossborder_situation.py`
+  (16 test), CHANGELOG + docs/api. **Yeni tablo/migration yok** — EM-029/EM-065
+  çıktısından canlı (`persistence: none`).
+- **Varsayım (pilot basitleştirme):** gerçek Ege kara/deniz sınırı yerine tek
+  boylam bölünmesi (boylam ≥ sınır → TR, değilse GR; EM-063 TR-doğu/GR-batı
+  çerçevesiyle tutarlı, `CROSSBORDER_BORDER_LONGITUDE` ile ayarlanır). Ülke
+  bazlı **yetki** politikası (kim neyi görebilir) kapsam sürünmesini önlemek
+  için EM-070'e bırakıldı; EM-066 yalnızca görünen **alan grubu kapsamını**
+  ayarlar.
+- **Kanıt:** 27.5→TR / 26.2→GR atfı; boylam sınırda (26.5)→TR; sınır 28.0
+  yapınca 27.5 GR'ye geçer; varsayılan kapsam fire+risk+support; `fields=risk`
+  sadece risk bloğu (country tepe bandı var, destek None); `fields=support`
+  support bloğu (tepe None, birim int); ülke toplamı olay toplamına eşit; ülke
+  tepe bandı = en kötü olay; geçersiz alan → CrossborderError; olay yok → boş;
+  uçlar 200/400/config.
+- **Kapılar:** black(163 değişmez)/mypy(106)/pylint(10.00)/bandit(0) yeşil;
+  pytest **776** (760 + 16 yeni).
+- **Commit:** `feat(EM-066): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -733,8 +766,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 160 değişmez · mypy Success (104) · pylint 10.00/10 ·
-  bandit 0 · pytest **760 passed**.
+- **Final kapılar:** black 163 değişmez · mypy Success (106) · pylint 10.00/10 ·
+  bandit 0 · pytest **776 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

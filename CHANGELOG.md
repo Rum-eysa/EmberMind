@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-066: Sınır ötesi ortak durum görünümü (E7)
+  - Sınır ötesi koordinatör, **iki ülkenin durumunu tek ortak ekranda** görmek
+    ister ki koordinasyon hızlansın: TR ve GR yetkilileri için ülke ülke
+    **yangın, risk seviyesi ve tahmini dış destek ihtiyacı** özeti
+  - **Koordinat → ülke atfı:** `FireEvent` yalnız koordinat tuttuğundan her
+    olay, yapılandırılabilir bir **pilot sınır boylamına** göre TR (doğu) veya
+    GR (batı) ülkesine atanır — Ege'deki gerçek kara/deniz sınırının bilinçli
+    bir basitleştirmesi (EM-063'ün saat dilimi çerçevesiyle tutarlı)
+  - `src/services/crossborder_situation.py`: `crossborder_situation`, EM-029
+    risk indeksi + EM-065 dış destek tahminini ülke bazında toplar (ülke
+    tepe risk bandı + toplam takviye birimi); **ayarlanabilir veri paylaşım
+    kapsamı** `fire`/`risk`/`support` alan gruplarının alt kümesini yayınlar
+    (paylaşılmayan bloklar tamamen gizlenir). Ülke bazlı *yetki* politikası
+    bilinçli olarak EM-070'e bırakılmıştır (kapsam sürünmüyor)
+  - `src/config/settings.py` + `.env.example`: `CROSSBORDER_BORDER_LONGITUDE`
+    (varsayılan 26.5) ve `CROSSBORDER_SHARED_FIELDS` (varsayılan tümü)
+  - Uçlar: `GET /api/v1/crossborder/situation[?fields=fire,risk,support]` +
+    `GET /api/v1/crossborder/config`. **Yeni tablo/migration yok**; tümü EM-029/
+    EM-065 çıktısından canlı türetilir (`persistence: none`). Geçersiz alan
+    seçimi **400** döner
+  - Komuta panelinde **Sınır Ötesi Durum (EM-066)** kartı, paylaşım kapsamı
+    kutularıyla (Yangın/Risk/Destek) ülke ülke ortak tabloyu gösterir
 - EM-065: Dış destek ihtiyacının erken tahmini (E7)
   - Sınır ötesi koordinatör, ulusal kapasitenin **ne zaman yetersiz
     kalacağını açığın gerçekleşmesinden önce** bilmek ister ki dış destek

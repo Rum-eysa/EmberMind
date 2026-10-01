@@ -421,6 +421,20 @@ class Config:
     DISPLAY_TIMEZONE = os.getenv("DISPLAY_TIMEZONE", "Europe/Istanbul")
     DISPLAY_COORDINATE_FORMAT = os.getenv("DISPLAY_COORDINATE_FORMAT", "decimal")
 
+    # EM-066: cross-border shared situation view (Epic E7). FireEvent stores
+    # only a coordinate, so each incident is attributed to TR (east) or GR
+    # (west) by this pilot border longitude (deg East) - a deliberate
+    # simplification of the real Aegean boundary, consistent with EM-063's
+    # time-zone framing. The default data-sharing scope exposes every field
+    # group (fire/risk/support); a view can narrow it via ?fields=. The full
+    # per-country authorization policy is EM-070, intentionally kept separate.
+    CROSSBORDER_BORDER_LONGITUDE = float(
+        os.getenv("CROSSBORDER_BORDER_LONGITUDE", "26.5")
+    )
+    CROSSBORDER_SHARED_FIELDS = os.getenv(
+        "CROSSBORDER_SHARED_FIELDS", "fire,risk,support"
+    )
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""

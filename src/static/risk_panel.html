@@ -182,6 +182,24 @@
         <div id="ext-support-summary" class="muted-note"></div>
       </div>
       <div class="card">
+        <h2>Sınır Ötesi Durum (EM-066)</h2>
+        <div class="muted-note">TR ve GR yetkilileri için ortak ekran: her
+          ülkenin aktif yangınları, risk seviyesi ve tahmini dış destek
+          ihtiyacı. Paylaşım kapsamı alan grubu seçimiyle ayarlanabilir.</div>
+        <div class="kv"><span>Paylaşım kapsamı</span>
+          <span id="xborder-scope">
+            <label><input type="checkbox" value="fire" checked> Yangın</label>
+            <label><input type="checkbox" value="risk" checked> Risk</label>
+            <label><input type="checkbox" value="support" checked> Destek</label>
+          </span></div>
+        <table id="crossborder">
+          <thead><tr><th>Ülke</th><th>Olay</th>
+            <th>Risk</th><th class="num">Destek (birim)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="crossborder-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
         <h2>Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
@@ -228,6 +246,8 @@
   const COUNTRY_CAP_FEED = "/api/v1/capacity/by-country";
   // EM-065: external-support early forecast over the capacity-gap timeline.
   const EXT_SUPPORT_FEED = "/api/v1/external-support";
+  // EM-066: cross-border shared TR/GR situation (scope-filterable).
+  const CROSSBORDER_FEED = "/api/v1/crossborder/situation";
   const CATEGORY_TR = {
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
@@ -346,6 +366,66 @@
     refreshPerfBudget();
     refreshCapacityByCountry();
     refreshExternalSupport();
+    refreshCrossborder();
+  }
+
+  // EM-066: sınır ötesi ortak durum — seçilen paylaşım kapsamına göre her
+  // ülkenin olaylarını (yangın/risk/destek) tek tabloda gösterir.
+  function _xborderScope() {
+    const boxes = document.querySelectorAll("#xborder-scope input:checked");
+    return Array.from(boxes).map((b) => b.value).join(",");
+  }
+
+  async function refreshCrossborder() {
+    const body = document.querySelector("#crossborder tbody");
+    const summary = document.getElementById("crossborder-summary");
+    try {
+      const scope = _xborderScope();
+      const url = scope
+        ? CROSSBORDER_FEED + "?fields=" + encodeURIComponent(scope)
+        : CROSSBORDER_FEED;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const fields = data.shared_fields || [];
+      body.innerHTML = "";
+      const countries = data.countries || [];
+      if (!countries.length) {
+        body.innerHTML = '<tr><td colspan="4">etkin sınır ötesi olay yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const country of countries) {
+        for (const ev of (country.events || [])) {
+          const risk = ev.risk ? ev.risk.peak_level : "—";
+          const riskColor = ev.risk
+            ? (RISK_LEVEL_COLOR[ev.risk.peak_level] || "inherit") : "inherit";
+          const units = ev.support
+            ? (ev.support.estimated_support_units || 0) : "—";
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${escapeHtml(country.label || country.country)}</td>`
+            + `<td>${escapeHtml(ev.event_key)}</td>`
+            + `<td style="color:${riskColor}">${escapeHtml(String(risk))}</td>`
+            + `<td class="num">${units}</td>`;
+          body.appendChild(tr);
+        }
+        if (fields.includes("risk") || fields.includes("support")) {
+          const foot = document.createElement("tr");
+          const peak = fields.includes("risk")
+            ? escapeHtml(country.peak_level || "—") : "—";
+          const total = fields.includes("support")
+            ? country.total_support_units : "—";
+          foot.innerHTML = `<td><b>${escapeHtml(country.label || country.country)}</b></td>`
+            + '<td><b>toplam</b></td>'
+            + `<td><b>${peak}</b></td>`
+            + `<td class="num"><b>${total}</b></td>`;
+          body.appendChild(foot);
+        }
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="4">sınır ötesi durum alınamadı</td></tr>';
+    }
   }
 
   // EM-065: dış destek erken tahmini — ulusal kapasitenin ne zaman
@@ -677,6 +757,11 @@
 
   refresh();
   setInterval(refresh, 60000);
+
+  // EM-066: paylaşım kapsamı kutuları değişince ortak görünümü yeniden çek.
+  document.querySelectorAll("#xborder-scope input").forEach((box) => {
+    box.addEventListener("change", refreshCrossborder);
+  });
 
   // EM-028 yönetici düzenlemesi: ha/saat varsayımlarını kaydet ve paneli tazele.
   document.getElementById("save-assumptions").addEventListener("click", async () => {

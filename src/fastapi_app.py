@@ -16,6 +16,7 @@ from src.models.spatial import FireEvent, FireForecast, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.routes.capacity import register_capacity_routes
+from src.routes.crossborder import register_crossborder_routes
 from src.routes.data_governance import register_data_governance_routes
 from src.routes.data_quality import register_data_quality_routes
 from src.routes.design_system import register_design_system_routes
@@ -406,6 +407,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_risk_panel_routes(api, database, settings)
     register_risk_index_routes(api, database, settings)
     register_external_support_routes(api, database, settings)
+    register_crossborder_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
     register_localization_routes(api, database, settings)
     register_inventory_routes(api, database, settings)
