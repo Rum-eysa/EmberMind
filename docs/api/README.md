@@ -396,6 +396,31 @@ Komuta panelindeki **dil seçici (TR/EN/EL)**, `data-i18n` etiketli tüm arayüz
 kabuğunu, enum etiketlerini ve `son güncelleme` satırını yüklenen kataloğa göre
 anında çevirir; tercih localStorage'da saklanır.
 
+### Ülke Bazlı Yetki ve Veri Paylaşım Politikası (EM-070)
+
+EM-066'nın ertelediği **yetki katmanı**: her sahibi ülke, kendi verisinin hangi
+alan gruplarının (`fire`/`risk`/`support`) karşı ülkeye geçeceğine ülke ve rol
+kapsamına göre kalıcı olarak karar verir. Çözüm önceliği **adlı rol → ülke
+varsayılanı (`*`) → yapılandırılmış varsayılan** (`SHARE_POLICY_DEFAULT_FIELDS`)
+şeklindedir; sonuç hangi katmandan geldiyse `source` rozetiyle döner. Her
+değişiklik `country_share_policy` tablosuna **ek-yazılımlı** (append-only) yeni
+bir satır olarak, önceki değeri `previous_shared_fields` ile birlikte yazılır —
+en yeni satır geçerli politikadır, tüm dizi denetim kaydıdır. Boş seçim yasaldır
+(hiçbir şey paylaşma); tanımsız alan veya ülke `400` ile reddedilir. EM-066'nın
+istek bazlı `?fields=` düğmesi gerileme olmaması için ayrı ve dokunulmadan
+kalmıştır.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/share-policy` | Her ülke için `*` + adlı rollerin geçerli politikası, `source` ve `explicit` bayrağı (matris) |
+| `GET /api/v1/share-policy/preview[?country=TR&role=…]` | Karşı ülkenin tam olarak ne göreceği: `shared_fields`, `denied_fields`, `message` (yazmaz) |
+| `POST /api/v1/share-policy` | Ülke/rol için paylaşılan alan gruplarını kaydet (denetim satırı ekler; geçersiz → 400) |
+| `GET /api/v1/share-policy/audit[?country=&role=&limit=]` | Politika değişiklik geçmişi (en yeni önce), `previous_shared_fields` zinciriyle |
+
+Komuta panelindeki **Veri Paylaşım Politikası (EM-070)** kartı ülke/rol matrisini
+kaynak rozetiyle listeler, ülke/rol seçildikçe canlı önizleme gösterir ve
+yöneticinin `fire`/`risk`/`support` seçip kaydedtiği bir form sunar.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

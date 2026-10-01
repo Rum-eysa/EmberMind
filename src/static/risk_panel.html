@@ -215,6 +215,34 @@
         <div id="xborder-spread-summary" class="muted-note"></div>
       </div>
       <div class="card">
+        <h2>Veri Paylaşım Politikası (EM-070)</h2>
+        <div class="muted-note">Ülke ve rol bazında karşı ülkeye izin verilen
+          alan grupları (yetki katmanı). Geçerli politika ve denetim kaydı
+          <code>country_share_policy</code> tablosunda ek-yazılımlı saklanır.</div>
+        <table id="share-policy">
+          <thead><tr><th>Ülke</th><th>Rol</th><th>Paylaşılan alanlar</th>
+            <th>Kaynak</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="share-policy-preview" class="muted-note"></div>
+        <div class="kv"><span>Ülke
+          <select id="sp-country" class="assume-input">
+            <option value="TR">Türkiye</option>
+            <option value="GR">Yunanistan</option>
+          </select></span>
+          <span>Rol <input id="sp-role" class="assume-input" placeholder="* (ülke varsayılanı)"></span></div>
+        <div class="kv"><span>Paylaşılacak alanlar</span>
+          <span id="sp-fields">
+            <label><input type="checkbox" value="fire" checked> Yangın</label>
+            <label><input type="checkbox" value="risk" checked> Risk</label>
+            <label><input type="checkbox" value="support" checked> Destek</label>
+          </span></div>
+        <div class="kv"><span>Değiştiren <input id="sp-by" class="assume-input" placeholder="yönetici"></span>
+          <span>Gerekçe <input id="sp-reason" class="assume-input" placeholder="opsiyonel"></span></div>
+        <button id="sp-save" type="button" class="assume-input">Politikayı kaydet</button>
+        <span id="sp-status" class="muted-note"></span>
+      </div>
+      <div class="card">
         <h2 data-i18n="card.inventory">Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
@@ -265,6 +293,8 @@
   const CROSSBORDER_FEED = "/api/v1/crossborder/situation";
   // EM-067: deterministic border-crossing likelihood + time projection.
   const XBORDER_SPREAD_FEED = "/api/v1/crossborder/spread";
+  // EM-070: country/role data-sharing authorization policy (append-only audit).
+  const SHARE_POLICY_FEED = "/api/v1/share-policy";
   // EM-068: interface text resolved from the i18n catalogue (TR/EN complete,
   // EL core screens, EN bridge fallback). The language lives only here/localStorage.
   const I18N_FEED = "/api/v1/i18n/messages";
@@ -393,6 +423,7 @@
     refreshExternalSupport();
     refreshCrossborder();
     refreshXborderSpread();
+    refreshSharePolicy();
   }
 
   // EM-067: sınır geçiş projeksiyonu — olay başına geçiş yönü, olasılık
@@ -489,6 +520,85 @@
       if (summary) summary.textContent = (data.summary || {}).message || "";
     } catch (err) {
       body.innerHTML = '<tr><td colspan="4">sınır ötesi durum alınamadı</td></tr>';
+    }
+  }
+
+  // EM-070: ülke/rol bazlı veri paylaşım politikası — geçerli matris + önizleme.
+  const SHARE_SOURCE_LABELS = {
+    role_policy: "rol politikası", country_default: "ülke varsayılanı",
+    configured_default: "yapılandırılmış varsayılan",
+  };
+
+  async function refreshSharePolicy() {
+    const body = document.querySelector("#share-policy tbody");
+    try {
+      const res = await fetch(SHARE_POLICY_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      for (const country of (data.countries || [])) {
+        for (const entry of (country.roles || [])) {
+          const tr = document.createElement("tr");
+          const shared = (entry.shared_fields || []).join(", ") || "—";
+          tr.innerHTML = `<td>${escapeHtml(country.label || country.country)}</td>`
+            + `<td>${escapeHtml(entry.role)}</td>`
+            + `<td>${escapeHtml(shared)}</td>`
+            + `<td>${escapeHtml(SHARE_SOURCE_LABELS[entry.source] || entry.source)}</td>`;
+          body.appendChild(tr);
+        }
+      }
+      if (!body.children.length) {
+        body.innerHTML = '<tr><td colspan="4">politika verisi yok</td></tr>';
+      }
+      refreshSharePreview();
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="4">veri paylaşım politikası alınamadı</td></tr>';
+    }
+  }
+
+  async function refreshSharePreview() {
+    const preview = document.getElementById("share-policy-preview");
+    const country = document.getElementById("sp-country").value;
+    const role = document.getElementById("sp-role").value.trim();
+    let url = SHARE_POLICY_FEED + "/preview?country=" + encodeURIComponent(country);
+    if (role) url += "&role=" + encodeURIComponent(role);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      preview.textContent = data.message || "";
+    } catch (err) {
+      preview.textContent = "önizleme alınamadı: " + err.message;
+    }
+  }
+
+  async function saveSharePolicy() {
+    const status = document.getElementById("sp-status");
+    const boxes = document.querySelectorAll("#sp-fields input:checked");
+    const payload = {
+      country: document.getElementById("sp-country").value,
+      role: document.getElementById("sp-role").value.trim() || null,
+      shared_fields: Array.from(boxes).map((b) => b.value),
+      changed_by: document.getElementById("sp-by").value.trim() || null,
+      reason: document.getElementById("sp-reason").value.trim() || null,
+    };
+    status.textContent = "kaydediliyor…";
+    try {
+      const res = await fetch(SHARE_POLICY_FEED, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const detail = err.detail || {};
+        throw new Error(detail.error || ("HTTP " + res.status));
+      }
+      const data = await res.json();
+      status.textContent = data.changed ? "kaydedildi" : "değişiklik yok";
+      await refreshSharePolicy();
+    } catch (err) {
+      status.textContent = "hata: " + err.message;
     }
   }
 
@@ -886,6 +996,11 @@
   document.querySelectorAll("#xborder-scope input").forEach((box) => {
     box.addEventListener("change", refreshCrossborder);
   });
+
+  // EM-070: politika formu — ülke/rol değişince önizleme, kaydet butonuyla yazım.
+  document.getElementById("sp-save").addEventListener("click", saveSharePolicy);
+  document.getElementById("sp-country").addEventListener("change", refreshSharePreview);
+  document.getElementById("sp-role").addEventListener("change", refreshSharePreview);
 
   // EM-028 yönetici düzenlemesi: ha/saat varsayımlarını kaydet ve paneli tazele.
   document.getElementById("save-assumptions").addEventListener("click", async () => {

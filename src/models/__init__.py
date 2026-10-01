@@ -12,6 +12,7 @@ from .pipeline import PipelineJobHistory
 from .recommendation import RecommendationDecision
 from .road_network import CrewBase, RoadClosure, RoadSegment
 from .scenario import WhatIfHistory, WhatIfScenario
+from .share_policy import CountrySharePolicy
 from .spread_metrics import SpreadEvaluationMetric
 from .spread_perf import SpreadPerformanceRun
 from .spatial import (
@@ -48,6 +49,7 @@ __all__ = [
     "ScenarioRun",
     "SilentRegion",
     "SimulationScenario",
+    "CountrySharePolicy",
     "SpatialSource",
     "WhatIfHistory",
     "WhatIfScenario",

@@ -5,6 +5,31 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-070: Ülke bazlı yetki ve veri paylaşım politikası (E7)
+  - Sınır ötesi ortak ekranda (EM-066) her ülke, **kendi verisinin hangi alan
+    gruplarının** karşı ülkeye geçeceğine kalıcı ve yetkili biçimde karar
+    vermek ister; bu, EM-066'nın ertelediği *yetki katmanıdır*
+  - `src/services/share_policy.py`: politika, sahibi ülke (`TR`/`GR`) ve rol
+    kapsamına (`*` = ülke varsayılanı, `operator`/`coordinator` gibi adlı roller)
+    göre `fire`/`risk`/`support` alan grubu alt kümesini tutar. Çözüm önceliği:
+    **adlı rol → ülke varsayılanı → yapılandırılmış varsayılan**
+    (`SHARE_POLICY_DEFAULT_FIELDS`); kaynak rozeti UI'da "kimden geldiğini" gösterir
+  - **Ek-yazılımlı denetim**: her değişiklik `country_share_policy` tablosuna
+    önceki değeriyle (`previous_shared_fields`) yeni satır olarak yazılır; en
+    yeni satır geçerli politikadır, tüm dizi denetim kaydıdır (kabul kriteri:
+    "politika değişiklikleri denetim kaydına yazılır")
+  - **Önizleme**: `preview_sharing` uygulamadan önce karşı ülkenin tam olarak
+    ne göreceğini (paylaşılan/red edilen + mesaj) döndürür
+  - Boş seçim yasaldır ("hiçbir şey paylaşma"); tanımsız alan/ülke reddedilir
+    (yazım hatası sessizce sınır ötesi izni genişletemez)
+  - `src/models/share_policy.py` + `scripts/migration/V023__country_share_policy.sql`
+    (yalnızca ekleme). `src/config/settings.py` + `.env.example`:
+    `SHARE_POLICY_DEFAULT_FIELDS`. Uçlar: `GET /api/v1/share-policy` (matris),
+    `GET /api/v1/share-policy/preview`, `POST /api/v1/share-policy` (kaydet +
+    denetim), `GET /api/v1/share-policy/audit`. EM-066'nın `?fields=` istek
+    düğmesi gerileme olmaması için aynen korundu
+  - Komuta panelinde **Veri Paylaşım Politikası kartı**: ülke/rol matrisi +
+    kaynak rozeti, canlı önizleme ve yöneticinin kaydettiği seçim formu
 - EM-068: Çok dilli arayüz (TR/EL/EN) (E7)
   - Yunan veya Türk operatör, kriz anında çeviri yükü olmadan paneli **kendi
     dilinde** okumak ister

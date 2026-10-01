@@ -443,6 +443,14 @@ class Config:
     # nothing here needs a migration (persistence: none).
     I18N_DEFAULT_LANGUAGE = os.getenv("I18N_DEFAULT_LANGUAGE", "tr")
 
+    # EM-070: country/role data-sharing authorization policy (Epic E7). The
+    # fallback field groups shared to the partner country when no explicit
+    # (country, role) or country-default policy row exists. A stored policy (the
+    # country_share_policy table, append-only audit) overrides this per key.
+    SHARE_POLICY_DEFAULT_FIELDS = os.getenv(
+        "SHARE_POLICY_DEFAULT_FIELDS", "fire,risk,support"
+    )
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""
