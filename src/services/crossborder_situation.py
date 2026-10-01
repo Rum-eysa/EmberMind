@@ -52,13 +52,14 @@ class CrossborderError(ValueError):
     """Raised for an invalid data-sharing field selection."""
 
 
-def _border_longitude(settings: Any) -> float:
+def border_longitude(settings: Any) -> float:
+    """The configured pilot border longitude (shared by EM-066/EM-067)."""
     return float(
         getattr(settings, "CROSSBORDER_BORDER_LONGITUDE", _DEFAULT_BORDER_LONGITUDE)
     )
 
 
-def _country_for(longitude: float, border: float) -> str:
+def country_for(longitude: float, border: float) -> str:
     """Assign one incident to a country from its longitude (pilot split)."""
     return "TR" if float(longitude) >= border else "GR"
 
@@ -189,14 +190,14 @@ def crossborder_situation(
 ) -> dict[str, Any]:
     """Build the shared TR/GR situation view under the active scope."""
     fields = _resolve_shared_fields(settings, shared_fields)
-    border = _border_longitude(settings)
+    border = border_longitude(settings)
     risk = compute_risk_index(session, settings)
     support = forecast_external_support(session, settings)
     support_by_key = {a["event_key"]: a for a in support.get("events", [])}
 
     buckets: dict[str, list[dict[str, Any]]] = {c: [] for c in COUNTRIES}
     for event in risk.get("events", []):
-        country = _country_for(event["longitude"], border)
+        country = country_for(event["longitude"], border)
         buckets.setdefault(country, []).append(event)
 
     countries_out = [
@@ -252,5 +253,7 @@ __all__ = [
     "CrossborderError",
     "DEFAULT_SHARED_FIELDS",
     "SHAREABLE_FIELD_GROUPS",
+    "border_longitude",
+    "country_for",
     "crossborder_situation",
 ]

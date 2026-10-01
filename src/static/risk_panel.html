@@ -200,6 +200,18 @@
         <div id="crossborder-summary" class="muted-note"></div>
       </div>
       <div class="card">
+        <h2>Sınır Geçiş Projeksiyonu (EM-067)</h2>
+        <div class="muted-note">Yangının ülke sınırını geçme olasılığı ve
+          süresi (deterministik geometri: EM-015 baş yayılım yönü/hızı);
+          karşı ülke için erken uyarı.</div>
+        <table id="xborder-spread">
+          <thead><tr><th>Olay</th><th>Yön</th><th>Olasılık</th>
+            <th class="num">Geçiş (dk)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="xborder-spread-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
         <h2>Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
@@ -248,6 +260,8 @@
   const EXT_SUPPORT_FEED = "/api/v1/external-support";
   // EM-066: cross-border shared TR/GR situation (scope-filterable).
   const CROSSBORDER_FEED = "/api/v1/crossborder/situation";
+  // EM-067: deterministic border-crossing likelihood + time projection.
+  const XBORDER_SPREAD_FEED = "/api/v1/crossborder/spread";
   const CATEGORY_TR = {
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
@@ -367,6 +381,45 @@
     refreshCapacityByCountry();
     refreshExternalSupport();
     refreshCrossborder();
+    refreshXborderSpread();
+  }
+
+  // EM-067: sınır geçiş projeksiyonu — olay başına geçiş yönü, olasılık
+  // bandı ve tahmini geçiş dakikası (yoksa "—").
+  async function refreshXborderSpread() {
+    const body = document.querySelector("#xborder-spread tbody");
+    const summary = document.getElementById("xborder-spread-summary");
+    try {
+      const res = await fetch(XBORDER_SPREAD_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      const rows = data.events || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="4">aktif yangın olayı yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const ev of rows) {
+        const tr = document.createElement("tr");
+        const dir = ev.crossing_minutes !== null
+          ? ev.country + "→" + ev.target_country : "—";
+        const likelihood = ev.likelihood === null
+          ? "—" : ev.likelihood_level + " (" + ev.likelihood.toFixed(2) + ")";
+        const mins = ev.crossing_minutes === null
+          ? "—" : "T+" + Math.round(ev.crossing_minutes);
+        const color = ev.crossing_minutes !== null
+          ? "var(--color-danger)" : "inherit";
+        tr.innerHTML = `<td>${escapeHtml(ev.event_key)}</td>`
+          + `<td>${escapeHtml(dir)}</td>`
+          + `<td>${escapeHtml(likelihood)}</td>`
+          + `<td class="num" style="color:${color}">${mins}</td>`;
+        body.appendChild(tr);
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="4">sınır geçiş projeksiyonu alınamadı</td></tr>';
+    }
   }
 
   // EM-066: sınır ötesi ortak durum — seçilen paylaşım kapsamına göre her

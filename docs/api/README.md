@@ -356,6 +356,24 @@ tablo/migration yoktur (`persistence: none`).
 Komuta panelinde **Sınır Ötesi Durum (EM-066)** kartı, paylaşım kapsamı
 kutularıyla (Yangın/Risk/Destek) ülke ülke ortak tabloyu canlı gösterir.
 
+### Sınır Geçiş Projeksiyonu (EM-067)
+
+Yangının **ülke sınırını geçme olasılığı ve süresi** deterministik geometriyle
+hesaplanır (öğrenilen model değil): EM-015 baş yayılım yönü ile sınırın yönü
+(TR olayları için batı 270°, GR için doğu 90°) arasındaki açının kosinüsü
+olasılığı verir; geçiş süresi = merkezin sınır boylamına uzaklığı (cos-enlem ×
+km/derece) ÷ (baş yayılım hızı × bu pay). Durgun/yassı yangın dairesel büyüdüğü
+için pay 1.0'dır; baş sınırın aksi yönünde dönükse geçiş öngörülmez. Pilot
+sınır boylamı EM-066 ile **ortaktır**. Öngörü, kayıtlı yayılım tahminlerinden
+canlı türetilir; yeni tablo/migration yoktur (`persistence: none`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/crossborder/spread` | Her aktif olay için `country`/`target_country`, `distance_km`, `likelihood` + `likelihood_level` (yok/düşük/orta/yüksek), `crossing_minutes`, `within_forecast_window`, `message` + en erken geçişi bildiren `summary` |
+
+Komuta panelinde **Sınır Geçiş Projeksiyonu (EM-067)** kartı olay başına
+geçiş yönünü, olasılık bandını ve `T+dk` tahmini geçiş zamanını gösterir.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

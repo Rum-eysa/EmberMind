@@ -55,6 +55,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 22 | EM-064 Ülke bazlı ayrış envanter (#64) | E7 | DONE | kapasite **ülke ayrı ayrı** toplanır/gösterilir; `merged_by_default:False` + açık `atanmamış` kovası → iki ülke sessizce birleştirilmez; `country` kolonu zaten mevcut, tablo/migration yok |
 | 23 | EM-065 Dış destek ihtiyacının erken tahmini (#65) | E7 | DONE | EM-030/033 açık çizelgesi üzerinde deterministik ileri projeksiyon: "ulusal kapasite T+X dk yetersiz, ≈ Y birim dış destek" + talep-gönderme son tarihi; açığın gerçekleşmesinden önce uyarı, tablo/migration yok |
 | 24 | EM-066 Sınır ötesi ortak durum görünümü (#66) | E7 | DONE | coord→ülke atfı (pilot sınır boylamı TR/GR) ile ülke ülke yangın+risk+dış destek tek ortak ekranda; **ayarlanabilir veri paylaşım kapsamı** (fire/risk/support alt kümesi); tablo/migration yok, yetki politikası EM-070'e bırakıldı |
+| 25 | EM-067 Sınır bölgesi yangın yayılımı (#67) | E7 | DONE | sınır geçiş olasılığı + süresi deterministik geometriyle: cos(EM-015 baş yönü ↔ sınır yönü) olasılık, uzaklık/(ROS×pay) dakika; EM-066 pilot sınır boylamı ortak; pencere içi/dışı bayrağı; tablo/migration yok |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -749,11 +750,41 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **776** (760 + 16 yeni).
 - **Commit:** `feat(EM-066): ...` (bu dal).
 
+### EM-067 — Sınır bölgesi yangın yayılımı / sınır geçiş projeksiyonu (#67) — DONE
+- **Eksik analizi:** `crossing`/`geçiş` araması sadece EM-021 engel ışın
+  kesmeleri ve EM-032 eşik-aşım metinlerini donuyordu; yangının **ülke
+  sınırını geçme olasılığı ve süresi**ni hesaplayan hiçbir katman yoktu.
+  Kabul kriteri: "Yangının ülke sınırını geçme olasılığı ve süresi
+  hesaplanır." E7 Should (sp5).
+- **Kapsam:** `src/services/crossborder_spread.py` (`project_border_crossing`
+  — her aktif olayın en yeni EM-015 tahmininin baş yönü/hızı ile pilota sınır
+  boylamına uzaklığından olasılık + geçiş dakikası), EM-066'daki atıf
+  mekanizması `border_longitude`/`country_for` **public edilerek ortakıldı**,
+  `src/routes/crossborder.py` içine `GET /api/v1/crossborder/spread`,
+  `risk_panel.html` (**Sınır Geçiş Projeksiyonu** kartı +
+  `refreshXborderSpread`), `tests/unit/test_crossborder_spread.py` (14 test),
+  CHANGELOG + docs/api. **Yeni tablo/migration/ayar yok** (`persistence: none`).
+- **Varsayım (deterministik geometri):** olasılık = cos(EM-015 baş yayılım
+  yönü ile sınırın yönü arasındaki açı) ∈ [0,1] (TR için 270°, GR için 90°);
+  yön yoksa dairesel büyüme → pay 1.0; süresi = cos(enlem)·km/derece uzaklık /
+  (ROS×pay) — mevcut ROS'un doğrusal projeksiyonu, rüzgâr değişebilir, öngörü
+  penceresi içi/dışı bayraklanır. 90°'lik dik yönde kayan-nokta gürültüsü
+  yuvarlanmış olasılık kapısıyla bastırılır. Merkez nokta atfı pilot
+  basitleştirmesidir (poligon kenarı değil).
+- **Kanıt:** 270° baş → olasılık 1.0 "yüksek" + T+ formülü elle doğrulandı;
+  aksi yön (90°) → 0.0/None "aksi yönünde"; dik (0°) → gürültü payı yok;
+  45°'den sapma → 0.71 "orta", süre pay ile ölçeklenir; yakın+hızlı olay
+  pencere içinde; GR tarafı → hedef TR; öngörüsüz olay "belirsiz"; sınır 28.0
+  → yön ters döner; özet en erken geçişi söyler; `persistence:none`; uç 200.
+- **Kapılar:** black(165 değişmez)/mypy(107)/pylint(10.00)/bandit(0) yeşil;
+  pytest **790** (776 + 14 yeni).
+- **Commit:** `feat(EM-067): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -766,8 +797,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 163 değişmez · mypy Success (106) · pylint 10.00/10 ·
-  bandit 0 · pytest **776 passed**.
+- **Final kapılar:** black 165 değişmez · mypy Success (107) · pylint 10.00/10 ·
+  bandit 0 · pytest **790 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

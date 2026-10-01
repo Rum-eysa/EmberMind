@@ -5,6 +5,22 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-067: Sınır bölgesi yangın yayılımı — sınır geçiş projeksiyonu (E7)
+  - Sınır ötesi koordinatör, yangının **ülke sınırını geçme ihtimalini ve
+    zamanını** bilmek ister ki karşı tarafı erken uyarabilsin
+  - `src/services/crossborder_spread.py`: `project_border_crossing` —
+    **deterministik geometri (öğrenilen model değil)**: EM-015 baş yayılım
+    yönü ile sınırın yönü (TR için batı 270°, GR için doğu 90°) arasındaki
+    açının kosinüsü **geçiş olasılığı**; geçiş süresi = merkezden sınır
+    uzaklığı / (baş yayılım hızı × bu pay). Yön yoksa (durgun/yassı) dairesel
+    büyüme → pay 1.0; aksi yön → geçiş öngörüsü yok
+  - EM-066'nın pilot sınır boylamı **ortak kullanılır** (atıf mekanizması
+    `border_longitude`/`country_for` public edildi); uzaklık cos(enlem) ile
+    km'ye çevrilir; geçiş, kayıtlı öngörü penceresi içinde/dışı bayraklanır
+  - Uç: `GET /api/v1/crossborder/spread`. **Yeni tablo/migration yok** —
+    kayıtlı EM-015 tahminlerinden canlı (`persistence: none`)
+  - Komuta panelinde **Sınır Geçiş Projeksiyonu (EM-067)** kartı: olay başına
+    geçiş yönü (TR→GR), olasılık bandı ve `T+dk` geçiş zamanı
 - EM-066: Sınır ötesi ortak durum görünümü (E7)
   - Sınır ötesi koordinatör, **iki ülkenin durumunu tek ortak ekranda** görmek
     ister ki koordinasyon hızlansın: TR ve GR yetkilileri için ülke ülke

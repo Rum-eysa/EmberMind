@@ -1,9 +1,11 @@
-"""Cross-border shared situation endpoints (EM-066, Epic E7).
+"""Cross-border shared situation endpoints (EM-066/EM-067, Epic E7).
 
 A read-only, scope-filtered view over the EM-029 risk index and EM-065
 external-support forecast: Türkiye and Greece see both nations' active fires,
 risk bands and reinforcement needs on one coordinated screen. The ``fields``
-parameter narrows the data-sharing scope for a given view; nothing is stored.
+parameter narrows the data-sharing scope for a given view. EM-067 adds the
+deterministic border-crossing projection (likelihood + time per incident).
+Nothing is stored.
 """
 from typing import Any
 
@@ -19,6 +21,7 @@ from src.services.crossborder_situation import (
     CrossborderError,
     crossborder_situation,
 )
+from src.services.crossborder_spread import project_border_crossing
 
 
 def register_crossborder_routes(
@@ -39,6 +42,12 @@ def register_crossborder_routes(
                 status_code=400,
                 detail={"status": "error", "error": str(exc)},
             ) from exc
+
+    @api.get("/api/v1/crossborder/spread", tags=["panel"])
+    def crossborder_spread() -> dict[str, Any]:
+        """EM-067: border-crossing likelihood and time per active incident."""
+        with database.session() as session:
+            return project_border_crossing(session, settings)
 
     @api.get("/api/v1/crossborder/config", tags=["panel"])
     def crossborder_config() -> dict[str, Any]:
