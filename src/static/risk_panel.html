@@ -161,6 +161,15 @@
         </table>
       </div>
       <div class="card">
+        <h2>Kapasite — Ülke Bazında (EM-064)</h2>
+        <div class="muted-note">İki ülkenin kaynakları sessizce birleştirilmez;
+          her ülke ayrı toplanır, ülkesiz kaynak ayrı gösterilir.</div>
+        <table id="capacity-country">
+          <thead><tr><th>Ülke</th><th class="num">Etkin (ha/saat)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
         <h2>Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
@@ -203,6 +212,8 @@
   "use strict";
   const FEED = "/api/v1/panel/capacity-risk";
   const RISK_FEED = "/api/v1/risk-index";
+  // EM-064: country-separated capacity account (two nations never merge).
+  const COUNTRY_CAP_FEED = "/api/v1/capacity/by-country";
   const CATEGORY_TR = {
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
@@ -319,6 +330,38 @@
     refreshRiskIndex();
     refreshTimeline();
     refreshPerfBudget();
+    refreshCapacityByCountry();
+  }
+
+  // EM-064: ülke bazında etkin kapasite — her ülke ayrı satır, ülkesiz
+  // kaynak "atanmamış" kovasında açıkça gösterilir (sessiz birleştirme yok).
+  async function refreshCapacityByCountry() {
+    const body = document.querySelector("#capacity-country tbody");
+    try {
+      const res = await fetch(COUNTRY_CAP_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const cap = (await res.json()).capacity;
+      body.innerHTML = "";
+      const rows = cap.countries || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="2">müsait kaynak yok</td></tr>';
+        return;
+      }
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        const label = row.country === "atanmamış"
+          ? "Ülkesiz (atanmamış)" : escapeHtml(row.country);
+        tr.innerHTML = `<td>${label}</td>`
+          + `<td class="num">${row.total_effective_ha_per_hour.toFixed(1)}</td>`;
+        body.appendChild(tr);
+      }
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><b>Toplam</b></td>'
+        + `<td class="num"><b>${cap.grand_total_effective_ha_per_hour.toFixed(1)}</b></td>`;
+      body.appendChild(tr);
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="2">ülke kapasitesi alınamadı</td></tr>';
+    }
   }
 
   // EM-030: "kapasite ne zaman yetmez?" — talep vs kapasite çizgi grafiği ve

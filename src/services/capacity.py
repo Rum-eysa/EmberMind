@@ -227,6 +227,77 @@ def capacity_schedule(
     }
 
 
+# Country bucket for resources that never declared one, so a per-country view
+# surfaces them explicitly instead of silently folding them into another
+# country's total (EM-064 "no screen merges two countries quietly").
+UNASSIGNED_COUNTRY = "atanmamış"
+
+
+def _counts_by_country_type(session: Session) -> dict[tuple[str, str], int]:
+    """``{(country, resource_type): count}`` for currently-available resources."""
+    rows = session.execute(
+        select(
+            SuppressionResource.country,
+            SuppressionResource.resource_type,
+            func.count(),
+        )
+        .where(SuppressionResource.status == "available")
+        .group_by(SuppressionResource.country, SuppressionResource.resource_type)
+    ).all()
+    return {
+        (str(country) if country else UNASSIGNED_COUNTRY, str(rtype)): int(count)
+        for country, rtype, count in rows
+    }
+
+
+def capacity_by_country(session: Session, settings: Any) -> dict[str, Any]:
+    """Per-country capacity account (EM-064): two nations never merge silently.
+
+    Mirrors :func:`effective_capacity` but buckets the available inventory by
+    each resource's declared ``country`` first. Resources with no country are
+    isolated in an explicit :data:`UNASSIGNED_COUNTRY` bucket rather than being
+    folded into any country, and ``merged_by_default`` is always ``False`` so a
+    caller cannot treat this as one pooled figure. Summing every country's total
+    equals the global :func:`effective_capacity` total.
+    """
+    assumptions = assumption_map(session, settings)
+    counts = _counts_by_country_type(session)
+    by_country: dict[str, dict[str, Any]] = {}
+    grand_total = 0.0
+    for (country, rtype), available in counts.items():
+        if rtype not in assumptions:  # only known, normalisable types count
+            continue
+        ha_per_hour = float(assumptions[rtype])
+        effective = round(available * ha_per_hour, 3)
+        bucket = by_country.setdefault(
+            country,
+            {
+                "country": country,
+                "by_type": {},
+                "total_effective_ha_per_hour": 0.0,
+            },
+        )
+        bucket["by_type"][rtype] = {
+            "available": available,
+            "ha_per_hour": ha_per_hour,
+            "effective_ha_per_hour": effective,
+        }
+        bucket["total_effective_ha_per_hour"] = round(
+            bucket["total_effective_ha_per_hour"] + effective, 3
+        )
+        grand_total += effective
+    for bucket in by_country.values():
+        bucket["by_type"] = {
+            rtype: bucket["by_type"][rtype] for rtype in sorted(bucket["by_type"])
+        }
+    return {
+        "unit": CAPACITY_UNIT,
+        "merged_by_default": False,
+        "countries": sorted(by_country.values(), key=lambda row: row["country"]),
+        "grand_total_effective_ha_per_hour": round(grand_total, 3),
+    }
+
+
 def effective_capacity(session: Session, settings: Any) -> dict[str, Any]:
     """Normalise the available inventory into one ha/hour capacity account."""
     assumptions = assumption_map(session, settings)

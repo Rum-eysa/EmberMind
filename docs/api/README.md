@@ -416,6 +416,7 @@ Operatör haritasındaki lejanttan `/panel`'e geçilir.
 GET /api/v1/capacity/assumptions  # kaynak tipi başına etkin müdahale kapasitesi (ha/saat)
 PUT /api/v1/capacity/assumptions  # yönetici düzenlemesi: {"crew":..,"helicopter":..,"uav":..}
 GET /api/v1/capacity/effective    # müsait envanterin tek birime (ha/saat) normalize hali
+GET /api/v1/capacity/by-country   # ülke bazlı ayrış kapasite hesabı (EM-064)
 GET /api/v1/capacity/schedule[?minutes=30&minutes=60]  # zamana bağlı kapasite (EM-033)
 ```
 Kapasite ile riskin **aynı birimde** ölçülebilmesi için her kaynak tipi
@@ -427,6 +428,20 @@ düzenlenebilir. `effective_capacity` = Σ (müsait kaynak sayısı × tip
 varsayımı) ile envanter ha/saat cinsinden tek bir rakama indirgenir; panel
 beslemesi `capacity.assumptions` ve `capacity.effective` alanlarını taşır.
 Geçersiz/negatif tip düzenlemesi **400** döner.
+
+### Ülke Bazında Ayrış Kapasite (EM-064)
+```
+GET /api/v1/capacity/by-country
+```
+Her söndürme kaynağı bir ülkeye (`SuppressionResource.country`) aittir ve
+kapasite **ülke ayrı ayrı** toplanır. Sınır ötesi operasyonda **iki ülkenin
+kaynağı hiçbir ekranda sessizce birleştirilmez**: yanıt `merged_by_default:
+False` taşır, `countries` listesi her ülke için ayrı `by_type` kırılımı ve
+`total_effective_ha_per_hour` verir. Ülkesi boş kaynak hiçbir ülkeye
+katılmaz, açıkça `atanmamış` kovasında görünür. Yalnızca `available` durumu
+ve bilinen tipler (ekip/helikopter/İHA) sayılır; ülke toplamlarının toplamı
+küresel `effective_capacity` değerine eşittir. `country` kolonu zaten mevcut
+olduğundan yeni tablo/migration yoktur.
 
 ### Operasyonel Risk İndeksi (EM-029)
 ```

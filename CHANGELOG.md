@@ -5,6 +5,22 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-064: Ülke bazlı ayrış envanter / kapasite (E7)
+  - Her söndürme kaynağı bir ülkeye aittir; **kapasite ülke ayrı ayrı**
+    toplanır ve gösterilir. **İki ülkenin kaynağı hiçbir ekranda sessizce
+    birleştirilmez** — ülke bazlı hesap ayrı bir hesap olarak durur
+  - `src/services/capacity.py`: `capacity_by_country` mevcut `effective_capacity`
+    hesabını kaynağın bildirilen `country` alanında kovalar; ülkesi boş
+    kaynaklar hiçbir ülkeye katılmaz, açıkça `atanmamış` kovasında
+    toplanır. `merged_by_default: False` bayrağıyla bunun tek bir havuz
+    sayısı olarak kullanılamayacağı garantilenir; ülke toplamlarının
+    toplamı küresel etkin kapasiteye eşittir
+  - Sadece `available` durumu ve normalleştirilebilir bilinen tipler
+    (ekip/helikopter/İHA) sayılır; `en_route`/`deployed`/`maintenance` hariç
+  - Uç: `GET /api/v1/capacity/by-country`. `country` kolonu zaten mevcut olduğundan
+    **yeni tablo veya migration yok**
+  - Komuta panelinde (`risk_panel.html`) **Kapasite — Ülke Bazında (EM-064)**
+    kartı her ülkeyi ayrı satırda, ülkesiz kaynağı ayrı ve altta toplamla gösterir
 - EM-063: Saat dilimi, birim ve koordinat standardizasyonu (E7)
   - Sınır ötesi operatör (TR/GR) için **görüntleme katmanı**: zaman her zaman UTC
     saklanır ama kullanıcının yerel saatinde (TRT = Europe/Istanbul, EET/EEST =

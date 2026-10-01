@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from src.database import Database
 from src.services.capacity import (
     CapacityError,
+    capacity_by_country,
     capacity_schedule,
     effective_capacity,
     list_assumptions,
@@ -68,6 +69,20 @@ def register_capacity_routes(api: FastAPI, database: Database, settings: Any) ->
         with database.session() as session:
             return {
                 "capacity": effective_capacity(session, settings),
+                "attribution": CAPACITY_ATTRIBUTION,
+            }
+
+    @api.get("/api/v1/capacity/by-country", tags=["capacity"])
+    def read_by_country() -> dict[str, Any]:
+        """Country-separated capacity account (EM-064): two nations never merge.
+
+        Each resource belongs to a country and capacity is totalled per country,
+        shown separately; resources with no declared country are isolated in an
+        explicit unassigned bucket so nothing is silently merged.
+        """
+        with database.session() as session:
+            return {
+                "capacity": capacity_by_country(session, settings),
                 "attribution": CAPACITY_ATTRIBUTION,
             }
 

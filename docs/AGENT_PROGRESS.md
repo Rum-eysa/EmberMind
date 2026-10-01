@@ -52,6 +52,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 19 | EM-045 Kaynak önerisi motoru — öneri başına beklenen risk düşüşü (#45) | E5 | DONE | sıralı öneri listesinde her satır `expected_risk_reduction` taşır (tek birimin tepe EM-029 riskine varış-duyarlı marjinal etkisi); `build_proposals` saf kalır, zenginleştirme uçta katman |
 | 20 | EM-054 Öneri kabul/ret geri bildirim döngüsü — analiz (#54) | E5 | DONE | EM-047 karar denetimi üzerinde salt okunur toplulaştırma: kabul/ret oranları, tip bazında kırılım, en çok reddedilen tipler, ret gerekçeleri + iyileştirme fikirleri; `release` hariç, tablo/migration yok |
 | 21 | EM-063 Saat dilimi, birim ve koordinat standardizasyonu (#63) | E7 | DONE | sunum katmanı: UTC→yerel (IANA, TR/GR varsayılanı) + 16 yön pusula + ayarlanabilir koordinat formatı (decimal/DMS) + metrik birim tanımı; durumsuz uçlar, tablo/migration yok |
+| 22 | EM-064 Ülke bazlı ayrış envanter (#64) | E7 | DONE | kapasite **ülke ayrı ayrı** toplanır/gösterilir; `merged_by_default:False` + açık `atanmamış` kovası → iki ülke sessizce birleştirilmez; `country` kolonu zaten mevcut, tablo/migration yok |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -661,11 +662,34 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **739** (720 + 19 yeni).
 - **Commit:** `feat(EM-063): ...` (bu dal).
 
+### EM-064 — Ülke bazlı ayrış envanter / kapasite (#64) — DONE
+- **Eksik analizi:** `SuppressionResource.country` kolonu **zaten mevcut**
+  (model + `as_dict` + envanter listeleme filtresi). Gerçek boşluk: kapasite
+  hesabı (`effective_capacity`) yalnızca **tip bazında** toplayıp ülkeyi
+  yok sayıyordu; ülke ayrı bir hesap yoktu → sınır ötesi operasyonda iki
+  ülke sessizce birleştirilebilirdi. Kabul kriterleri: her kaynak bir ülkeye
+  ait + kapasite ülke ayrı toplanır/gösterilir; hiçbir ekran iki ülkeyi
+  sessizce birleştirmez. E7 Must (sp5).
+- **Kapsam:** `src/services/capacity.py` (`UNASSIGNED_COUNTRY`,
+  `_counts_by_country_type`, `capacity_by_country` — `(country, tip)` kovalar,
+  `merged_by_default:False`, ülke toplamları küresel etkinden farklı değil),
+  `src/routes/capacity.py` (`GET /api/v1/capacity/by-country`),
+  `risk_panel.html` (**Kapasite — Ülke Bazında** kartı + `refreshCapacityByCountry`),
+  `tests/unit/test_capacity_by_country.py` (9 test), CHANGELOG + docs/api.
+  **Yeni tablo/migration yok** — `country` zaten var.
+- **Kanıt:** TR/GR ayrı kalır (birbirine karışmaz); `country=None` → `atanmamış`
+  kovası; sadece `available` sayılır (deployed/en_route/maintenance hariç);
+  bilinmeyen tip yok sayılır; ülke toplamları `effective_capacity` toplamına
+  eşit; listesi sıralı; uç 200 + `merged_by_default:False`.
+- **Kapılar:** black(157 değişmez)/mypy(102)/pylint(10.00)/bandit(0) yeşil;
+  pytest **748** (739 + 9 yeni).
+- **Commit:** `feat(EM-064): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -678,8 +702,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 156 değişmez · mypy Success (102) · pylint 10.00/10 ·
-  bandit 0 · pytest **739 passed**.
+- **Final kapılar:** black 157 değişmez · mypy Success (102) · pylint 10.00/10 ·
+  bandit 0 · pytest **748 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
