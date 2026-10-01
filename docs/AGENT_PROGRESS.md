@@ -60,6 +60,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 27 | EM-070 Ülke bazlı yetki ve veri paylaşım politikası (#70) | E7 | DONE | EM-066'nın ertelediği **yetki katmanı**: ülke+rol kapsamına göre paylaşılan alan grupları (fire/risk/support); öncelik **adlı rol→ülke varsayılanı(`*`)→yapılandırılmış varsayılan** (`SHARE_POLICY_DEFAULT_FIELDS`); **ek-yazılımlı** `country_share_policy` (en yeni=geçerli, dizi=denetim); `preview`; matris/preview/POST/audit uçları; panel politika kartı; EM-066 `?fields=` korundu |
 | 28 | EM-069 Ortak sınır ötesi erken uyarı bildirimi (#69) | E7 | DONE | EM-067 geçiş projeksiyonunu **eşik kapısından** geçirip (olasılık + geçiş süresi) karşı ülke koordinasyon birimine **önceden tanımlı kanaldan** bildirim düzenler/kaydedeeder; **kenar-tetiklemeli** (olay+hedef başına tek açık) + geçiş öngörülmezse otomatik **çözülen**; `crossborder_notification` (V024); status/sweep/dispatch/list/config uçları; panel "Tara ve bildir" kartı |
 | 29 | EM-071 Dış destek talebi taslağı üretme (#71) | E7 | DONE | EM-065 erken tahmininden olay başına **ihtiyaç/zaman/konum**la **otomatik tek satır özet** + çok satırlı **düzenlenebilir** metin gövdesi besteler; **TR/EN/EL** (EM-068 `normalize_language`; bilinmeyen dil→400); açık öngörülmeyen olay "yeterli" notlu taslak; panel kartı: olay seç + metin alanı + **Kopyala** + **PDF/Yazdır** (gizli iframe); tablo/migration yok (persistence none) |
+| 30 | EM-078 Sessiz bölge güven paneli (#78) | E8 | DONE | Mevcut `silent_regions` üzerinde **okuma zamanı** deterministik güven puanı: bbox içi aktif yangın=ağır çelişki cezası + en yakın yangın **yakınlık cezası** (PROXIMITY_FAR_KM'ye kadar doğrusal); `[0,1]` kırp + **yüksek/orta/düşük** bant; güven azalan **sıralı liste**; `?confidence=` bant filtresi; operatör haritası **Sessiz Bölgeler** paneli satır→**harita senkron seçim** (fitBounds + vurgu dikdörtgeni); model/migration yok (persistence none) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -911,11 +912,43 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **875** (856 + 19 yeni).
 - **Commit:** `feat(EM-071): ...` (bu dal).
 
+### EM-078 — Sessiz bölge güven paneli (#78) — DONE
+
+- **Eksik analizi:** `SilentRegion` modeli + ham `GET /api/v1/spatial/silent-regions`
+  ucu (yalnızca aktifleri listeler) + `operator_map.html`'de `silent-regions`
+  katmanı **zaten var**; ama **güven alanı / yüksek-düşük filtresi / sıralı liste /
+  harita ile senkron seçim yoktu**. Modelde `confidence` kolonu yok. Gerçek boşluk
+  doğrulandı (issue #78 kabul: "yüksek/düşük güven filtreleri, sıralı liste, harita
+  ile senkron seçim").
+- **Kapsam:** `src/services/silent_zone_panel.py` (`silent_zone_report`/
+  `zone_config`; bbox içi aktif yangın → `OVERLAP_PENALTY`; en yakın yangın
+  uzaklığı → `PROXIMITY_MAX_PENALTY * (1 - nearest/PROXIMITY_FAR_KM)`; `[0,1]`
+  kırp; `high`/`moderate`/`low` bant; güven azalan + ad artan sıralama; `haversine_km`
+  EM-057'den), `src/routes/silent_zone_panel.py` (`/api/v1/silent-zones` + `/config`),
+  `fastapi_app.py` kaydı, `settings.py` + `.env.example` (`SILENT_ZONE_*`),
+  `operator_map.html` (Sessiz Bölgeler düğmesi + bandı filtresi + tıklanabilir
+  sıralı liste + `focusSilentRegion` `fitBounds`/vurgu),
+  `tests/unit/test_silent_zone_panel.py` (17 test), CHANGELOG + docs/api.
+- **Varsayımlar:** (1) panel **salt okuma zamanı projeksiyonudur** — yeni
+  model/göç yok, mevcut `SilentRegion` tablosu kullanılır (persistence none);
+  (2) güven **canlı mekânsal veriden deterministik** türer (öğrenilen model yok);
+  (3) yalnızca `status == "active"` yangınlar çelişki sayılır; (4) bilinmeyen
+  `confidence` değeri yutulmaz — `filter` null + `requested_filter` korunur.
+- **Kanıt:** yangın yok → tümü `high` (güven 1.0); bbox içinde aktif yangın →
+  `low` (≤0.05); ~5 km yakındaki yangın → `moderate`; >25 km → `high`; `contained`
+  yangın çelişki saymaz; sıralama `Remote→Near→OnFire` güven azalan; `band_counts`
+  `{high:1,moderate:1,low:1}`; `?confidence=high`→1 satır; `" HIGH "`→high; `bogus`
+  →tümü+filter null; pasif bölge hariç; `/silent-zones` 200 (3), `?confidence=high`
+  200 (1), `/config` 200 (3 bant).
+- **Kapılar:** black(182 değişmez)/mypy(119)/pylint(10.00)/bandit(0) yeşil;
+  pytest **892** (875 + 17 yeni).
+- **Commit:** `feat(EM-078): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -928,8 +961,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 179 değişmez · mypy Success (117) · pylint 10.00/10 ·
-  bandit 0 · pytest **875 passed**.
+- **Final kapılar:** black 182 değişmez · mypy Success (119) · pylint 10.00/10 ·
+  bandit 0 · pytest **892 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

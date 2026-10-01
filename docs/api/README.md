@@ -469,6 +469,26 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Sessiz Bölge Güven Paneli (EM-078)
+
+Operatör, **sessiz bölgelerin** (kayıt dışı/görüş açıksız bölgeler) hangilerine
+güvenebileceğini ayırt etmek ister. Panel mevcut `silent_regions` verisini bir
+**okuma zamanı projeksiyonuyla** puanlar (yeni kolon/göç yok, `persistence:
+none`): sınır kutusu içindeki her **aktif yangın** ağır bir çelişki cezası
+düşürür; en yakın aktif yangının centroid'a uzaklığına göre **yakınlık cezası**
+(`PROXIMITY_FAR_KM`'ye kadar doğrusal) eklenir; sonuç `[0,1]`'e kırpılıp
+**yüksek/orta/düşük** bantlarına ayrılır. Liste güven azalan sıralanır.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/silent-zones[?confidence=high|moderate|low]` | Güven dereceli, sıralı sessiz bölge listesi; `band_counts` + eşikler; bant filtresi |
+| `GET /api/v1/silent-zones/config` | Bantlar/kesim noktaları ve türetme kuralları |
+
+Bilinmeyen `confidence` değeri **sessizce yutulmaz**: `filter` `null` döner,
+`requested_filter` değeri korunur ve süzülmamış liste gelir. Operatör haritasındaki
+**Sessiz Bölgeler (EM-078)** paneli bandı süzer, satıra tıklanınca **harita senkron**
+bölgenin sınır kutusuna odaklanır ve vurgu dikdörtgenini çizer.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

@@ -322,6 +322,21 @@ class Config:
         "SUPPORT_REQUEST_DEFAULT_LANGUAGE", "tr"
     )
 
+    # EM-078: silent-zone confidence panel (Epic E8)
+    # An active silent region is graded by how much live fire data contradicts
+    # it: a fire inside its bbox is a hard contradiction, a nearby fire erodes
+    # trust linearly up to PROXIMITY_FAR_KM. The confidence cut-offs bucket the
+    # score into the high / moderate / low bands the operator filters by.
+    SILENT_ZONE_HIGH_CONFIDENCE = float(
+        os.getenv("SILENT_ZONE_HIGH_CONFIDENCE", "0.75")
+    )
+    SILENT_ZONE_MODERATE_CONFIDENCE = float(
+        os.getenv("SILENT_ZONE_MODERATE_CONFIDENCE", "0.40")
+    )
+    SILENT_ZONE_PROXIMITY_FAR_KM = float(
+        os.getenv("SILENT_ZONE_PROXIMITY_FAR_KM", "25.0")
+    )
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

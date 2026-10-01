@@ -219,6 +219,33 @@
                     border: 1px solid var(--border-color); border-radius: 6px;
                     background: none; }
     #sound-toggle.off { opacity: .5; }
+    /* EM-078: sessiz bölge güven paneli — yüksek/düşük bant filtresi, sıralı liste */
+    #silent-panel {
+      position: absolute; top: 70px; right: 12px; z-index: 1000;
+      width: 260px; max-height: 52vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #silent-panel h1 { margin-bottom: 4px; }
+    #silent-panel .evt { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+    #silent-panel select { flex: 1; min-width: 0; font-size: var(--font-size-xs); }
+    #silent-panel .item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 2px;
+      border-bottom: 1px solid var(--border-color); cursor: pointer;
+    }
+    #silent-panel .item:hover { background: rgba(97,97,97,.10); }
+    #silent-panel .item.sel { background: rgba(97,97,97,.18); }
+    #silent-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+                         flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #silent-panel .nm { font-weight: 600; }
+    #silent-panel .t { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #silent-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #silent-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #silent-panel .cb-high { color: #1b5e20; }
+    #silent-panel .cb-moderate { color: #f57f17; }
+    #silent-panel .cb-low { color: #b71c1c; }
+    #silent-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -239,6 +266,8 @@
     <span id="confidence-badge" title="EM-020 model güveni — girdi kaynaklarının güvenilirliğinden hesaplanır">Model güveni: —</span>
     <span id="live-chip" class="off" title="EM-090 canlı güncelleme — sayfa yenilemeden olay/tahmin/uyarı akışı">● canlı değil</span>
     <button type="button" id="sound-toggle" title="EM-032 eşik aşımı uyarı sesi (aç/kapa)">🔔 Ses</button>
+    <button type="button" id="silent-open"
+      title="EM-078 sessiz bölge güven paneli — güvenilir/düşük bölgeleri filtrele, haritada seç">Sessiz Bölgeler</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -363,6 +392,19 @@
     <div id="whatif-newlist"></div>
   </div>
 
+  <div id="silent-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölgeler <span id="silent-count" class="count"></span></h1>
+    <label class="evt">Güven bandı
+      <select id="silent-filter" aria-label="Sessiz bölge güven bandı filtresi">
+        <option value="">Tümü</option>
+        <option value="high">Yüksek güven</option>
+        <option value="moderate">Orta güven</option>
+        <option value="low">Düşük güven</option>
+      </select>
+    </label>
+    <div id="silent-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -431,6 +473,10 @@
   let whatifAbort = null;          // devam eden istek iptal edici
   let whatifTimer = null;          // kaydırıcı debounce zamanlayıcısı
   let mapClickPoint = null;        // haritaya son tıklanan ignisyon noktası
+  // EM-078: sessiz bölge güven paneli durumu.
+  let silentPanelOpen = false;
+  let silentRegions = [];           // son güven sıralı bölge listesi
+  let silentHighlight = null;       // seçili bölgenin vurgu dikdörtgeni (L.Rectangle)
 
   // EM-090: canlı güncelleme (WebSocket) durumu.
   let catalogLayers = [];      // kataloğun meta listesi (canlı yenileme için)
@@ -1721,6 +1767,93 @@
     tick();
   }
 
+  // EM-078: sessiz bölge güven paneli — bant filtresi, sıralı liste, harita senkron seçim.
+  const SILENT_API = "/api/v1/silent-zones";
+  const SILENT_BAND_COLORS = { high: "#2e7d32", moderate: "#f9a825", low: "#c62828" };
+  async function toggleSilentPanel() {
+    const panel = document.getElementById("silent-panel");
+    if (silentPanelOpen) {
+      silentPanelOpen = false;
+      panel.style.display = "none";
+      if (silentHighlight) { map.removeLayer(silentHighlight); silentHighlight = null; }
+      return;
+    }
+    silentPanelOpen = true;
+    panel.style.display = "block";
+    await loadSilentZones();
+  }
+  async function loadSilentZones() {
+    const band = document.getElementById("silent-filter").value || "";
+    const url = band ? `${SILENT_API}?confidence=${encodeURIComponent(band)}` : SILENT_API;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSilentList(data);
+    } catch (err) {
+      setStatus(`Sessiz bölge paneli açılamadı: ${err.message}`);
+    }
+  }
+  function renderSilentList(data) {
+    const box = document.getElementById("silent-list");
+    const countEl = document.getElementById("silent-count");
+    silentRegions = (data.regions || []).slice();
+    box.innerHTML = "";
+    const bands = data.band_counts || {};
+    if (countEl) {
+      countEl.textContent = data.count
+        ? `(${data.count} / ${data.count_active_regions})`
+        : "(0)";
+    }
+    if (!silentRegions.length) {
+      box.innerHTML = '<div class="empty">Bu filtrede sessiz bölge yok.</div>';
+      return;
+    }
+    for (const region of silentRegions) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const color = SILENT_BAND_COLORS[region.confidence_band] || "#9e9e9e";
+      const near = region.nearest_fire_km != null
+        ? ` &middot; ${escapeHtml(region.nearest_fire_km)} km` : "";
+      const overlap = region.overlapping_fire_count
+        ? ` <span class="cb-low">⚠${escapeHtml(region.overlapping_fire_count)} yangın</span>` : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${escapeHtml(region.region_name || "isimsiz")}</b>`
+        + `${overlap}<br><span class="cb-${escapeHtml(region.confidence_band)}">`
+        + `${escapeHtml(region.confidence_label)} · ${escapeHtml(region.confidence)}${escapeHtml(near)}</span></span>`;
+      const select = () => focusSilentRegion(region, row);
+      row.addEventListener("click", select);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+      box.appendChild(row);
+    }
+    const bandsHint = `yüksek:${bands.high || 0} orta:${bands.moderate || 0} düşük:${bands.low || 0}`;
+    setStatus(`Sessiz bölgeler — ${bandsHint} — ${data.attribution}`);
+  }
+  function focusSilentRegion(region, row) {
+    for (const el of document.querySelectorAll("#silent-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    // Harita senkron seçim: bölge sınırlarına odaklan ve vurgula.
+    const bounds = L.latLngBounds(
+      [[region.min_lat, region.min_lon], [region.max_lat, region.max_lon]]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+    if (silentHighlight) { map.removeLayer(silentHighlight); }
+    silentHighlight = L.rectangle(bounds, {
+      color: "#616161", weight: 3, dashArray: "6 4",
+      fillColor: "#9e9e9e", fillOpacity: 0.15,
+    }).addTo(map);
+    silentHighlight.bindPopup(
+      `<b>${escapeHtml(region.region_name || "sessiz bölge")}</b><br>`
+      + `Güven: ${escapeHtml(region.confidence_label)} (${escapeHtml(region.confidence)})`);
+    silentHighlight.openPopup();
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -1871,6 +2004,12 @@
     }
     evaluateRiskAlerts();
     alertEvalTimer = setInterval(evaluateRiskAlerts, 30000);
+
+    // EM-078: sessiz bölge güven paneli düğmesi + bant filtresi.
+    const silentBtn = document.getElementById("silent-open");
+    if (silentBtn) silentBtn.addEventListener("click", toggleSilentPanel);
+    const silentFilter = document.getElementById("silent-filter");
+    if (silentFilter) silentFilter.addEventListener("change", loadSilentZones);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

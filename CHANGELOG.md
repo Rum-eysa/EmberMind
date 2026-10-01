@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-078: Sessiz bölge güven paneli (E8)
+  - Operatör, hangi sessiz bölgelere gerçekten güvenebileceğine odaklanmak
+    ister; var olan `silent_regions` verisinde güven alanı/filtresi/sıralı
+    liste/harita ile senkron seçim yoktu (kabul kriterleri: yüksek/düşük güven
+    filtreleri, sıralı liste, harita ile senkron seçim)
+  - `src/services/silent_zone_panel.py`: her aktif sessiz bölgeyi **canlı mekânsal
+    veriden** deterministik puanlar — sınır kutusu içindeki her aktif yangın
+    ağır bir ceza (`OVERLAP_PENALTY`) düşürür; en yakın aktif yangının centroid'a
+    uzaklığına göre **yakınlık cezası** (`PROXIMITY_FAR_KM`'ye kadar doğrusal)
+    eklenir. Sonuç `[0, 1]`'e kırpılır ve yüksek/orta/düşük bantlarına ayrılır
+  - Liste **güvene göre azalan** (en güvenilir önce), ad artan kararlı eşitlik
+    bozucuyla sıralanır; `?confidence=high|moderate|low` bant filtresi
+  - **Harita senkron seçim**: operatör haritasındaki satır, bölgenin sınır
+    kutusuna odaklanır (`fitBounds`) ve vurgu dikdörtgeni + açılır bilgi çizer
+  - Panel bir **okuma zamanı projeksiyonudur**; hiçbir şey yazılmaz
+    (`persistence` `none`), yeni model/göç gerekmez — mevcut `SilentRegion`
+    tablosu yeniden kullanılır
+  - `src/routes/silent_zone_panel.py` (`/api/v1/silent-zones` + `/config`) +
+    `src/fastapi_app.py` kaydı. `src/config/settings.py` + `.env.example`:
+    `SILENT_ZONE_HIGH_CONFIDENCE`/`SILENT_ZONE_MODERATE_CONFIDENCE`/
+    `SILENT_ZONE_PROXIMITY_FAR_KM`. `src/static/operator_map.html`: Sessiz Bölgeler
+    düğmesi + güven bandı filtresi + tıklanabilir sıralı liste
 - EM-071: Dış destek talebi taslağı üretme (E7)
   - Sınır ötesi koordinatör, dış destek talebi için hazır bir özet ister ki talep
     süreci hızlansın (kabul kriterleri: ihtiyaç/zaman/konumdan otomatik özet;

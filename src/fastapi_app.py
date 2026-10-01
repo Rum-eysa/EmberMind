@@ -45,6 +45,7 @@ from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
 from src.routes.scenario_share import register_scenario_share_routes
 from src.routes.share_policy import register_share_policy_routes
+from src.routes.silent_zone_panel import register_silent_zone_panel_routes
 from src.routes.spread import register_spread_routes
 from src.routes.support_request_draft import (
     register_support_request_draft_routes,
@@ -422,6 +423,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_localization_routes(api, database, settings)
     register_i18n_routes(api, database, settings)
     register_share_policy_routes(api, database, settings)
+    register_silent_zone_panel_routes(api, database, settings)
     register_inventory_routes(api, database, settings)
     register_capacity_routes(api, database, settings)
     register_whatif_routes(api, database, settings)
