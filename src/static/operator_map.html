@@ -125,6 +125,11 @@
       font-size: var(--font-size-xs); margin-top: 6px; }
     #positioning-panel .fb-idea { border-left: 3px solid var(--border-color);
       padding: 2px 8px; margin-top: 4px; font-size: var(--font-size-xs); }
+    /* EM-063: gorunum standardizasyonu (saat dilimi / birim / koordinat) */
+    #positioning-panel .loc-row { display: flex; gap: 10px; flex-wrap: wrap;
+      align-items: center; font-size: var(--font-size-xs); margin-top: 6px; }
+    #positioning-panel .loc-out { margin-top: 6px; font-size: var(--font-size-xs); }
+    #positioning-panel .loc-item { padding: 2px 0; }
     #positioning-panel .rj-item {
       border: 1px dashed var(--border-color); border-radius: 6px;
       padding: 4px 8px; margin-top: 4px; font-size: var(--font-size-xs);
@@ -294,6 +299,9 @@
 <button type="button" id="positioning-feedback-btn" class="pi-btn"
       onclick="toggleFeedback()">Kabul/ret geri bildirimi (EM-054)</button>
 <div id="positioning-feedback" hidden></div>
+<button type="button" id="display-loc-btn" class="pi-btn"
+      onclick="toggleLocalization()">Görüntü standardizasyonu (EM-063)</button>
+<div id="display-loc" hidden></div>
   </div>
 
   <div id="whatif-panel" class="panel" aria-live="polite">
@@ -1058,6 +1066,95 @@
       for (const idea of ideas) html += '<div class="fb-idea">' + escapeHtml(idea) + '</div>';
     }
     return html;
+  }
+
+  // EM-063: gorunum standardizasyonu panelini (saat dilimi + koordinat formati) ac/kapa.
+  var _locCfg = null;
+  function toggleLocalization() {
+    const box = document.getElementById("display-loc");
+    if (!box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    loadLocalization();
+  }
+
+  async function loadLocalization() {
+    const box = document.getElementById("display-loc");
+    if (!box) return;
+    if (!_locCfg) {
+      box.innerHTML = '<div class="empty">Yukleniyor…</div>';
+      try {
+        const res = await fetch("/api/v1/display/config");
+        _locCfg = await res.json();
+      } catch (err) {
+        box.innerHTML = '<div class="empty">Yapilandirma alinamadi.</div>';
+        return;
+      }
+    }
+    renderLocalization();
+  }
+
+  function renderLocalization() {
+    const box = document.getElementById("display-loc");
+    if (!box || !_locCfg) return;
+    const u = _locCfg.units || {};
+    const defTz = window._locTz || (_locCfg.defaults && _locCfg.defaults.timezone) || "Europe/Istanbul";
+    const defCf = window._locCf || (_locCfg.defaults && _locCfg.defaults.coordinate_format) || "decimal";
+    let tzOpts = "";
+    for (const z of (_locCfg.supported_timezones || [])) {
+      tzOpts += '<option value="' + escapeHtml(z) + '"' + (z === defTz ? " selected" : "") + '>' + escapeHtml(z) + '</option>';
+    }
+    let cfOpts = "";
+    for (const f of (_locCfg.coordinate_formats || [])) {
+      cfOpts += '<option value="' + escapeHtml(f) + '"' + (f === defCf ? " selected" : "") + '>' + escapeHtml(f) + '</option>';
+    }
+    box.innerHTML =
+      '<div class="as-h">Saat dilimi · birim · koordinat (EM-063)</div>'
+      + '<div class="loc-row"><label>Saat dilimi <select id="loc-tz" onchange="applyLocalization()">' + tzOpts + '</select></label>'
+      + '<label>Koordinat <select id="loc-cf" onchange="applyLocalization()">' + cfOpts + '</select></label></div>'
+      + '<div class="loc-row"><span>Birimler: <b>' + escapeHtml(u.system || "metric") + '</b> — mesafe '
+      + escapeHtml(u.distance || "km") + ', alan ' + escapeHtml(u.area || "ha") + ', hiz ' + escapeHtml(u.speed || "km/h") + '</span></div>'
+      + '<div id="loc-out" class="loc-out"></div>';
+    applyLocalization();
+  }
+
+  async function applyLocalization() {
+    const out = document.getElementById("loc-out");
+    if (!out) return;
+    const tzEl = document.getElementById("loc-tz");
+    const cfEl = document.getElementById("loc-cf");
+    if (tzEl) window._locTz = tzEl.value;
+    if (cfEl) window._locCf = cfEl.value;
+    const center = map.getCenter();
+    const payload = {
+      time: new Date().toISOString(),
+      timezone: window._locTz,
+      coordinate_format: window._locCf,
+      latitude: center.lat,
+      longitude: center.lng,
+    };
+    try {
+      const res = await fetch("/api/v1/display/standardize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        out.innerHTML = '<div class="empty">'
+          + escapeHtml((j && j.detail && j.detail.error) || "Hata") + '</div>';
+        return;
+      }
+      const tm = j.time || {};
+      const co = j.coordinate || {};
+      out.innerHTML =
+        '<div class="loc-item">Yerel saat: <b>' + escapeHtml(tm.local_display || "—") + '</b>'
+        + ' (' + escapeHtml(tm.timezone || "") + ')</div>'
+        + '<div class="loc-item">Merkez koordinat: <b>' + escapeHtml(co.display || "—") + '</b>'
+        + ' [' + escapeHtml(co.format || "") + ']</div>';
+    } catch (err) {
+      out.innerHTML = '<div class="empty">Standartlastirma hatasi.</div>';
+    }
   }
 
   // EM-046: bir oneri satiri icin "neden?" panelini ac/kapa (gerekce + reddedilenler).

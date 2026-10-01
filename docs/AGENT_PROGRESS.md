@@ -51,6 +51,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 18 | EM-050 Kısıt tabanlı optimizasyon (#50) | E5 | DONE | menzil/mesai/gece/yol kapalılığı ihlali olan öneri üretilmez + nedeni gösterilir; opsiyonel limit kolonları (V022 ADD-only, NULL=sınırsız); EM-046/katman sıralama sözleşmesi korunur |
 | 19 | EM-045 Kaynak önerisi motoru — öneri başına beklenen risk düşüşü (#45) | E5 | DONE | sıralı öneri listesinde her satır `expected_risk_reduction` taşır (tek birimin tepe EM-029 riskine varış-duyarlı marjinal etkisi); `build_proposals` saf kalır, zenginleştirme uçta katman |
 | 20 | EM-054 Öneri kabul/ret geri bildirim döngüsü — analiz (#54) | E5 | DONE | EM-047 karar denetimi üzerinde salt okunur toplulaştırma: kabul/ret oranları, tip bazında kırılım, en çok reddedilen tipler, ret gerekçeleri + iyileştirme fikirleri; `release` hariç, tablo/migration yok |
+| 21 | EM-063 Saat dilimi, birim ve koordinat standardizasyonu (#63) | E7 | DONE | sunum katmanı: UTC→yerel (IANA, TR/GR varsayılanı) + 16 yön pusula + ayarlanabilir koordinat formatı (decimal/DMS) + metrik birim tanımı; durumsuz uçlar, tablo/migration yok |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -633,11 +634,38 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **720** (710 + 10 yeni).
 - **Commit:** `feat(EM-054): ...` (bu dal).
 
+### EM-063 — Saat dilimi, birim ve koordinat standardizasyonu (#63) — DONE
+- **Eksik analizi:** `timeutils` yalnızca UTC saklama/serileştirme sağlıyordu;
+  **sunum katmanı** hiç yoktu — UTC→yerel saat (TRT/EET), rüzgâr yönünü pusula
+  etiketine çevirme, koordinatı ayarlanabilir formatta (decimal/DMS) gösterme ve
+  tek bir metrik birim tanımı (`compass`/`DMS`/`Europe/Istanbul`/`resolve_zone`
+  aramaları boş; `spread.py`'deki `_compass_vector` iç matematikti, sunum değil).
+  E7 Should/Must (sp2).
+- **Kapsam:** `src/services/localization.py` (`to_local_time`, `format_wind_direction`,
+  `format_coordinates`, `format_metric`, `standardize`, `resolve_zone`,
+  `LocalizationError`), `src/routes/localization.py` (GET /display/config + POST
+  /display/standardize, `fastapi_app`'e kaydedildi), `src/config/settings.py` +
+  `.env.example` (`DISPLAY_TIMEZONE` / `DISPLAY_COORDINATE_FORMAT`),
+  `operator_map.html` (**Görüntü standardizasyonu** paneli: saat dilimi/koordinat
+  seçici + canlı çıktı), `tests/unit/test_localization.py` (19), CHANGELOG + docs/api.
+  **Migration/model/tablo yok** — durum dönüşümü, kalıcılık yok.
+- **Varsayımlar:** (1) zaman daima UTC; `Europe/Istanbul`/`Europe/Athens`/`UTC`
+  varsayılan, herhangi geçerli IANA bölgesi kabul (geçersiz → `LocalizationError`
+  → 422); (2) birimler **sabit metrik** (km/ha/km-sa); (3) koordinat hem decimal
+  hem DMS döner, `display` seçileni taşır; (4) her blok yalnız girdisi verilmişse
+  üretilir (tek istek saat+koordinat+rüzgâr+birimi birlikte).
+- **Kanıt:** `2026-07-01T12:00:00Z` +3 → `15:00:00+03:00`/`+0300`; 90°→E, 0/360→N,
+  225→SW; 38.42/27.14 decimal `38.420000, 27.140000` + DMS `38°25'...N`; geçersiz
+  bölge/çift-eksik/format/menzil-dışı → 422; uç config + standardize + UI wiring.
+- **Kapılar:** black(156 değişmez)/mypy(102)/pylint(10.00)/bandit(0) yeşil;
+  pytest **739** (720 + 19 yeni).
+- **Commit:** `feat(EM-063): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -650,8 +678,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 153 değişmez · mypy Success (100) · pylint 10.00/10 ·
-  bandit 0 · pytest **720 passed**.
+- **Final kapılar:** black 156 değişmez · mypy Success (102) · pylint 10.00/10 ·
+  bandit 0 · pytest **739 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

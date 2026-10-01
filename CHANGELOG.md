@@ -5,6 +5,24 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-063: Saat dilimi, birim ve koordinat standardizasyonu (E7)
+  - Sınır ötesi operatör (TR/GR) için **görüntleme katmanı**: zaman her zaman UTC
+    saklanır ama kullanıcının yerel saatinde (TRT = Europe/Istanbul, EET/EEST =
+    Europe/Athens veya herhangi bir IANA bölgesi) gösterilir; birimler **metrik**
+    (km, ha, km/sa); rüzgâr yönü **derece + pusula** (16 yön); koordinat gösterim
+    formatı **ayarlanabilir** (ondalık dereceden / DMS)
+  - `src/services/localization.py`: `to_local_time` (zoneinfo ile UTC→yerel),
+    `format_wind_direction` (derece→pusula etiketi), `format_coordinates`
+    (decimal + DMS, hemisfer işaretli), `format_metric`, `standardize` (istenen
+    blokları birleştirir); `resolve_zone` geçersiz bölgede `LocalizationError`
+  - Uçlar: `GET /api/v1/display/config` (varsayılanlar + desteklenen bölgeler/
+    formatlar + birim tanımı) ve `POST /api/v1/display/standardize` (durum
+    dönüşümü). `src/config/settings.py` + `.env.example` içine `DISPLAY_TIMEZONE`
+    / `DISPLAY_COORDINATE_FORMAT` varsayılanları eklendi
+  - **Salt okunur / canlı / kayıt yok:** yeni tablo veya migration yok; tercihler
+    her istekte sorgu gövdesinden gelir, hiçbir şey saklanmaz (`persistence: none`).
+    Operatör haritasında **Görüntü standardizasyonu (EM-063)** paneli saat dilimi
+    ve koordinat formatını seçtirir, harita merkezini seçili formatta gösterir
 - EM-054: Öneri kabul/ret geri bildirim döngüsü — analiz (E5)
   - Komutan önerileri kabul/rettikçe **biriken karar sinyali** veri bilimci için
     motoru iyileştirecek ham maddeye dönüşür: hangi kaynak tipleri ne sıklıkla

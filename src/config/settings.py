@@ -400,6 +400,13 @@ class Config:
         os.getenv("DATA_QUALITY_FAILURE_WARNING_THRESHOLD", "3")
     )
 
+    # Cross-border display standardization (EM-063). Times are always stored /
+    # serialised in UTC; these are the presentation defaults the operator UI can
+    # override per request. Turkey is Europe/Istanbul (TRT, UTC+3), Greece is
+    # Europe/Athens (EET/EEST); the metric unit system (km, ha, km/h) is fixed.
+    DISPLAY_TIMEZONE = os.getenv("DISPLAY_TIMEZONE", "Europe/Istanbul")
+    DISPLAY_COORDINATE_FORMAT = os.getenv("DISPLAY_COORDINATE_FORMAT", "decimal")
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""

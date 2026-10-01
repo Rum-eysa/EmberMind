@@ -295,6 +295,30 @@ Operatör haritasındaki Konuşlanma panelinde **Atamalar** bölümü aktif atam
 listesini, satır başına **Müsaite al** düğmesini ve "Biten olayları otomatik
 müsaite al" işlemini sunar.
 
+### Saat Dilimi, Birim ve Koordinat Standardizasyonu (EM-063)
+
+Sınır ötesi operatör (TR/GR) için **durumsuz görüntleme** yardımcısıdır. Zaman
+her zaman UTC saklanır/sorgulanır; bu uçlar onu operatörün yerel saatine çevirir,
+WGS-84 koordinatını seçili formatta gösterir, rüzgâr yönünü derece + pusula
+olarak okur ve **metrik** birim sistemini bildirir. Hiçbir şey kalıcılaştırılmaz;
+tercihler her istekte gövdeden gelir (`persistence: none`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/display/config` | Varsayılan saat dilimi/koordinat formatı, desteklenen IANA bölgeleri, koordinat formatları ve metrik birim tanımı |
+| `POST /api/v1/display/standardize` | `time`/`timezone`, `latitude`/`longitude`/`coordinate_format`, `wind_direction_deg`, `distance_km`/`area_ha`/`speed_kmh` alanlarından istenen blokları üretir; geçersiz bölge/format/koordinat 422 |
+
+| Blok | Anahtarlar |
+| --- | --- |
+| `time` | `utc`, `local_iso`, `local_display`, `timezone`, `utc_offset`, `is_dst` |
+| `coordinate` | `format`, `decimal`, `dms` (her ikisi de döner) + seçili `display` |
+| `wind` | `degrees`, `compass` (16 yön), `compass_full` |
+| `measures` | `distance_km` / `area_ha` / `speed_kmh` — `{value, unit, display}` |
+
+Operatör haritasında **Görüntü standardizasyonu (EM-063)** paneli saat dilimi ve
+koordinat formatını seçtirir; seçili biçimde yerel saat ve harita merkezi
+koordinatını canlı gösterir.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir
