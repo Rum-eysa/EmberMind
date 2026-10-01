@@ -5,6 +5,27 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-068: Çok dilli arayüz (TR/EL/EN) (E7)
+  - Yunan veya Türk operatör, kriz anında çeviri yükü olmadan paneli **kendi
+    dilinde** okumak ister
+  - `src/services/i18n.py`: arayüz metinleri (başlık, kart başlıkları, tablo
+    etiketleri, butonlar ve sabit kaynak/risk-bandı enum'ları) artık koda
+    derlenmiş bir **mesaj kataloğundan** çözülür — HTML içine gömülü değildir.
+    Kabul kriteri gereği **TR ve EN tam**, **EL çekirdek ekranlar**; eksik
+    anahtar önce **EN**'e (köprü dil), sonra ham anahtara düşer (asla boş
+    render olmaz). `normalize_language` bölgesel etiketleri (tr-TR, el-GR)
+    indirger, bilinmeyen dili reddeder; `translate` `{ad}` yer tutucularını
+    doldurur; `get_messages`/`coverage` tam küme + dil başına kapsama verir
+  - Sayı/saat/koordinat *biçimlendirme* katmanı EM-063'tür; bu görev metin
+    katmanıdır (tamamlayıcı, ayrı)
+  - `src/config/settings.py` + `.env.example`: `I18N_DEFAULT_LANGUAGE`
+    (varsayılan `tr`). Uçlar: `GET /api/v1/i18n/messages[?lang=tr|en|el]`
+    (bilinmeyen dil → 400) + `GET /api/v1/i18n/config`. **Yeni tablo yok** —
+    katalog derlenmiştir, seçilen dil yalnız tarayıcıda (`persistence: none`)
+  - Komuta panelinde **dil seçici (TR/EN/EL)**: `data-i18n` etiketli tüm
+    arayüz kabuğu yüklenen kataloğa göre anında çevrilir; enum etiketleri ve
+    `son güncelleme` satırı dil-kataloğu güdümlüdür; tercih localStorage'da
+    saklanır
 - EM-067: Sınır bölgesi yangın yayılımı — sınır geçiş projeksiyonu (E7)
   - Sınır ötesi koordinatör, yangının **ülke sınırını geçme ihtimalini ve
     zamanını** bilmek ister ki karşı tarafı erken uyarabilsin

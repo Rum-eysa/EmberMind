@@ -435,6 +435,14 @@ class Config:
         "CROSSBORDER_SHARED_FIELDS", "fire,risk,support"
     )
 
+    # EM-068: multilingual UI (Epic E7). The interface text catalogue ships with
+    # TR + EN complete and EL for the core screens; this is the default locale
+    # served to an operator whose browser has not chosen one yet. Supported
+    # codes are tr/en/el; an unknown request is rejected (400) rather than
+    # silently coerced. Per-operator choice is stored only in the browser, so
+    # nothing here needs a migration (persistence: none).
+    I18N_DEFAULT_LANGUAGE = os.getenv("I18N_DEFAULT_LANGUAGE", "tr")
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""

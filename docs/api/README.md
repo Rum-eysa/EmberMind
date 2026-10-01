@@ -374,6 +374,28 @@ canlı türetilir; yeni tablo/migration yoktur (`persistence: none`).
 Komuta panelinde **Sınır Geçiş Projeksiyonu (EM-067)** kartı olay başına
 geçiş yönünü, olasılık bandını ve `T+dk` tahmini geçiş zamanını gösterir.
 
+### Çok Dilli Arayüz (EM-068)
+
+Arayüz **metinleri** (başlık, kart başlıkları, tablo etiketleri, butonlar ve
+sabit kaynak/risk-bandı enum'ları) koda derlenmiş bir **i18n mesaj
+kataloğundan** çözülür; HTML içine gömülü değildir. Kabul kriteri gereği **TR**
+ve **EN** tam anahtar kümesini taşır, **EL** çekirdek ekranları kapsar; eksik
+anahtar önce **EN** köprü diline, sonra ham anahtara düşer (boş render olmaz).
+`normalize_language` bölgesel etiketleri (tr-TR, el-GR) desteklenen koda
+indirger ve bilinmeyen dili reddeder. Bu **metin** katmanıdır; sayı/saat/
+koordinat *biçimlendirme* katmanı EM-063'tür. Katalog derlenmiş olduğundan ve
+seçilen dil yalnız operatörün tarayıcısında saklandığından yeni tablo yoktur
+(`persistence: none`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/i18n/messages[?lang=tr|en|el]` | İstenen dil için tam mesaj kataloğu + `language`, `fallback_language`, dil başına `coverage` (bilinmeyen dil → 400) |
+| `GET /api/v1/i18n/config` | Desteklenen diller (kod + etiket + anahtar sayıları), varsayılan ve köprü dil |
+
+Komuta panelindeki **dil seçici (TR/EN/EL)**, `data-i18n` etiketli tüm arayüz
+kabuğunu, enum etiketlerini ve `son güncelleme` satırını yüklenen kataloğa göre
+anında çevirir; tercih localStorage'da saklanır.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

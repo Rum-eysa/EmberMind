@@ -61,12 +61,15 @@
 </head>
 <body>
   <header>
-    <h1>Komutan Paneli — Kapasite ve Risk</h1>
+    <h1 data-i18n="app.title">Komutan Paneli — Kapasite ve Risk</h1>
     <div id="meta">
-      <span id="panel-day"></span> · eşik <span id="panel-threshold"></span>
+      <span id="panel-day"></span> · <span data-i18n="meta.threshold">eşik</span>
+      <span id="panel-threshold"></span>
       · <span id="status">yükleniyor…</span>
+      · <select id="lang-switch" class="assume-input" title="Dil / Γλώσσα / Language"
+            aria-label="language"></select>
       · <button id="theme-toggle" class="em-btn em-btn--secondary em-btn--sm"
-            type="button">🌓 Tema</button>
+            type="button">🌓 <span data-i18n="btn.theme">Tema</span></button>
     </div>
   </header>
   <main>
@@ -76,17 +79,17 @@
         <div class="label">Bölge Risk İndeksi (FWI) · <span id="max-zone"></span></div>
       </div>
       <div class="card">
-        <h2>Eşik &amp; Aşım</h2>
-        <div class="kv"><span>Eşik değeri</span><b id="k-threshold"></b></div>
-        <div class="kv"><span>Eşiği aşan bölge</span><b id="k-over"></b></div>
-        <div class="kv"><span>İlk aşım zamanı</span><b id="k-first"></b></div>
+        <h2 data-i18n="card.threshold">Eşik &amp; Aşım</h2>
+        <div class="kv"><span data-i18n="label.threshold_value">Eşik değeri</span><b id="k-threshold"></b></div>
+        <div class="kv"><span data-i18n="label.zones_over">Eşiği aşan bölge</span><b id="k-over"></b></div>
+        <div class="kv"><span data-i18n="label.first_exceedance">İlk aşım zamanı</span><b id="k-first"></b></div>
       </div>
       <div class="card">
-        <h2>Eşik Renkleri</h2>
+        <h2 data-i18n="card.legend">Eşik Renkleri</h2>
         <div id="legend"></div>
       </div>
       <div class="card">
-        <h2>Olay Risk İndeksi — Risk(t)</h2>
+        <h2 data-i18n="card.risk_index">Olay Risk İndeksi — Risk(t)</h2>
         <div class="muted-note">Yayılım talebi / etkin kapasite (ha/saat);
           eşikler yönetici ayarında. EM-029</div>
         <table id="risk-index">
@@ -99,7 +102,7 @@
           <b id="ri-max">–</b></div>
       </div>
       <div class="card">
-        <h2>Kapasite Açığı Zaman Çizelgesi</h2>
+        <h2 data-i18n="card.timeline">Kapasite Açığı Zaman Çizelgesi</h2>
         <div class="muted-note">Talep (ha/saat) etkin kapasiteyi ne zaman aşıyor?
           Çizgi grafik zaman ekseninde; ilk kritik eşiği başlıkta. EM-030 —
           yoldaki kaynaklar varış ETA'sından itibaren kapasiteye eklenir (EM-033).</div>
@@ -109,7 +112,7 @@
         <div id="tl-legend" class="gap-legend"></div>
       </div>
       <div class="card">
-        <h2>Yeniden Hesaplama Bütçesi</h2>
+        <h2 data-i18n="card.budget">Yeniden Hesaplama Bütçesi</h2>
         <div class="muted-note">Son yeniden hesaplamaların p95 gecikmesi 10 sn
           hedefine karşı; aşılırsa otomatik kaba çözünürlüğe geçilir. EM-060</div>
         <div class="kv"><span>p95 gecikme</span><b id="pb-p95">–</b></div>
@@ -119,7 +122,7 @@
       </div>
     </section>
     <section class="card">
-      <h2>Bölgeler — Risk İndeksi ve İlk Aşım</h2>
+      <h2 data-i18n="card.zones">Bölgeler — Risk İndeksi ve İlk Aşım</h2>
       <table id="zones">
         <thead><tr>
           <th>Renk</th><th>Bölge</th><th>Risk İndeksi</th><th style="width:26%">Seviye</th>
@@ -130,7 +133,7 @@
     </section>
     <section>
       <div class="card">
-        <h2>Müdahale Kapasitesi</h2>
+        <h2 data-i18n="card.capacity">Müdahale Kapasitesi</h2>
         <div class="kv"><span>Toplam ekip üssü</span><b id="c-total"></b></div>
         <div class="kv"><span>Müsait</span><b id="c-available"></b></div>
         <div class="kv"><span>Müsait değil</span><b id="c-unavailable"></b></div>
@@ -139,7 +142,7 @@
         <div class="kv"><span>Etkin kapasite (ha/saat)</span><b id="c-effective"></b></div>
       </div>
       <div class="card">
-        <h2>Kapasite Varsayımları (ha/saat)</h2>
+        <h2 data-i18n="card.assumptions">Kapasite Varsayımları (ha/saat)</h2>
         <div class="muted-note">Bir birimin etkin müdahale kapasitesi —
           yönetici düzenleyebilir.</div>
         <table id="assumptions">
@@ -149,19 +152,19 @@
         </table>
         <div class="assume-actions">
           <button id="save-assumptions" class="em-btn em-btn--primary em-btn--sm"
-                  type="button">Kaydet</button>
+                  type="button"><span data-i18n="btn.save">Kaydet</span></button>
           <span id="assume-status"></span>
         </div>
       </div>
       <div class="card">
-        <h2>Kapasite Kırılımı (ekip türü)</h2>
+        <h2 data-i18n="card.breakdown">Kapasite Kırılımı (ekip türü)</h2>
         <table id="capacity">
           <thead><tr><th>Tür</th><th class="num">Müsait</th><th class="num">Toplam</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div class="card">
-        <h2>Kapasite — Ülke Bazında (EM-064)</h2>
+        <h2 data-i18n="card.by_country">Kapasite — Ülke Bazında (EM-064)</h2>
         <div class="muted-note">İki ülkenin kaynakları sessizce birleştirilmez;
           her ülke ayrı toplanır, ülkesiz kaynak ayrı gösterilir.</div>
         <table id="capacity-country">
@@ -170,7 +173,7 @@
         </table>
       </div>
       <div class="card">
-        <h2>Dış Destek Erken Tahmini (EM-065)</h2>
+        <h2 data-i18n="card.ext_support">Dış Destek Erken Tahmini (EM-065)</h2>
         <div class="muted-note">Ulusal kapasitenin (müsait + yoldaki takviye)
           ne zaman yetersiz kalacağı açığın gerçekleşmesinden önce uyarı olarak
           gösterilir; gereken tahmini takviye birim sayısı ile birlikte.</div>
@@ -182,15 +185,15 @@
         <div id="ext-support-summary" class="muted-note"></div>
       </div>
       <div class="card">
-        <h2>Sınır Ötesi Durum (EM-066)</h2>
+        <h2 data-i18n="card.crossborder">Sınır Ötesi Durum (EM-066)</h2>
         <div class="muted-note">TR ve GR yetkilileri için ortak ekran: her
           ülkenin aktif yangınları, risk seviyesi ve tahmini dış destek
           ihtiyacı. Paylaşım kapsamı alan grubu seçimiyle ayarlanabilir.</div>
-        <div class="kv"><span>Paylaşım kapsamı</span>
+        <div class="kv"><span data-i18n="scope.share">Paylaşım kapsamı</span>
           <span id="xborder-scope">
-            <label><input type="checkbox" value="fire" checked> Yangın</label>
-            <label><input type="checkbox" value="risk" checked> Risk</label>
-            <label><input type="checkbox" value="support" checked> Destek</label>
+            <label><input type="checkbox" value="fire" checked> <span data-i18n="scope.fire">Yangın</span></label>
+            <label><input type="checkbox" value="risk" checked> <span data-i18n="scope.risk">Risk</span></label>
+            <label><input type="checkbox" value="support" checked> <span data-i18n="scope.support">Destek</span></label>
           </span></div>
         <table id="crossborder">
           <thead><tr><th>Ülke</th><th>Olay</th>
@@ -200,7 +203,7 @@
         <div id="crossborder-summary" class="muted-note"></div>
       </div>
       <div class="card">
-        <h2>Sınır Geçiş Projeksiyonu (EM-067)</h2>
+        <h2 data-i18n="card.spread">Sınır Geçiş Projeksiyonu (EM-067)</h2>
         <div class="muted-note">Yangının ülke sınırını geçme olasılığı ve
           süresi (deterministik geometri: EM-015 baş yayılım yönü/hızı);
           karşı ülke için erken uyarı.</div>
@@ -212,7 +215,7 @@
         <div id="xborder-spread-summary" class="muted-note"></div>
       </div>
       <div class="card">
-        <h2>Kaynak Envanteri (EM-103)</h2>
+        <h2 data-i18n="card.inventory">Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
             <th class="num">Görevde</th><th class="num">Toplam</th>
@@ -223,7 +226,7 @@
           <b id="inv-total">–</b></div>
       </div>
       <div class="card">
-        <h2>Kapasite What-If (EM-056)</h2>
+        <h2 data-i18n="card.whatif">Kapasite What-If (EM-056)</h2>
         <div class="muted-note">Ek kaynak gir: sabit EM-029 talebi varsayıms
           kapasiteye karşı yeniden fiyatlanır; açık değişimi ve çözülen olaylar.
           Geçici — hiçbir kaynak atanmaz.</div>
@@ -239,13 +242,13 @@
           </select></div>
         <div class="assume-actions">
           <button id="wi-run" class="em-btn em-btn--primary em-btn--sm"
-                  type="button">Senaryoyu çalıştır</button>
+                  type="button"><span data-i18n="btn.run">Senaryoyu çalıştır</span></button>
           <span id="wi-status"></span>
         </div>
         <div id="wi-result" style="margin-top:10px"></div>
       </div>
       <div class="card">
-        <h2>Kaynak</h2>
+        <h2 data-i18n="card.source">Kaynak</h2>
         <div id="attribution" class="em-muted"></div>
       </div>
     </section>
@@ -262,11 +265,19 @@
   const CROSSBORDER_FEED = "/api/v1/crossborder/situation";
   // EM-067: deterministic border-crossing likelihood + time projection.
   const XBORDER_SPREAD_FEED = "/api/v1/crossborder/spread";
-  const CATEGORY_TR = {
+  // EM-068: interface text resolved from the i18n catalogue (TR/EN complete,
+  // EL core screens, EN bridge fallback). The language lives only here/localStorage.
+  const I18N_FEED = "/api/v1/i18n/messages";
+  const LANGS = [["tr", "Türkçe"], ["en", "English"], ["el", "Ελληνικά"]];
+  let LOCALE = localStorage.getItem("embermind-lang") || "tr";
+  let I18N = {};
+  // Locale-driven enums (rebuilt from the catalogue on every language switch);
+  // the Turkish literals below are the offline fallback before the feed loads.
+  let CATEGORY_LABELS = {
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
   };
-  const RESOURCE_TR = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
+  let RESOURCE_LABELS = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
   // EM-029 severity bands -> colors (tokens.css scale; kritik-yakin arası).
   const RISK_LEVEL_COLOR = {
     normal: "var(--color-success)", dikkat: "var(--color-warning)",
@@ -278,7 +289,7 @@
   function render(data) {
     setText("panel-day", data.day || "veri yok");
     setText("panel-threshold", data.risk_threshold);
-    setText("status", "son güncelleme: " + new Date().toLocaleTimeString("tr-TR"));
+    setText("status", t("meta.last_update", { time: new Date().toLocaleTimeString(LOCALE) }));
 
     const hero = document.getElementById("risk-hero");
     const s = data.summary;
@@ -298,7 +309,7 @@
     legend.innerHTML = "";
     for (const cat of data.risk_order) {
       const el = document.createElement("span");
-      el.innerHTML = `<i style="background:${data.legend[cat]}"></i>${CATEGORY_TR[cat] || cat}`;
+      el.innerHTML = `<i style="background:${data.legend[cat]}"></i>${CATEGORY_LABELS[cat] || cat}`;
       legend.appendChild(el);
     }
 
@@ -337,7 +348,7 @@
     if (inv) {
       for (const [type, b] of Object.entries(inv.by_type)) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${RESOURCE_TR[type] || type}</td>
+        tr.innerHTML = `<td>${RESOURCE_LABELS[type] || type}</td>
           <td class="num">${b.available}</td><td class="num">${b.deployed}</td>
           <td class="num">${b.total}</td><td class="num">${b.capacity.toFixed(1)}</td>`;
         invBody.appendChild(tr);
@@ -358,7 +369,7 @@
     for (const a of assumptions) {
       const bt = eff ? eff.by_type[a.resource_type] : null;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${RESOURCE_TR[a.resource_type] || a.resource_type}</td>
+      tr.innerHTML = `<td>${RESOURCE_LABELS[a.resource_type] || a.resource_type}</td>
         <td class="num"><input class="assume-input" type="number" min="0"
           step="0.1" data-type="${a.resource_type}" value="${a.ha_per_hour}"></td>
         <td class="num">${bt ? bt.effective_ha_per_hour.toFixed(1) : "–"}</td>`;
@@ -808,7 +819,67 @@
     }
   }
 
-  refresh();
+  // EM-068: resolve one interface string from the loaded catalogue (with
+  // ``{name}`` placeholder substitution); the raw key is the last-resort value.
+  function t(key, params) {
+    let text = Object.prototype.hasOwnProperty.call(I18N, key) ? I18N[key] : key;
+    if (params) {
+      for (const name in params) {
+        text = text.split("{" + name + "}").join(String(params[name]));
+      }
+    }
+    return text;
+  }
+
+  // Apply the catalogue to every ``data-i18n`` chrome element and rebuild the
+  // locale-driven resource / category enum labels used by the render loops.
+  function applyLocale() {
+    document.documentElement.lang = LOCALE;
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (Object.prototype.hasOwnProperty.call(I18N, key)) {
+        el.textContent = I18N[key];
+      }
+    });
+    const cats = {};
+    const res = {};
+    for (const key in I18N) {
+      if (key.indexOf("enum.category.") === 0) cats[key.slice(14)] = I18N[key];
+      else if (key.indexOf("enum.resource.") === 0) res[key.slice(14)] = I18N[key];
+    }
+    if (Object.keys(cats).length) CATEGORY_LABELS = cats;
+    if (Object.keys(res).length) RESOURCE_LABELS = res;
+  }
+
+  // Fetch the message catalogue for ``lang``; on failure keep the current text.
+  async function loadLocale(lang) {
+    try {
+      const res = await fetch(I18N_FEED + "?lang=" + encodeURIComponent(lang));
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      I18N = data.messages || {};
+      LOCALE = data.language || lang;
+      localStorage.setItem("embermind-lang", LOCALE);
+      applyLocale();
+    } catch (err) {
+      // Offline / unknown locale: the baked-in Turkish chrome stays readable.
+    }
+  }
+
+  // EM-068: language switcher (names shown in their own language).
+  const langSel = document.getElementById("lang-switch");
+  for (const [code, label] of LANGS) {
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = label;
+    langSel.appendChild(opt);
+  }
+  langSel.value = LOCALE;
+  langSel.addEventListener("change", (e) => {
+    loadLocale(e.target.value).then(refresh);
+  });
+
+  loadLocale(LOCALE).then(refresh);
   setInterval(refresh, 60000);
 
   // EM-066: paylaşım kapsamı kutuları değişince ortak görünümü yeniden çek.

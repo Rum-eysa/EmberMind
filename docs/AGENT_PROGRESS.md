@@ -56,6 +56,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 23 | EM-065 Dış destek ihtiyacının erken tahmini (#65) | E7 | DONE | EM-030/033 açık çizelgesi üzerinde deterministik ileri projeksiyon: "ulusal kapasite T+X dk yetersiz, ≈ Y birim dış destek" + talep-gönderme son tarihi; açığın gerçekleşmesinden önce uyarı, tablo/migration yok |
 | 24 | EM-066 Sınır ötesi ortak durum görünümü (#66) | E7 | DONE | coord→ülke atfı (pilot sınır boylamı TR/GR) ile ülke ülke yangın+risk+dış destek tek ortak ekranda; **ayarlanabilir veri paylaşım kapsamı** (fire/risk/support alt kümesi); tablo/migration yok, yetki politikası EM-070'e bırakıldı |
 | 25 | EM-067 Sınır bölgesi yangın yayılımı (#67) | E7 | DONE | sınır geçiş olasılığı + süresi deterministik geometriyle: cos(EM-015 baş yönü ↔ sınır yönü) olasılık, uzaklık/(ROS×pay) dakika; EM-066 pilot sınır boylamı ortak; pencere içi/dışı bayrağı; tablo/migration yok |
+| 26 | EM-068 Çok dilli arayüz (TR/EL/EN) (#68) | E7 | DONE | arayüz metinleri koda derlenmiş **i18n mesaj kataloğundan** çözülür (TR+EN tam, EL çekirdek; eksik→EN→ham anahtar fallback); `normalize_language`/`translate`/`get_messages`/`coverage`; `I18N_DEFAULT_LANGUAGE`; `GET /api/v1/i18n/messages`+`/config`; panel dil seçici + `data-i18n`; tablo/migration yok (persistence none) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -780,11 +781,40 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **790** (776 + 14 yeni).
 - **Commit:** `feat(EM-067): ...` (bu dal).
 
+### EM-068 — Çok dilli arayüz (TR/EL/EN) (#68) — DONE
+
+- **Eksik analizi:** `src/services/localization.py` (EM-063) yalnız saat/birim/
+  koordinat **biçimlendirme**dir; arayüz **metni** için hiçbir i18n katmanı yok
+  (`grep i18n|locale|SUPPORTED_LANGUAGES` boş), `risk_panel.html` metinleri
+  HTML'e gömülü Türkçe — gerçek boşluk doğrulandı.
+- **Kapsam:** `src/services/i18n.py` (mesaj kataloğu: `normalize_language`,
+  `translate`, `get_messages`, `coverage`, `messages_payload`, `config_payload`),
+  `src/routes/i18n.py` (`GET /api/v1/i18n/messages[?lang=]` + `/config`),
+  `settings.py` + `.env.example` (`I18N_DEFAULT_LANGUAGE`), `fastapi_app.py`
+  kaydı, `risk_panel.html` (dil seçici + `data-i18n` kabuk + kataloq-güdümlü
+  enum'lar + `t()`/`applyLocale`/`loadLocale`), `tests/unit/test_i18n.py`
+  (26 test), CHANGELOG + docs/api. **Yeni tablo/migration yok** (`persistence:
+  none`).
+- **Varsayımlar:** (1) kabul kriteri gereği **TR + EN tam**, **EL çekirdek
+  ekranlar**; eksik EL anahtarı önce **EN** köprüsüne, sonra ham anahtara düşer;
+  (2) sayı/saat/koordinat biçimlendirme EM-063'te kalır — bu görev yalnız metin
+  katmanıdır; (3) operatör dili yalnız tarayıcıda (localStorage) tutulur;
+  (4) backend'in ürettiği veri mesajları (Türkçe) bu oturumda kapsam dışı —
+  katalog arayüz kabuğudur.
+- **Kanıt:** tr-TR/el-GR/en-US indirgeme; bilinmeyen dil → I18nError; EL çekirdek
+  `app.title` Yunanca, EL-olmayan `card.budget` → EN fallback; `{time}` yer
+  tutucusu; TR/EN anahtar kümeleri eşit; `get_messages("el")` tam küme;
+  coverage EL `native<total`, TR/EN `missing 0`; `messages_payload` varsayılanı
+  ayardan okur, geçersiz varsayılan çökmez; uçlar 200/400/config.
+- **Kapılar:** black(168 değişmez)/mypy(109)/pylint(10.00)/bandit(0) yeşil;
+  pytest **816** (790 + 26 yeni).
+- **Commit:** `feat(EM-068): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -797,8 +827,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 165 değişmez · mypy Success (107) · pylint 10.00/10 ·
-  bandit 0 · pytest **790 passed**.
+- **Final kapılar:** black 168 değişmez · mypy Success (109) · pylint 10.00/10 ·
+  bandit 0 · pytest **816 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
