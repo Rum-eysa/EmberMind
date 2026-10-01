@@ -8,6 +8,7 @@ from .historical_fire import HistoricalFirePerimeter
 from .inventory import SuppressionResource
 from .land_cover import LandCoverDataPoint
 from .live import LiveUpdate
+from .notification_center import NotificationSoundSetting, NotificationState
 from .perf_budget import RecomputeLatencySample
 from .pipeline import PipelineJobHistory
 from .recommendation import RecommendationDecision
@@ -43,6 +44,8 @@ __all__ = [
     "LandCoverDataPoint",
     "LiveUpdate",
     "NaturalBarrier",
+    "NotificationSoundSetting",
+    "NotificationState",
     "PipelineJobHistory",
     "RecomputeLatencySample",
     "RecommendationDecision",

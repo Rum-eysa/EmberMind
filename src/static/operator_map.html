@@ -347,6 +347,31 @@
     #belediye-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                    border: 1px solid var(--border-color); border-radius: 6px;
                    background: none; }
+    /* EM-086: bildirim merkezi — okundu/onaylandı + sesli uyarı ayarı */
+    #bildirim-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 320px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #bildirim-panel h1 { margin-bottom: 4px; }
+    #bildirim-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #bildirim-panel .summary { color: var(--text-secondary); margin: 0 0 6px; }
+    #bildirim-panel .sound { display: flex; flex-wrap: wrap; align-items: center;
+      gap: 8px; padding: 4px 6px; margin-bottom: 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #bildirim-panel .sound select { font-size: var(--font-size-xs); }
+    #bildirim-panel .notif { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #bildirim-panel .notif.unread { font-weight: 600; }
+    #bildirim-panel .notif .lvl { display: inline-block; padding: 0 5px;
+      border-radius: 8px; color: #fff; font-size: 10px; }
+    #bildirim-panel .notif .meta { color: var(--text-secondary); font-weight: 400; }
+    #bildirim-panel .notif .acts { margin-top: 2px; display: flex; gap: 6px; }
+    #bildirim-panel .notif .acts button { font-size: 11px; cursor: pointer;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #bildirim-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #bildirim-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -375,6 +400,8 @@
       title="EM-082 çoklu yangın yönetimi — eş zamanlı yangınlar ve kaynak paylaşım çakışmaları">Çoklu Yangın</button>
     <button type="button" id="belediye-open"
       title="EM-083 salt okunur belediye görünümü — bölgeniz için sadeleştirilmiş izleme ekranı">Belediye</button>
+    <button type="button" id="bildirim-open"
+      title="EM-086 bildirim merkezi — uyarıları okundu/onaylandı izleyin, sesli uyarıyı seviyeye göre ayarlayın">Bildirimler</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -547,6 +574,13 @@
     <div class="cap" id="belediye-capacity"></div>
   </div>
 
+  <div id="bildirim-panel" class="panel" aria-live="polite">
+    <h1>Bildirim Merkezi <span id="bildirim-count" class="count"></span></h1>
+    <div class="summary" id="bildirim-summary"></div>
+    <div class="sound" id="bildirim-sound"></div>
+    <div id="bildirim-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -625,6 +659,8 @@
   let multifirePanelOpen = false;
   // EM-083: salt okunur belediye görünümü paneli durumu.
   let belediyePanelOpen = false;
+  // EM-086: bildirim merkezi paneli durumu.
+  let bildirimPanelOpen = false;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2326,6 +2362,125 @@
     setStatus(`Belediye görünümü — ${data.attribution}`);
   }
 
+  // EM-086: bildirim merkezi — canlı akıştaki uyarılar okundu/onaylandı + sesli ayar.
+  const BILDIRIM_API = "/api/v1/notifications";
+  const NOTIF_LEVEL_COLORS = {
+    "kritik": "#b71c1c", "kritik-yakin": "#e65100",
+    "dikkat": "#f9a825", "normal": "#2e7d32",
+  };
+  async function toggleBildirimPanel() {
+    const panel = document.getElementById("bildirim-panel");
+    if (bildirimPanelOpen) {
+      bildirimPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    bildirimPanelOpen = true;
+    panel.style.display = "block";
+    await loadBildirim();
+  }
+  async function loadBildirim() {
+    const box = document.getElementById("bildirim-list");
+    panelLoading(box, "notification_center");
+    try {
+      const res = await fetch(BILDIRIM_API);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderBildirim(data);
+    } catch (err) {
+      if (box) { box.innerHTML = panelErrorHtml("notification_center", err.message); }
+      setStatus(`Bildirim merkezi alınamadı: ${err.message}`);
+    }
+  }
+  function renderBildirim(data) {
+    const box = document.getElementById("bildirim-list");
+    const sum = document.getElementById("bildirim-summary");
+    const countEl = document.getElementById("bildirim-count");
+    const sound = data.sound || {};
+    const s = data.summary || {};
+    if (countEl) countEl.textContent = s.unread ? `(${s.unread} okunmadı)` : "";
+    if (sum) {
+      sum.textContent = `Toplam ${s.total || 0} · bekleyen onay ${s.pending_ack || 0}`
+        + ` · sesli çalacak ${s.sounding || 0}`;
+    }
+    const soundBox = document.getElementById("bildirim-sound");
+    if (soundBox) {
+      const levels = data.levels || ["normal", "dikkat", "kritik-yakin", "kritik"];
+      const opts = levels.map(l =>
+        `<option value="${l}"${l === sound.min_level ? " selected" : ""}>${l}</option>`
+      ).join("");
+      soundBox.innerHTML =
+        `<label><input type="checkbox" id="bildirim-sound-on"`
+        + `${sound.sound_enabled ? " checked" : ""}> Sesli uyarı</label>`
+        + `<label>En az: <select id="bildirim-sound-level">${opts}</select></label>`;
+      const onEl = document.getElementById("bildirim-sound-on");
+      const lvlEl = document.getElementById("bildirim-sound-level");
+      const save = () => saveSound(onEl.checked, lvlEl.value);
+      if (onEl) onEl.addEventListener("change", save);
+      if (lvlEl) lvlEl.addEventListener("change", save);
+    }
+    box.innerHTML = "";
+    const items = data.notifications || [];
+    if (!items.length) {
+      panelEmpty(box, "notification_center", "Bekleyen uyarı yok.");
+      setStatus(`Bildirim merkezi — ${data.attribution}`);
+      return;
+    }
+    for (const n of items) {
+      const row = document.createElement("div");
+      row.className = "notif" + (n.is_read ? "" : " unread");
+      const color = NOTIF_LEVEL_COLORS[n.level] || "#9e9e9e";
+      const badge = n.is_acknowledged ? "onaylandı"
+        : (n.requires_ack ? "onay bekliyor" : (n.is_read ? "okundu" : "yeni"));
+      row.innerHTML =
+        `<span class="lvl" style="background:${color}">`
+        + `${escapeHtml(n.level || "?")}</span> `
+        + `<strong>${escapeHtml(n.title || n.event_key || "uyarı")}</strong>`
+        + `<div class="meta">${escapeHtml(n.message || "")} · ${badge}</div>`
+        + `<div class="acts"></div>`;
+      const acts = row.querySelector(".acts");
+      if (!n.is_read) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = "Okundu işaretle";
+        b.addEventListener("click", () => markNotifRead(n.live_update_id));
+        acts.appendChild(b);
+      }
+      if (n.requires_ack && !n.is_acknowledged) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = "Onayla";
+        b.addEventListener("click", () => ackNotif(n.live_update_id));
+        acts.appendChild(b);
+      }
+      box.appendChild(row);
+    }
+    setStatus(`Bildirim merkezi — ${data.attribution}`);
+  }
+  async function markNotifRead(id) {
+    try { await fetch(`${BILDIRIM_API}/${id}/read`, { method: "POST" }); }
+    catch (e) { setStatus(`Okundu işaretlenemedi: ${e.message}`); }
+    await loadBildirim();
+  }
+  async function ackNotif(id) {
+    try { await fetch(`${BILDIRIM_API}/${id}/acknowledge`, { method: "POST" }); }
+    catch (e) { setStatus(`Onaylanamadı: ${e.message}`); }
+    await loadBildirim();
+  }
+  async function saveSound(enabled, minLevel) {
+    try {
+      const res = await fetch(`${BILDIRIM_API}/sound`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sound_enabled: enabled, min_level: minLevel }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setStatus("Sesli uyarı ayarı kaydedildi.");
+    } catch (e) {
+      setStatus(`Sesli uyarı ayarı kaydedilemedi: ${e.message}`);
+    }
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -2507,6 +2662,10 @@
     // EM-083: salt okunur belediye görünümü düğmesi.
     const belediyeBtn = document.getElementById("belediye-open");
     if (belediyeBtn) belediyeBtn.addEventListener("click", toggleBelediyePanel);
+
+    // EM-086: bildirim merkezi düğmesi.
+    const bildirimBtn = document.getElementById("bildirim-open");
+    if (bildirimBtn) bildirimBtn.addEventListener("click", toggleBildirimPanel);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

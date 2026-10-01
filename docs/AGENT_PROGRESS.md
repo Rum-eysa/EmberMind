@@ -65,6 +65,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 32 | EM-081 Olay zaman çizelgesi (#81) | E8 | DONE | Canlı değişim beslemesi (EM-090: `fire_event`/`forecast`/`alert`) + operatörün **kabul ettiği** öneri denetim kayıtlarını (EM-047 `accept`/`edit`) tek **kronolojik (yeniden eskiye)** akışta birleştiren salt okuma zamanı projeksiyonu; sabit `category` + Türkçe `category_label` + `event_key` + UTC `at` + `ref`; `reject`/`release` hariç; zaman eşitliğinde **kaynak-sırası + id** deterministik; `?event_key=`/`?category=`/`?limit=` (bilinmeyen kategori yutulmaz; limit `[1,MAX]` kırp); `/api/v1/event-timeline` + `/config`; UI Zaman Çizelgesi düğmesi + kategori filtresi + renk kodlu liste; `ui_states`'e `event_timeline` anahtarı; `EVENT_TIMELINE_DEFAULT/MAX_LIMIT`; model/migration yok (persistence none) |
 | 33 | EM-082 Çoklu yangın yönetimi (#82) | E8 | DONE | Aktif `fire_events` + `suppression_resources` durumları + EM-047/053 karar denetim kaydını birleştiren **salt okuma zamanı** çoklu-yangın envanteri; her aktif yangına konuşlanmış birim EM-053 kuralıyla (hâlâ `en_route`/`deployed` + en yeni satır `accept`/`edit`); üç deterministik **çapraz-yangın çakışma** kovası: `orphaned_units` (meşgul ama olayı artık aktif değil) / `contended_bases` (üs birden çok aktif yangına veriyor) / `understaffed_critical` (acil yangın boş); `event_key` olayları kapsar ama çakışma taraması **küresel**; şiddet sıralı envanter; `/api/v1/multi-fire` + `/config`; UI Çoklu Yangın paneli (listesi + çakışma uyarıları); `ui_states`'e `multi_fire` anahtarı; `MULTI_FIRE_MAX_EVENTS`; model/migration yok (persistence none) |
 | 34 | EM-083 Salt okunur belediye görünümü (#83) | E8 | DONE | Ayarlanabilir bölge koordinat kutusuna (varsayılan: pilot bölge) kapsamlanan **salt okuma zamanı** projeksiyonu; kutu içi aktif `fire_events` acilden eskiye sıralı + yalnızca sade çekirdek alanlar (anahtar/ad/şiddet/başlangıç/konum); şiddet histogramı + tek `headline` durumu + **yerel vs havuz** `suppression_resources` kapasite ayrımı; sınır kapalı (dahil); yalnızca-operatör kontrolleri (öneri/karar/what-if/sevk) bilinçli **gizlenir** ve `omitted_operator_controls` ile adlandırılır; `?severity=` listeyi daraltır ama `headline`/sayılar bölge-geneli kalır, tanınmayan kod sessiz filtre edilmez; `/api/v1/municipality-view` + `/config`; UI Belediye paneli; `ui_states`'e `municipality_view` anahtarı; `MUNICIPALITY_VIEW_*`; model/migration yok (persistence none) |
+| 35 | EM-086 Bildirim merkezi ve sesli uyarı ayarları (#86) | E8 | DONE | Canlı akıştaki (`live_updates` kind=`alert`, EM-032/090) uyarıları en yeniden eskiye **okundu/onaylandı** durumuyla projekte eden bildirim merkezi; kritik bandlar (`kritik-yakin`/`kritik`) yalnızca **onaylanınca** düşer (okumak çözmez), diğerleri okununca düşer; tekil operatör-geneli **sesli alarm** (aç/kapa + en-düşük-bant) ilk okumada ayarlardan tohumlanır, güncellemede kalıcıdır (geçersiz bant→400); `should_sound` seviye kapısı; özet sayaçları (okunmamış/bekleyen-onay/sesli) her zaman tüm pencereyi anlatır; `mark_read`/`acknowledge`/`mark_all_read`; `notification_states` + `notification_sound_settings` (V025); `/api/v1/notifications` + `/config` + `/sound` GET/PUT + `/{id}/read` + `/{id}/acknowledge` + `/read-all` (bilinmeyen uyarı→404); UI Bildirimler paneli (satır eylemleri + sesli kontrol); `ui_states`'e `notification_center` anahtarı; `NOTIFICATION_MAX_ALERTS/SOUND_ENABLED/SOUND_MIN_LEVEL` |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1090,11 +1091,45 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **958** (942 + 16 yeni).
 - **Commit:** `feat(EM-083): ...` (bu dal).
 
+### EM-086 — Bildirim merkezi ve sesli uyarı ayarları (#86) — DONE
+- **Eksik analizi:** EM-032 risk uyarılarını `live_updates` (kind=`alert`)
+  beslemesine yazıyor, EM-090 operatör haritasına akıtıyor AMA uyarıların
+  **okundu/onaylandı** durumu tutulmuyor (ham beslemede ilgili kolon yok),
+  kritik uyarı ekrandan kayboluyor ve sesli alarm EM-090'da **ya tam açık ya tam
+  kapalı** (seviyeye göre ayarlanamıyor, kalıcı değil). Kabul kriterleri: tüm
+  uyarılar okundu/okunmadı ile listelenir; sesli uyarı aç/kapa + seviyeye göre;
+  kritik uyarı onaylanana kadar görünür kalır. E8 Should (sp3). `git grep`
+  bildirim/notification/read_state/acknowledge ile gerçek boşluk doğrulandı.
+- **Kapsam:** `src/models/notification_center.py` (`NotificationState` +
+  `NotificationSoundSetting`), `scripts/migration/V025__notification_center.sql`
+  (yalnızca eklenen iki tablo), `src/services/notification_center.py`
+  (`list_notifications`/`mark_read`/`acknowledge`/`mark_all_read`/
+  `get_sound_setting`/`update_sound_setting`/`should_sound`/config),
+  `src/routes/notification_center.py` (7 uç, `fastapi_app`'e kaydedildi),
+  `settings.py` + `.env.example` (`NOTIFICATION_MAX_ALERTS/SOUND_ENABLED/SOUND_MIN_LEVEL`),
+  `ui_states.py` (`notification_center` anahtarı), `operator_map.html` (Bildirimler
+  düğmesi + okundu/onaylandı satırları + sesli aç/kapa ve seviye seçici),
+  `tests/unit/test_notification_center.py` (23 test), CHANGELOG + docs/api.
+- **Varsayımlar:** (1) uyarı içeriği `live_updates`'ta kalır, bu tablo yalnızca
+  elle tutma durumunu (`live_update_id` ile) tutar — taze uyarı dokunulana kadar
+  okunmamış/onaylanmamış varsayılır; (2) kritik bandlar (`ACK_REQUIRED_LEVELS`)
+  yalnızca `acknowledge` ile düşer, okumak çözmez; (3) sesli ayar tekil satır,
+  yoksa ayarlardan tohumlanır (yazmadan), `update` kalıcılaştırır; (4) özet
+  sayaçları `only_active` filtresinden bağımsız tüm pencereyi anlatır.
+- **Kanıt:** boş→0; iki uyarı yeni-eski sıra; `kritik` okundu→hâlâ `still_showing`,
+  onaylandı→düşer; `dikkat` okundu→düşer; `mark_all_read` unread=0 ama
+  pending_ack=1; sesli varsayılan→`settings_default`, update→`stored`, geçersiz
+  bant→`bilinmeyen`; `should_sound` sınır-dahil; `sounding` mutes→0; uçlar 200,
+  bilinmeyen uyarı→404.
+- **Kapılar:** black(temiz)/mypy(130)/pylint(10.00)/bandit(0) yeşil;
+  pytest **981** (958 + 23 yeni; V025 migration `test_spatial` yeşil).
+- **Commit:** `feat(EM-086): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1107,8 +1142,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 194 değişmez · mypy Success (127) · pylint 10.00/10 ·
-  bandit 0 · pytest **958 passed**.
+- **Final kapılar:** black 198 değişmez · mypy Success (130) · pylint 10.00/10 ·
+  bandit 0 · pytest **981 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

@@ -469,6 +469,31 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Bildirim Merkezi ve Sesli Uyarı (EM-086)
+
+Operatör, canlı akışa (EM-032/EM-090) düşen risk uyarılarının hangilerini
+gördüğünü/onayladığını ayırt etmek, kritik bir uyarıyı **onaylayana kadar**
+elinde tutmak ve sesli alarmı **seviyeye göre** ayarlamak ister. Uyarı içeriği
+`live_updates` içinde kalmaya devam eder; bu merkeziyete yalnızca elle tutma
+durumu eklenir: `notification_states` (uyarı başına okundu/onaylandı) ve
+`notification_sound_settings` (operatör geneli tek satır: açık/kapalı + çalacağı
+en düşük bant). Kritik bandlar (`kritik-yakin`/`kritik`) yalnızca **onayla** ile
+düşer; diğerleri okununca düşer. Özet sayaçları her zaman tüm pencereyi anlatır.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/notifications[?only_active=]` | Canlı akıştaki uyarılar, okundu/onaylandı durumu ve sesli ayarla birlikte (en yeniden eskiye) |
+| `GET /api/v1/notifications/config` | Seviye merdiveni, onay gerektiren bandlar, varsayılan sesli ayar ve `max_alerts` |
+| `GET /api/v1/notifications/sound` | Geçerli sesli alarm yaplandırması (yoksa ayarlardan tohumlanır) |
+| `PUT /api/v1/notifications/sound` | Sesli alarmı aç/kapat ve/veya en düşük çalma bandını ayarla |
+| `POST /api/v1/notifications/{id}/read` | Tek bir uyarıyı okundu işaretle |
+| `POST /api/v1/notifications/{id}/acknowledge` | Uyarıyı onayla (kritik sabitlemeyi yalnızca bu çözer) |
+| `POST /api/v1/notifications/read-all` | Penceredeki tüm uyarıları okundu işaretle (kritikler yine de onay bekler) |
+
+Operatör haritasındaki **Bildirimler (EM-086)** paneli bu uçları kullanır:
+uyarı satırlarında *Okundu işaretle* / *Onayla* düğmeleri ve üstte sesli uyarı
+aç/kapa onay kutusu ile en-düşük-bant seçici.
+
 ### Salt Okunur Belediye Görünümü (EM-083)
 
 Belediye yöneticisi, operatör konsolunun karar kontrollerinde kaybolmadan

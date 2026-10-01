@@ -35,6 +35,7 @@ from src.routes.localization import register_localization_routes
 from src.routes.map_layers import register_map_layer_routes
 from src.routes.municipality_view import register_municipality_view_routes
 from src.routes.multi_fire import register_multi_fire_routes
+from src.routes.notification_center import register_notification_center_routes
 from src.routes.perf_budget import register_perf_budget_routes
 from src.routes.positioning import register_positioning_routes
 from src.routes.recommendation_decision import register_recommendation_routes
@@ -428,6 +429,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_event_timeline_routes(api, database, settings)
     register_multi_fire_routes(api, database, settings)
     register_municipality_view_routes(api, database, settings)
+    register_notification_center_routes(api, database, settings)
     register_localization_routes(api, database, settings)
     register_i18n_routes(api, database, settings)
     register_share_policy_routes(api, database, settings)

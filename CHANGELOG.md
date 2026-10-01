@@ -5,6 +5,33 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-086: Bildirim merkezi ve sesli uyarı ayarları (E8)
+  - Operatör, canlı akışa düşen risk uyarılarının **hangilerini gördüğünü/onayladığını**
+    ayırt edemez, kritik bir uyarı ekrandan kaybolur ve sesli alarm **ya tamamen açık ya
+    tamamen kapalıdır** (kabul kriteri: "tüm uyarılar okundu/okunmadı durumuyla listelenir;
+    sesli uyarı açılıp kapatılabilir ve seviyeye göre ayarlanabilir; kritik uyarı
+    onaylanana kadar görünür kalır") — uyarı içeriği EM-032/EM-090 `live_updates`
+    içindeydi ama elle tutma (okundu/onaylandı) durumu ve kalıcı sesli ayar yoktu
+  - `src/models/notification_center.py`: `NotificationState` (her uyarı için
+    `live_update_id` ile eşleşen okundu/onaylandı satırı) + `NotificationSoundSetting`
+    (operatör geneli tek satır: açık/kapalı + çalacağı en düşük bant);
+    `scripts/migration/V025__notification_center.sql` (yalnızca eklenen iki tablo)
+  - `src/services/notification_center.py`: canlı akıştaki `alert` satırlarını en
+    yeniden eskiye, okundu/onaylandı durumuyla **birlikte projekte eder**; kritik
+    bandlar (`kritik-yakin`/`kritik`) yalnızca **onaylanınca** panelden düşer, geri
+    kalanlar okununca düşer; `mark_read`/`acknowledge`/`mark_all_read`, tekil sesli
+    ayarı oku/güncelle (geçersiz bant reddedilir) ve `should_sound` seviye kapısı;
+    özet sayaçları (okunmamış/bekleyen onay/sesli çalacak) her zaman tüm pencereyi anlatır
+  - `src/routes/notification_center.py` (`/api/v1/notifications` + `/config` +
+    `/sound` GET/PUT + `/{id}/read` + `/{id}/acknowledge` + `/read-all`) +
+    `src/fastapi_app.py` kaydı. `settings.py` + `.env.example`:
+    `NOTIFICATION_MAX_ALERTS/SOUND_ENABLED/SOUND_MIN_LEVEL`.
+    `src/services/ui_states.py`: `notification_center` panel anahtarı.
+    `operator_map.html`: Bildirimler düğmesi + okundu/onaylandı satırları ve
+    sesli uyarı aç/kapa + seviye seçici paneli
+  - `tests/unit/test_notification_center.py`: 23 birim testi (yeni-eski sıra,
+    okundu/onaylandı, kritik sabitleme, yalnız-aktif, işaretlemeler, tekil sesli
+    ayar yaşam döngüsü, `should_sound` kapısı, sayaçlar, uçlar + 404)
 - EM-083: Salt okunur belediye görünümü (E8)
   - Belediye yöneticisi operatör konsolundaki karar kontrollerinde boğulmadan
     **bölgesinin durumunu** sade, yalnızca izleme amaçlı bir ekranla görmek ister

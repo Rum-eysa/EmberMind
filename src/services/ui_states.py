@@ -31,6 +31,7 @@ PANEL_KEYS = (
     "event_timeline",
     "multi_fire",
     "municipality_view",
+    "notification_center",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -117,6 +118,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Bölgenizde aktif yangın yok; sakin izleme modunda.",
         "error": "Belediye görünümü alınamadı.",
         "error_action": "Bağlantınızı kontrol edin ve birazdan yeniden deneyin.",
+    },
+    "notification_center": {
+        "title": "Bildirim merkezi",
+        "loading": "Uyarılar yükleniyor…",
+        "empty": "Bekleyen uyarı yok; canlı akış sakin.",
+        "error": "Bildirim merkezi alınamadı.",
+        "error_action": "Bağlantınızı kontrol edip yeniden deneyin; sürerse operatöre bildirin.",
     },
 }
 

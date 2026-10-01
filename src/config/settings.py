@@ -370,6 +370,16 @@ class Config:
     MUNICIPALITY_VIEW_MAX_LON = float(os.getenv("MUNICIPALITY_VIEW_MAX_LON", "30.0"))
     MUNICIPALITY_VIEW_MAX_FIRES = int(os.getenv("MUNICIPALITY_VIEW_MAX_FIRES", "100"))
 
+    # EM-086: bildirim merkezi ve sesli uyarı ayarları (Epic E8)
+    # Canlı akıştaki (EM-032) uyarılar okundu/onaylandı durumuyla izlenir; kritik
+    # bant onaylanana kadar panelde sabit kalır. penceredeki azami uyarı sayısı,
+    # sesli alarmın varsayılan açık/kapalı durumu ve çalacağı en düşük risk bandı.
+    NOTIFICATION_MAX_ALERTS = int(os.getenv("NOTIFICATION_MAX_ALERTS", "100"))
+    NOTIFICATION_SOUND_ENABLED = os.getenv(
+        "NOTIFICATION_SOUND_ENABLED", "true"
+    ).lower() in ("1", "true", "yes")
+    NOTIFICATION_SOUND_MIN_LEVEL = os.getenv("NOTIFICATION_SOUND_MIN_LEVEL", "dikkat")
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(
