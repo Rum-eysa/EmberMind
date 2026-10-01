@@ -469,6 +469,29 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Salt Okunur Belediye Görünümü (EM-083)
+
+Belediye yöneticisi, operatör konsolunun karar kontrollerinde kaybolmadan
+**bölgesinin durumunu** sade, yalnızca izleme amaçlı bir ekranla izlemek ister.
+Görünüm, ayarlanabilir bir bölge koordinat kutusuna (varsayılan: pilot bölge)
+kapsamlanan **salt okuma zamanı projeksiyonudur** (yeni tablo/göç yok,
+`persistence: none`): kutu içindeki aktif `fire_events` acilden eskiye sıralı ve
+yalnızca sade çekirdek alanlarla, tek bir `headline` durumu ve **yerel vs havuz**
+kaynak ayrımıyla (`suppression_resources` durumları) döner. Sınır kapalı (dahil)
+aralıktır.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/municipality-view[?severity=]` | Bölge içi aktif yangınlar, şiddet histogramı, `headline` durumu ve yerel/havuz kapasite özeti |
+| `GET /api/v1/municipality-view/config` | Bölge kutusu, şiddet/durum taksonomisi, kaynaklar ve bu görünümde **gizlenen** operatör kontrolleri |
+
+Yalnızca operatöre ait affordanslar (öneriler, karar eylemleri, what-if, sevk)
+**bilinçli olarak** düşürülür ve `omitted_operator_controls` listesinde adlandırılır.
+`?severity=` yalnızca listeyi daraltır; `headline` ve şiddet sayıları her zaman
+**bölge-geneli** kalır, tanınmayan bir şiddet kodu sessizce filtre olarak
+uygulanmaz. Operatör haritasındaki **Belediye (EM-083)** paneli bu sadeleştirilmiş,
+salt okunur durumu gösterir.
+
 ### Çoklu Yangın Yönetimi (EM-082)
 
 Koordinatör **eş zamanlı birden çok yangını** izlemek ve sınırlı kaynak

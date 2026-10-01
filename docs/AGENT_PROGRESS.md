@@ -64,6 +64,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 31 | EM-079 Panel durum kataloğu + bağlantı bandı (#79) | E8 | DONE | 9 panel için tek **salt okunur durum kataloğu** (`PANEL_STATES`: title/loading/empty/error/error_action, Türkçe); `error_action` her zaman **yapılabilir fiil** içerir (hata ne olduğunu + ne yapılacağını söyler); `CONNECTION_LOST` bandı + `connection_state()`; `/api/v1/ui-states` + `/ui-states/panel/{key}` (bilinmeyen→404); operatör haritası `#conn-lost` bandı WebSocket `onclose`/REST `catch` ile görünür, `onopen`/`ok` ile kalkar; `.skel`/`.panel-err` yardımcıları sessiz/etki/konuşlanma panellerinde; `UI_STATE_LANGUAGE`; model/migration yok (persistence none) |
 | 32 | EM-081 Olay zaman çizelgesi (#81) | E8 | DONE | Canlı değişim beslemesi (EM-090: `fire_event`/`forecast`/`alert`) + operatörün **kabul ettiği** öneri denetim kayıtlarını (EM-047 `accept`/`edit`) tek **kronolojik (yeniden eskiye)** akışta birleştiren salt okuma zamanı projeksiyonu; sabit `category` + Türkçe `category_label` + `event_key` + UTC `at` + `ref`; `reject`/`release` hariç; zaman eşitliğinde **kaynak-sırası + id** deterministik; `?event_key=`/`?category=`/`?limit=` (bilinmeyen kategori yutulmaz; limit `[1,MAX]` kırp); `/api/v1/event-timeline` + `/config`; UI Zaman Çizelgesi düğmesi + kategori filtresi + renk kodlu liste; `ui_states`'e `event_timeline` anahtarı; `EVENT_TIMELINE_DEFAULT/MAX_LIMIT`; model/migration yok (persistence none) |
 | 33 | EM-082 Çoklu yangın yönetimi (#82) | E8 | DONE | Aktif `fire_events` + `suppression_resources` durumları + EM-047/053 karar denetim kaydını birleştiren **salt okuma zamanı** çoklu-yangın envanteri; her aktif yangına konuşlanmış birim EM-053 kuralıyla (hâlâ `en_route`/`deployed` + en yeni satır `accept`/`edit`); üç deterministik **çapraz-yangın çakışma** kovası: `orphaned_units` (meşgul ama olayı artık aktif değil) / `contended_bases` (üs birden çok aktif yangına veriyor) / `understaffed_critical` (acil yangın boş); `event_key` olayları kapsar ama çakışma taraması **küresel**; şiddet sıralı envanter; `/api/v1/multi-fire` + `/config`; UI Çoklu Yangın paneli (listesi + çakışma uyarıları); `ui_states`'e `multi_fire` anahtarı; `MULTI_FIRE_MAX_EVENTS`; model/migration yok (persistence none) |
+| 34 | EM-083 Salt okunur belediye görünümü (#83) | E8 | DONE | Ayarlanabilir bölge koordinat kutusuna (varsayılan: pilot bölge) kapsamlanan **salt okuma zamanı** projeksiyonu; kutu içi aktif `fire_events` acilden eskiye sıralı + yalnızca sade çekirdek alanlar (anahtar/ad/şiddet/başlangıç/konum); şiddet histogramı + tek `headline` durumu + **yerel vs havuz** `suppression_resources` kapasite ayrımı; sınır kapalı (dahil); yalnızca-operatör kontrolleri (öneri/karar/what-if/sevk) bilinçli **gizlenir** ve `omitted_operator_controls` ile adlandırılır; `?severity=` listeyi daraltır ama `headline`/sayılar bölge-geneli kalır, tanınmayan kod sessiz filtre edilmez; `/api/v1/municipality-view` + `/config`; UI Belediye paneli; `ui_states`'e `municipality_view` anahtarı; `MUNICIPALITY_VIEW_*`; model/migration yok (persistence none) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1051,11 +1052,49 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **942** (924 + 18 yeni).
 - **Commit:** `feat(EM-082): ...` (bu dal).
 
+### EM-083 — Salt okunur belediye görünümü (#83) — DONE
+
+- **Eksik analizi:** belediye yöneticisi için **sadeleştirilmiş, yalnızca izleme
+  amaçlı** bir ekran yoktu — ham veri (`fire_events`, `suppression_resources`)
+  mevcut ama operatör konsolunun karar kontrollerinden (öneri/kabul/what-if/sevk)
+  arındırılmış, bir bölge kutusuna indirgenmiş salt okunur projeksiyon
+  yoktu. `git grep` belediye/municipal/salt okunur/read_only/simplified → eşleşme
+  yok. Gerçek boşluk doğrulandı (issue #83 kabul: "P5 için sadeleştirilmiş,
+  yalnızca izleme amaçlı ekran").
+- **Kapsam:** `src/services/municipality_view.py` (`municipality_view`/
+  `municipality_view_config`; `_region_box` ayarlanabilir kutu, `_in_box` dahil
+  sınır, `_active_fires` acilden eskiye sıralı, `_unit_counts` yerel/havuz ayrımı,
+  `_rank` şiddet), `src/routes/municipality_view.py` (`/api/v1/municipality-view`
+  + `/config`), `fastapi_app.py` kaydı, `settings.py` + `.env.example`
+  (`MUNICIPALITY_VIEW_REGION_NAME/MIN_LAT/MAX_LAT/MIN_LON/MAX_LON/MAX_FIRES`),
+  `ui_states.py` (`municipality_view` panel anahtarı), `operator_map.html`
+  (Belediye düğmesi + `#belediye-panel` + `toggleBelediyePanel`/`loadBelediye`/
+  `renderBelediye`; EM-079 `panelLoading`/`panelEmpty`/`panelErrorHtml`),
+  `tests/unit/test_municipality_view.py` (16 test), CHANGELOG + docs/api.
+- **Varsayımlar:** (1) **okuma zamanı projeksiyonu** — yeni model/göç yok
+  (persistence none); (2) kutu varsayılanı pilot bölge (config/pilot_region.json),
+  ayarlanabilir; (3) sınır **kapalı (dahil)**; (4) yalnızca-operatör kontrolleri
+  bilinçli gizlenir ve `omitted_operator_controls` ile adlandırılır; (5)
+  `?severity=` yalnızca listeyi kapsar, `headline`/şiddet sayıları bölge-geneli
+  kalır; tanınmayan şiddet kodu sessizce filtre olarak uygulanmaz.
+- **Kanıt:** yalnızca-aktif+kutu içi (in-1; contained/out elenir); dahil sınır
+  (köşe 39.5/30.0 girer); şiddet sırası crit>med>low + most_severe; histogram
+  high2/med1; yerel/havuz kapasite (local 1/1, pool 2/1, maintenance hariç);
+  boş bölge→calm + "bölgede aktif yangın yok"; `severity=low`→liste 1 ama
+  total=2 + most_severe=high korunur; ` HIGH ` küçük/karışık; `bogus`→filtre
+  uygulanmaz + `severity_recognised false` + 2 yangın; `max_fires=2`→2 liste
+  total=5; kutu örtme→dar kutu 1 yangın; read_only/persistence none/attribution;
+  config severities 4 + omitted_operator_controls + region kutu; `/municipality-view`
+  200 (1), `?severity=low` 200, `/config` 200.
+- **Kapılar:** black(temiz)/mypy(127)/pylint(10.00)/bandit(0) yeşil;
+  pytest **958** (942 + 16 yeni).
+- **Commit:** `feat(EM-083): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1068,8 +1107,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 191 değişmez · mypy Success (125) · pylint 10.00/10 ·
-  bandit 0 · pytest **942 passed**.
+- **Final kapılar:** black 194 değişmez · mypy Success (127) · pylint 10.00/10 ·
+  bandit 0 · pytest **958 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

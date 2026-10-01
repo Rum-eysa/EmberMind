@@ -356,6 +356,20 @@ class Config:
     # üs/eksik konuşlanmış acil) bu küme üzerinde okuma zamanı hesaplanır.
     MULTI_FIRE_MAX_EVENTS = int(os.getenv("MULTI_FIRE_MAX_EVENTS", "50"))
 
+    # EM-083: salt okunur belediye görünümü (Epic E8)
+    # Belediye yöneticisine gösterilecek sadeleştirilmiş, yalnızca izleme amaçlı
+    # bölgenin adını ve koordinat kutusunu (varsayılan: pilot bölge) ile listedeki
+    # azami aktif yangın sayısını belirler. Görünüm salt okunurdur; operatör karar
+    # kontrolleri bilinçli olarak gizlenir (okuma zamanı projeksiyonu).
+    MUNICIPALITY_VIEW_REGION_NAME = os.getenv(
+        "MUNICIPALITY_VIEW_REGION_NAME", "TR-GR Coastal Wildfire Pilot Region"
+    )
+    MUNICIPALITY_VIEW_MIN_LAT = float(os.getenv("MUNICIPALITY_VIEW_MIN_LAT", "36.0"))
+    MUNICIPALITY_VIEW_MAX_LAT = float(os.getenv("MUNICIPALITY_VIEW_MAX_LAT", "39.5"))
+    MUNICIPALITY_VIEW_MIN_LON = float(os.getenv("MUNICIPALITY_VIEW_MIN_LON", "26.0"))
+    MUNICIPALITY_VIEW_MAX_LON = float(os.getenv("MUNICIPALITY_VIEW_MAX_LON", "30.0"))
+    MUNICIPALITY_VIEW_MAX_FIRES = int(os.getenv("MUNICIPALITY_VIEW_MAX_FIRES", "100"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

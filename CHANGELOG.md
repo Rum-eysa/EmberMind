@@ -5,6 +5,33 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-083: Salt okunur belediye görünümü (E8)
+  - Belediye yöneticisi operatör konsolundaki karar kontrollerinde boğulmadan
+    **bölgesinin durumunu** sade, yalnızca izleme amaçlı bir ekranla görmek ister
+    (kabul kriteri: "P5 için sadeleştirilmiş, yalnızca izleme amaçlı ekran") —
+    ham veri (`fire_events`, `suppression_resources`) zaten vardı ama bölge
+    kutusuna indirgenmiş, karar kontrolleri gizlenmiş salt okunur bir projeksiyon
+    yoktu
+  - `src/services/municipality_view.py`: ayarlanabilir bölge koordinat kutusu
+    (varsayılan: pilot bölge) içine kapsamlanan **okuma zamanı projeksiyonu**
+    (yeni tablo/göç yok, `persistence` `none`) — kutu içindeki aktif yangınlar
+    acilden eskiye sıralı ve yalnızca sade çekirdek alanlarla (anahtar/ad/şiddet/
+    başlangıç/konum), şiddet histogramı, tek `headline` durumu ve **yerel vs havuz**
+    kapasite ayrımı (kutu içi müsait/konuşlu + tüm havuz) döner; sınır kapalı
+    (dahil) aralıktır
+  - Yalnızca operatöre ait kontroller (öneri/karar/what-if/sevk) bilinçli olarak
+    **gizlenir**; `omitted_operator_controls` listesi config'de neyin düşürüldüğünü
+    açıkça adlandırır; `?severity=` filtresi listeyi daraltır ama `headline` ve
+    şiddet sayıları bölge-geneli kalır (ciddi bir olay filtreyle gizlenmez);
+    tanınmayan şiddet kodu sessizce filtre olarak uygulanmaz
+  - `src/routes/municipality_view.py` (`/api/v1/municipality-view` + `/config`) +
+    `src/fastapi_app.py` kaydı. `settings.py` + `.env.example`:
+    `MUNICIPALITY_VIEW_REGION_NAME/MIN_LAT/MAX_LAT/MIN_LON/MAX_LON/MAX_FIRES`.
+    `src/services/ui_states.py`: `municipality_view` panel anahtarı.
+    `operator_map.html`: Belediye düğmesi + salt okunur sadeleştirilmiş panel
+  - `tests/unit/test_municipality_view.py`: 16 birim testi (kutu filtresi +
+    dahil sınır, aktif-sadece şiddet sırası, yerel/havuz kapasite, şiddet filtresi
+    sözleşmesi, `max_fires` sınırı, kutu örtme, salt-okunur meta, uçlar)
 - EM-082: Çoklu yangın yönetimi (E8)
   - Koordinatör **eş zamanlı birden çok yangını** yönetmek ve kaynakları
     yangınlar arasında dengeli dağıtmak ister; parçalar ayrı ayrı duruyordu —

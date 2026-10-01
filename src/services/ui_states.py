@@ -30,6 +30,7 @@ PANEL_KEYS = (
     "support_request_draft",
     "event_timeline",
     "multi_fire",
+    "municipality_view",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -109,6 +110,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Şu anda aktif yangın yok; kaynak çakışması riski yok.",
         "error": "Çoklu yangın envanteri alınamadı.",
         "error_action": "Envanter ve olay verisini kontrol edip yeniden deneyin.",
+    },
+    "municipality_view": {
+        "title": "Belediye görünümü",
+        "loading": "Bölge durumu yükleniyor…",
+        "empty": "Bölgenizde aktif yangın yok; sakin izleme modunda.",
+        "error": "Belediye görünümü alınamadı.",
+        "error_action": "Bağlantınızı kontrol edin ve birazdan yeniden deneyin.",
     },
 }
 
