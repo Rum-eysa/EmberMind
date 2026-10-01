@@ -5,6 +5,24 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-071: Dış destek talebi taslağı üretme (E7)
+  - Sınır ötesi koordinatör, dış destek talebi için hazır bir özet ister ki talep
+    süreci hızlansın (kabul kriterleri: ihtiyaç/zaman/konumdan otomatik özet;
+    düzenlenebilir/kopyalanabilir/PDF; taslak TR/EN/EL)
+  - `src/services/support_request_draft.py`: EM-065 erken tahminini **temel alarak**
+    olay başına taslak besteler — **ihtiyaç** `estimated_support_units`, **zaman**
+    `first_shortfall_minute`/`request_by_minute`, **konum** koordinatlar (EM-063
+    standart biçimleyicisinden). Bu üçünden **otomatik tek satır özet** ve
+    çok satırlı, düzenlenebilir metin gövdesi üretilir
+  - Taslak **EM-068 i18n** yerel makinesinden TR/EN/EL işlenir; desteklenmeyen dil
+    `I18nError` ile reddedilir (400). Açık öngörülmeyen olay da net biçimde
+    etiketli bir taslağa dönüşür (birim 0, "yeterli")
+  - **Düzenle/kopyala/PDF** operatör tarafındadır: servis `editable` + çok
+    satırlı `draft_text` döner; arayüzde metin alanı + panoya kopyala + gizli
+    iframe ile yazdır/PDF düğmeleri. `persistence` `none` (canlı bileşim)
+  - `src/routes/support_request_draft.py` (config / events / draft uçları) +
+    `src/fastapi_app.py` kaydı. `src/config/settings.py` + `.env.example`:
+    `SUPPORT_REQUEST_DEFAULT_LANGUAGE`. `src/static/risk_panel.html`: EM-071 kartı
 - EM-069: Ortak sınır ötesi erken uyarı bildirimi (E7)
   - Sınır ötesi koordinatör, sınır geçiş projeksiyonu (EM-067) **eşiği aştığında**
     karşı ülke koordinasyon birimine otomatik bildirim gitmesini ister ki ortak

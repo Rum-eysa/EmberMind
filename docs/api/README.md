@@ -446,6 +446,29 @@ Komuta panelindeki **Ortak Erken Uyarı Bildirimi (EM-069)** kartı eşik aşan
 geçişleri yön/olasılık/geçiş süresiyle listeler, bildirildi/bekliyor rozetini
 gösterir ve **Tara ve bildir** eylemiyle süpürmeyi çalıştırır.
 
+### Dış Destek Talebi Taslağı Üretme (EM-071)
+
+EM-065 erken tahminini **somut bir talebe** dönüştürür: koordinatör, boş bir
+sayfaya değil hazır bir taslağa başlar. Servis olay başına **ihtiyacı**
+(`estimated_support_units`), **zamanı** (ilk açık / talep son dakika) ve
+**konumu** (koordinatlar, EM-063 standart biçimleyicisi) EM-065'ten okur; bu
+üçünden **otomatik tek satır özet** ve çok satırlı, **düzenlenebilir** bir metin
+gövdesi besteler. Taslak **EM-068 i18n** yereliyle TR/EN/EL işlenir
+(`normalize_language`; bilinmeyen dil → 400, tanımsız olay → 404). Açık
+öngörülmeyen olay da "yeterli" notlu bir taslağa dönüşür. **Kopyala / PDF**
+operatör tarafındadır (metin alanı + panoya kopyala + gizli iframe yazdır);
+servis durumludur ve hiçbir şey yazmaz (`persistence: none`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/support-request-draft?event_key=[&lang=tr|en|el]` | Bir olay için düzenlenebilir talep taslağı: `summary` (otomatik özet) + `draft_text` + `language` |
+| `GET /api/v1/support-request-draft/events` | Taslak seçici için aktif olaylar (öngörülen açık/birim) + önerilen olay |
+| `GET /api/v1/support-request-draft/config` | Desteklenen diller, varsayılan dil, `editable` ve dışa aktarım biçimleri (`text`, `pdf`) |
+
+Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçtirir,
+güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
+**PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

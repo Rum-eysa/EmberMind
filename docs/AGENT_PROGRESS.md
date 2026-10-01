@@ -59,6 +59,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 26 | EM-068 Çok dilli arayüz (TR/EL/EN) (#68) | E7 | DONE | arayüz metinleri koda derlenmiş **i18n mesaj kataloğundan** çözülür (TR+EN tam, EL çekirdek; eksik→EN→ham anahtar fallback); `normalize_language`/`translate`/`get_messages`/`coverage`; `I18N_DEFAULT_LANGUAGE`; `GET /api/v1/i18n/messages`+`/config`; panel dil seçici + `data-i18n`; tablo/migration yok (persistence none) |
 | 27 | EM-070 Ülke bazlı yetki ve veri paylaşım politikası (#70) | E7 | DONE | EM-066'nın ertelediği **yetki katmanı**: ülke+rol kapsamına göre paylaşılan alan grupları (fire/risk/support); öncelik **adlı rol→ülke varsayılanı(`*`)→yapılandırılmış varsayılan** (`SHARE_POLICY_DEFAULT_FIELDS`); **ek-yazılımlı** `country_share_policy` (en yeni=geçerli, dizi=denetim); `preview`; matris/preview/POST/audit uçları; panel politika kartı; EM-066 `?fields=` korundu |
 | 28 | EM-069 Ortak sınır ötesi erken uyarı bildirimi (#69) | E7 | DONE | EM-067 geçiş projeksiyonunu **eşik kapısından** geçirip (olasılık + geçiş süresi) karşı ülke koordinasyon birimine **önceden tanımlı kanaldan** bildirim düzenler/kaydedeeder; **kenar-tetiklemeli** (olay+hedef başına tek açık) + geçiş öngörülmezse otomatik **çözülen**; `crossborder_notification` (V024); status/sweep/dispatch/list/config uçları; panel "Tara ve bildir" kartı |
+| 29 | EM-071 Dış destek talebi taslağı üretme (#71) | E7 | DONE | EM-065 erken tahmininden olay başına **ihtiyaç/zaman/konum**la **otomatik tek satır özet** + çok satırlı **düzenlenebilir** metin gövdesi besteler; **TR/EN/EL** (EM-068 `normalize_language`; bilinmeyen dil→400); açık öngörülmeyen olay "yeterli" notlu taslak; panel kartı: olay seç + metin alanı + **Kopyala** + **PDF/Yazdır** (gizli iframe); tablo/migration yok (persistence none) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -880,11 +881,41 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   naive bölmede sahte ifademe yol açtı — açıklamadan kaldırıldı.
 - **Commit:** `feat(EM-069): ...` (bu dal).
 
+### EM-071 — Dış destek talebi taslağı üretme (#71) — DONE
+
+- **Eksik analizi:** `grep support_request|request_draft|_draft` src/ içinde boş;
+  EM-065 (`external_support.py`) yalnızca **erken tahmin** üretir (ihtiyaç/zaman/
+  konum) ama bunlardan **düzenlenebilir bir talep taslağı** bestelenmiyordu. Gerçek
+  boşluk doğrulandı (issue #71 kabul: otomatik özet + düzenle/kopyala/PDF + TR/EN/EL).
+- **Kapsam:** `src/services/support_request_draft.py` (`build_request_draft`/
+  `requestable_events`/`config_payload`/`default_draft_language`; EM-065 tahmininden
+  **ihtiyaç + zaman + konum**la otomatik özet + çok satırlı metin; TR/EN/EL
+  `_TEMPLATES`; EM-063 `format_coordinates`; EM-068 `normalize_language`),
+  `src/routes/support_request_draft.py` (draft/events/config), `fastapi_app.py`
+  kaydı, `settings.py` + `.env.example` (`SUPPORT_REQUEST_DEFAULT_LANGUAGE`),
+  `risk_panel.html` (EM-071 kartı: olay seç + `sd-text` metin alanı + Kopyala +
+  PDF/Yazdır), `tests/unit/test_support_request_draft.py` (19 test), CHANGELOG + docs/api.
+- **Varsayımlar:** (1) taslak **durumsuzdur** — EM-065 tahmininden canlı bestelenir,
+  hiçbir şey yazılmaz (persistence none); (2) düzenle/kopyala/PDF **operatör
+  tarafıdır** (servis `editable` + `draft_text` döner); (3) dil EM-068 yerel
+  makinesinden çözülür, bilinmeyen dil → 400; (4) açık öngörülmeyen olay da
+  "yeterli" notlu taslak üretir (birim 0).
+- **Kanıt:** ihtiyacı/zamanı/konumu ("38.000000, 27.000000", "2 birim", "T+40",
+  "en geç T+30") TR özette; `draft_text` çok satırlı + etiketler; lead>açık →
+  "hemen"; açık olmayan → "yeterli"; TR/EN/EL taslakları ayrı (EN başlık,
+  EL "ΕΞΩΤΕΡΙΚΗΣ ΥΠΟΣΤΗΡΙΞΗΣ", "2 reinforcement units"); en-GB → en; "de" →
+  I18nError; `SUPPORT_REQUEST_DEFAULT_LANGUAGE=en` varsayılanı; bilinmeyen olay →
+  RiskIndexError; config `pdf`+`editable`; events suggested_event_key; uçlar
+  draft/events/config 200, lang=en 200, NOPE→404, de→400.
+- **Kapılar:** black(179 değişmez)/mypy(117)/pylint(10.00)/bandit(0) yeşil;
+  pytest **875** (856 + 19 yeni).
+- **Commit:** `feat(EM-071): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -897,8 +928,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 176 değişmez · mypy Success (115) · pylint 10.00/10 ·
-  bandit 0 · pytest **856 passed**.
+- **Final kapılar:** black 179 değişmez · mypy Success (117) · pylint 10.00/10 ·
+  bandit 0 · pytest **875 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

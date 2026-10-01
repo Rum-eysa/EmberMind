@@ -258,6 +258,27 @@
         <div id="xborder-notify-summary" class="muted-note"></div>
       </div>
       <div class="card">
+        <h2>Dış Destek Talebi Taslağı (EM-071)</h2>
+        <div class="muted-note">EM-065 erken tahmininden ihtiyaç / zaman /
+          konumla otomatik özetlenen uluslararası destek talebi taslağı.
+          TR/EN/EL üretilir; metin düzenlenebilir, kopyalanabilir veya
+          PDF olarak alınabilir.</div>
+        <div class="kv"><span>Olay</span>
+          <select id="sd-event" class="assume-input" style="width:170px">
+            <option value="">seçin…</option>
+          </select></div>
+        <div class="assume-actions">
+          <button id="sd-generate" type="button" class="assume-input">Taslağı oluştur</button>
+          <button id="sd-copy" type="button" class="assume-input">Kopyala</button>
+          <button id="sd-print" type="button" class="assume-input">PDF / Yazdır</button>
+          <span id="sd-status" class="muted-note"></span>
+        </div>
+        <div id="sd-summary" class="muted-note" style="margin-top:6px"></div>
+        <textarea id="sd-text" rows="10"
+          style="width:100%;margin-top:6px;font-family:monospace"
+          placeholder="Olay seçip “Taslağı oluştur”a basın"></textarea>
+      </div>
+      <div class="card">
         <h2 data-i18n="card.inventory">Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
@@ -313,6 +334,9 @@
   // EM-069: joint cross-border early-warning notification (edge-triggered).
   const XBORDER_NOTIFY_FEED = "/api/v1/crossborder/notification-status";
   const XBORDER_NOTIFY_SWEEP = "/api/v1/crossborder/notifications/sweep";
+  // EM-071: external-support request draft (auto-summarised, editable, TR/EN/EL).
+  const SUPPORT_DRAFT_FEED = "/api/v1/support-request-draft";
+  const SUPPORT_DRAFT_EVENTS = "/api/v1/support-request-draft/events";
   // EM-068: interface text resolved from the i18n catalogue (TR/EN complete,
   // EL core screens, EN bridge fallback). The language lives only here/localStorage.
   const I18N_FEED = "/api/v1/i18n/messages";
@@ -443,6 +467,7 @@
     refreshXborderSpread();
     refreshSharePolicy();
     refreshXborderNotify();
+    refreshSupportDraftEvents();
   }
 
   // EM-067: sınır geçiş projeksiyonu — olay başına geçiş yönü, olasılık
@@ -675,6 +700,86 @@
 
   // EM-065: dış destek erken tahmini — ulusal kapasitenin ne zaman
   // yetersiz kalacağı + gereken takviye birim sayısı (açık gerçekleşmeden).
+  // EM-071: dıș destek talebi taslağı — olay secimini doldurur (secim korunur).
+  async function refreshSupportDraftEvents() {
+    const sel = document.getElementById("sd-event");
+    const chosen = sel.value;
+    try {
+      const res = await fetch(SUPPORT_DRAFT_EVENTS);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      sel.innerHTML = '<option value="">seçin…</option>';
+      for (const ev of (data.events || [])) {
+        const opt = document.createElement("option");
+        opt.value = ev.event_key;
+        const tail = ev.predicted_shortfall
+          ? " · ≈" + ev.estimated_support_units + " birim" : " · yeterli";
+        opt.textContent = ev.event_key + tail;
+        sel.appendChild(opt);
+      }
+      if (chosen && data.events.some((e) => e.event_key === chosen)) {
+        sel.value = chosen;
+      } else if (data.suggested_event_key) {
+        sel.value = data.suggested_event_key;
+      }
+    } catch (err) { /* select oldasi kalir */ }
+  }
+
+  // EM-071: secili olay + guncel arayuz dilinden duzenlenebilir taslak uretir.
+  async function loadSupportDraft() {
+    const status = document.getElementById("sd-status");
+    const box = document.getElementById("sd-text");
+    const summary = document.getElementById("sd-summary");
+    const ev = document.getElementById("sd-event").value;
+    if (!ev) { status.textContent = "önce olay seçin"; return; }
+    status.textContent = "üretiliyor…";
+    try {
+      const url = SUPPORT_DRAFT_FEED + "?event_key="
+        + encodeURIComponent(ev) + "&lang=" + encodeURIComponent(LOCALE);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      box.value = data.draft_text || "";
+      summary.textContent = data.summary || "";
+      status.textContent = data.language_label + " · taslak hazır (düzenlenebilir)";
+    } catch (err) {
+      status.textContent = "hata: " + err.message;
+    }
+  }
+
+  function copySupportDraft() {
+    const box = document.getElementById("sd-text");
+    const status = document.getElementById("sd-status");
+    if (!box.value) { status.textContent = "kopyalanacak taslak yok"; return; }
+    navigator.clipboard.writeText(box.value)
+      .then(() => { status.textContent = "panoya kopyalandı"; })
+      .catch(() => { status.textContent = "kopyalanamadı"; });
+  }
+
+  // EM-071: gizli iframe uzerinden yazdirma/PDF diyalogunu acar.
+  function printSupportDraft() {
+    const text = document.getElementById("sd-text").value;
+    const status = document.getElementById("sd-status");
+    if (!text) { status.textContent = "yazdırılacak taslak yok"; return; }
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write("<pre style='font-family:monospace;white-space:pre-wrap'>"
+      + escapeHtml(text) + "</pre>");
+    doc.close();
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    status.textContent = "yazdırma/PDF diyaloğu açıldı";
+    setTimeout(() => document.body.removeChild(frame), 1000);
+  }
+
   async function refreshExternalSupport() {
     const body = document.querySelector("#ext-support tbody");
     const summary = document.getElementById("ext-support-summary");
@@ -1075,6 +1180,11 @@
 
   // EM-069: ortak erken uyarı — durumu ve tarayıp bildir eylemini bağla.
   document.getElementById("xb-notify-sweep").addEventListener("click", runXborderNotifySweep);
+
+  // EM-071: dış destek talebi taslağı — üret / kopyala / PDF eylemleri.
+  document.getElementById("sd-generate").addEventListener("click", loadSupportDraft);
+  document.getElementById("sd-copy").addEventListener("click", copySupportDraft);
+  document.getElementById("sd-print").addEventListener("click", printSupportDraft);
 
   // EM-028 yönetici düzenlemesi: ha/saat varsayımlarını kaydet ve paneli tazele.
   document.getElementById("save-assumptions").addEventListener("click", async () => {

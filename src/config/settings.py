@@ -315,6 +315,12 @@ class Config:
     EXTERNAL_SUPPORT_LEAD_TIME_MINUTES = int(
         os.getenv("EXTERNAL_SUPPORT_LEAD_TIME_MINUTES", "60")
     )
+    # EM-071: the default locale the auto-generated external-support request
+    # draft is rendered in (TR / EN / EL); an operator can still override per
+    # request. Falls back to the EM-068 i18n default when unset / invalid.
+    SUPPORT_REQUEST_DEFAULT_LANGUAGE = os.getenv(
+        "SUPPORT_REQUEST_DEFAULT_LANGUAGE", "tr"
+    )
 
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
