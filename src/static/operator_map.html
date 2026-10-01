@@ -293,6 +293,35 @@
     #timeline-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                    border: 1px solid var(--border-color); border-radius: 6px;
                    background: none; }
+    /* EM-082: çoklu yangın yönetimi — aktif yangın listesi + çakışma uyarıları */
+    #multifire-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 320px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #multifire-panel h1 { margin-bottom: 4px; }
+    #multifire-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #multifire-panel .fire { padding: 5px 2px; border-bottom: 1px solid var(--border-color); }
+    #multifire-panel .fh { display: flex; align-items: center; gap: 6px; }
+    #multifire-panel .sev { width: 9px; height: 9px; border-radius: 50%;
+                            flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #multifire-panel .nm { font-weight: 700; }
+    #multifire-panel .cc { margin-left: auto; color: var(--text-secondary);
+                           white-space: nowrap; }
+    #multifire-panel .units { color: var(--text-secondary); margin: 2px 0 0 15px; }
+    #multifire-panel .none { color: var(--text-secondary); margin: 2px 0 0 15px;
+                             font-style: italic; }
+    #multifire-panel .cf-head { font-weight: 700; margin: 8px 0 2px; }
+    #multifire-panel .cf { padding: 3px 6px; margin: 2px 0; border-radius: 6px;
+                           border: 1px solid #e0b000; background: #fff7e0; }
+    #multifire-panel .cf.orphan { border-color: #b06500; background: #fdeee0; }
+    #multifire-panel .cf.base { border-color: #1565c0; background: #e6f0fb; }
+    #multifire-panel .cf.under { border-color: #c62828; background: #fbe9e9; }
+    #multifire-panel .cf-ok { color: #2e7d32; font-weight: 600; margin-top: 6px; }
+    #multifire-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #multifire-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -317,6 +346,8 @@
       title="EM-078 sessiz bölge güven paneli — güvenilir/düşük bölgeleri filtrele, haritada seç">Sessiz Bölgeler</button>
     <button type="button" id="timeline-open"
       title="EM-081 olay zaman çizelgesi — vardiya devri için kronolojik olay akışı">Zaman Çizelgesi</button>
+    <button type="button" id="multifire-open"
+      title="EM-082 çoklu yangın yönetimi — eş zamanlı yangınlar ve kaynak paylaşım çakışmaları">Çoklu Yangın</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -475,6 +506,12 @@
     <div id="timeline-list"></div>
   </div>
 
+  <div id="multifire-panel" class="panel" aria-live="polite">
+    <h1>Çoklu Yangın Yönetimi <span id="multifire-count" class="count"></span></h1>
+    <div id="multifire-list"></div>
+    <div id="multifire-conflicts"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -549,6 +586,8 @@
   let silentHighlight = null;       // seçili bölgenin vurgu dikdörtgeni (L.Rectangle)
   // EM-081: olay zaman çizelgesi paneli durumu.
   let timelinePanelOpen = false;
+  // EM-082: çoklu yangın yönetimi paneli durumu.
+  let multifirePanelOpen = false;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2070,6 +2109,109 @@
     setStatus(`Olay zaman çizelgesi — ${hint} — ${data.attribution}`);
   }
 
+  // EM-082: çoklu yangın yönetimi — aktif yangın + konuşlanan kaynak + çakışma uyarısı.
+  const MULTIFIRE_API = "/api/v1/multi-fire";
+  const SEVERITY_COLORS = { critical: "#b71c1c", high: "#e65100", medium: "#f9a825", low: "#2e7d32" };
+  async function toggleMultifirePanel() {
+    const panel = document.getElementById("multifire-panel");
+    if (multifirePanelOpen) {
+      multifirePanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    multifirePanelOpen = true;
+    panel.style.display = "block";
+    await loadMultifire();
+  }
+  async function loadMultifire() {
+    const box = document.getElementById("multifire-list");
+    panelLoading(box, "multi_fire");
+    const cfBox = document.getElementById("multifire-conflicts");
+    if (cfBox) cfBox.innerHTML = "";
+    try {
+      const res = await fetch(MULTIFIRE_API);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderMultifire(data);
+    } catch (err) {
+      if (box) { box.innerHTML = panelErrorHtml("multi_fire", err.message); }
+      setStatus(`Çoklu yangın paneli açılamadı: ${err.message}`);
+    }
+  }
+  function renderMultifire(data) {
+    const box = document.getElementById("multifire-list");
+    const cfBox = document.getElementById("multifire-conflicts");
+    const countEl = document.getElementById("multifire-count");
+    const events = data.events || [];
+    const totals = data.totals || {};
+    if (countEl) {
+      countEl.textContent = data.active_event_total
+        ? `(${data.active_event_total} yangın · ${totals.committed_units || 0} konuşlu)`
+        : "(0)";
+    }
+    box.innerHTML = "";
+    if (!events.length) {
+      panelEmpty(box, "multi_fire", "Şu anda aktif yangın yok.");
+    } else {
+      for (const ev of events) {
+        const row = document.createElement("div");
+        row.className = "fire";
+        const color = SEVERITY_COLORS[ev.severity] || "#9e9e9e";
+        const units = (ev.committed || []).map(u => `${escapeHtml(u.name)} (${escapeHtml(u.resource_type)})`).join(", ");
+        const roster = ev.committed_count
+          ? `<div class="units">${units}</div>`
+          : `<div class="none">konuşlanmış kaynak yok</div>`;
+        row.innerHTML =
+          `<div class="fh"><span class="sev" style="background:${color}"></span>`
+          + `<span class="nm">${escapeHtml(ev.name)}</span>`
+          + `<span class="cc">${escapeHtml(ev.severity)} · ${ev.committed_count} birim</span></div>`
+          + roster;
+        box.appendChild(row);
+      }
+    }
+    const cf = data.conflicts || {};
+    const orphaned = cf.orphaned_units || [];
+    const bases = cf.contended_bases || [];
+    const under = cf.understaffed_critical || [];
+    if (cfBox) {
+      cfBox.innerHTML = "";
+      if (!data.has_conflicts) {
+        const ok = document.createElement("div");
+        ok.className = "cf-ok";
+        ok.textContent = "Kaynak paylaşım çakışması yok.";
+        cfBox.appendChild(ok);
+      } else {
+        const head = document.createElement("div");
+        head.className = "cf-head";
+        head.textContent = `Çakışmalar (${data.conflict_count})`;
+        cfBox.appendChild(head);
+        for (const o of orphaned) {
+          const d = document.createElement("div");
+          d.className = "cf orphan";
+          d.innerHTML = `⚠ Öksüz: <b>${escapeHtml(o.name)}</b} (${escapeHtml(o.status)}) → ` +
+            `${escapeHtml(o.assigned_event || "?")} aktif değil`;
+          cfBox.appendChild(d);
+        }
+        for (const b of bases) {
+          const d = document.createElement("div");
+          d.className = "cf base";
+          d.innerHTML = `⚠ Paylaşılan üs: <b>${escapeHtml(b.base_key)}</b>` +
+            ` → ${(b.events || []).map(escapeHtml).join(", ")}`;
+          cfBox.appendChild(d);
+        }
+        for (const u of under) {
+          const d = document.createElement("div");
+          d.className = "cf under";
+          d.innerHTML = `⚠ Eksik konuşlanmış acil: <b>${escapeHtml(u.name)}</b> (${escapeHtml(u.severity)})`;
+          cfBox.appendChild(d);
+        }
+      }
+    }
+    const hint = `aktif:${totals.active_events || 0} meşgul:${totals.busy_units || 0}`
+      + ` müsait:${totals.available_units || 0} çakışma:${data.conflict_count || 0}`;
+    setStatus(`Çoklu yangın yönetimi — ${hint} — ${data.attribution}`);
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -2243,6 +2385,10 @@
     if (timelineBtn) timelineBtn.addEventListener("click", toggleTimelinePanel);
     const timelineFilter = document.getElementById("timeline-filter");
     if (timelineFilter) timelineFilter.addEventListener("change", loadEventTimeline);
+
+    // EM-082: çoklu yangın yönetimi düğmesi.
+    const multifireBtn = document.getElementById("multifire-open");
+    if (multifireBtn) multifireBtn.addEventListener("click", toggleMultifirePanel);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

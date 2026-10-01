@@ -5,6 +5,29 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-082: Çoklu yangın yönetimi (E8)
+  - Koordinatör **eş zamanlı birden çok yangını** yönetmek ve kaynakları
+    yangınlar arasında dengeli dağıtmak ister; parçalar ayrı ayrı duruyordu —
+    aktif `FireEvent` satırları, `SuppressionResource` durumları ve EM-047/053
+    karar denetim kaydı — ve hepsini bir gören, çakışmayı uyaran tek bir görünüm
+    yoktu (kabul kriteri: "aynı anda birden çok yangın izlenir; kaynaklar
+    yangınlar arasında paylaşılırken çakışmalar uyarılır")
+  - `src/services/multi_fire.py`: üç kaynağı tek **okuma zamanı projeksiyonunda**
+    derler (yeni tablo/göç yok, `persistence` `none`) — her aktif yangın için o
+    yangına konuşlanmış (hâlâ `en_route`/`deployed` ve en yeni denetim satırı
+    `accept`/`edit` olan) birimlerin kadrosu kurulur; EM-053'le aynı kural
+  - Üç deterministik **çapraz-yangın çakışma** kovası: `orphaned_units` (meşgul
+    görünen ama atandığı olay artık aktif olmayan birim → serbest bırakılmalı),
+    `contended_bases` (aynı üs birden çok aktif yangına kaynak veriyor → havuz
+    paylaşımlı), `understaffed_critical` (yüksek/kritik aktif yangına hiç kaynak
+    konuşlanmamış → havuzu dengele); `event_key` ile kapsamalandığında bile
+    çakışma taraması **küresel** kalır
+  - `src/routes/multi_fire.py` (`/api/v1/multi-fire` + `/config`) +
+    `src/fastapi_app.py` kaydı. `settings.py` + `.env.example`:
+    `MULTI_FIRE_MAX_EVENTS`. `src/services/ui_states.py`: `multi_fire` panel
+    anahtarı. `operator_map.html`: aktif yangın listesi + çakışma uyarıları paneli
+  - `tests/unit/test_multi_fire.py`: 18 birim testi (aktif-sadece sıralama,
+    kadro türetme, release önceliği, üç çakışma kovası, kapsam/meta veri, uçlar)
 - EM-081: Olay zaman çizelgesi (E8)
   - Operatör vardiya devrinde "ne oldu?" sorusunu **kronolojik** yanıtlamak
     ister; olaylar iki ayrı yerde duruyordu — canlı değişim akışı (EM-090)

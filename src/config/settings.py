@@ -350,6 +350,12 @@ class Config:
     EVENT_TIMELINE_DEFAULT_LIMIT = int(os.getenv("EVENT_TIMELINE_DEFAULT_LIMIT", "50"))
     EVENT_TIMELINE_MAX_LIMIT = int(os.getenv("EVENT_TIMELINE_MAX_LIMIT", "200"))
 
+    # EM-082: çoklu yangın yönetimi (Epic E8)
+    # Eş zamanlı aktif yangın envanterinin kaç olaya kadar derleneceğini üstten
+    # sınırlar (acilden eskiye sıralı). Çakışma taraması (öksüz/ortağı paylaşan
+    # üs/eksik konuşlanmış acil) bu küme üzerinde okuma zamanı hesaplanır.
+    MULTI_FIRE_MAX_EVENTS = int(os.getenv("MULTI_FIRE_MAX_EVENTS", "50"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

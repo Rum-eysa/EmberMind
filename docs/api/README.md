@@ -469,6 +469,30 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Çoklu Yangın Yönetimi (EM-082)
+
+Koordinatör **eş zamanlı birden çok yangını** izlemek ve sınırlı kaynak
+havuzunu yangınlar arasında dengeli dağıtmak ister. Envanter, üç mevcut kaynağı
+birleştiren **salt okuma zamanı projeksiyonudur** (yeni tablo/göç yok,
+`persistence: none`): aktif `fire_events`, `suppression_resources` durumları ve
+EM-047/EM-053 karar denetim kaydı. Her aktif yangına konuşlanmış birim, EM-053
+çift-korumasıyla aynı kurala göre belirlenir: birim hâlâ `en_route`/`deployed`
+ve en yeni denetim satırı `accept`/`edit`.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/multi-fire[?event_key=]` | Aktif yangın + kadro envanteri, havuz toplamları ve çapraz-yangın çakışma uyarıları |
+| `GET /api/v1/multi-fire/config` | Şiddet/durum taksonomisi, çakışma türleri, kaynaklar ve `max_events` sınırı |
+
+Üç deterministik **çakışma** kovası döner: `orphaned_units` (meşgul görünen ama
+atandığı olay artık aktif olmayan birim → serbest bırakılmalı), `contended_bases`
+(aynı üs birden çok aktif yangına kaynak veriyor → havuz paylaşımlı),
+`understaffed_critical` (yüksek/kritik aktif yangına hiç kaynak konuşlanmamış →
+havuzu dengele). `event_key` ile yalnızca `events` listesi kapsamlanır; çakışma
+taraması her zaman **küreseldir** (paylaşılan üs / öksüz birim tüm havuzu
+ilgilendirir). Operatör haritasındaki **Çoklu Yangın (EM-082)** paneli aktif
+yangınları şiddet sırasıyla ve çakışma uyarılarıyla listeler.
+
 ### Olay Zaman Çizelgesi (EM-081)
 
 Vardiya devri için operatör, olan her şeyi **tek kronolojik akışta** görmek

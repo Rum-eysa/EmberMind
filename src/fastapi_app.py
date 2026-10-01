@@ -33,6 +33,7 @@ from src.routes.inventory import register_inventory_routes
 from src.routes.live import register_live_routes
 from src.routes.localization import register_localization_routes
 from src.routes.map_layers import register_map_layer_routes
+from src.routes.multi_fire import register_multi_fire_routes
 from src.routes.perf_budget import register_perf_budget_routes
 from src.routes.positioning import register_positioning_routes
 from src.routes.recommendation_decision import register_recommendation_routes
@@ -424,6 +425,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_design_system_routes(api, database, settings)
     register_ui_state_routes(api, database, settings)
     register_event_timeline_routes(api, database, settings)
+    register_multi_fire_routes(api, database, settings)
     register_localization_routes(api, database, settings)
     register_i18n_routes(api, database, settings)
     register_share_policy_routes(api, database, settings)

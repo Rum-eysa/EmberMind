@@ -63,6 +63,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 30 | EM-078 Sessiz bölge güven paneli (#78) | E8 | DONE | Mevcut `silent_regions` üzerinde **okuma zamanı** deterministik güven puanı: bbox içi aktif yangın=ağır çelişki cezası + en yakın yangın **yakınlık cezası** (PROXIMITY_FAR_KM'ye kadar doğrusal); `[0,1]` kırp + **yüksek/orta/düşük** bant; güven azalan **sıralı liste**; `?confidence=` bant filtresi; operatör haritası **Sessiz Bölgeler** paneli satır→**harita senkron seçim** (fitBounds + vurgu dikdörtgeni); model/migration yok (persistence none) |
 | 31 | EM-079 Panel durum kataloğu + bağlantı bandı (#79) | E8 | DONE | 9 panel için tek **salt okunur durum kataloğu** (`PANEL_STATES`: title/loading/empty/error/error_action, Türkçe); `error_action` her zaman **yapılabilir fiil** içerir (hata ne olduğunu + ne yapılacağını söyler); `CONNECTION_LOST` bandı + `connection_state()`; `/api/v1/ui-states` + `/ui-states/panel/{key}` (bilinmeyen→404); operatör haritası `#conn-lost` bandı WebSocket `onclose`/REST `catch` ile görünür, `onopen`/`ok` ile kalkar; `.skel`/`.panel-err` yardımcıları sessiz/etki/konuşlanma panellerinde; `UI_STATE_LANGUAGE`; model/migration yok (persistence none) |
 | 32 | EM-081 Olay zaman çizelgesi (#81) | E8 | DONE | Canlı değişim beslemesi (EM-090: `fire_event`/`forecast`/`alert`) + operatörün **kabul ettiği** öneri denetim kayıtlarını (EM-047 `accept`/`edit`) tek **kronolojik (yeniden eskiye)** akışta birleştiren salt okuma zamanı projeksiyonu; sabit `category` + Türkçe `category_label` + `event_key` + UTC `at` + `ref`; `reject`/`release` hariç; zaman eşitliğinde **kaynak-sırası + id** deterministik; `?event_key=`/`?category=`/`?limit=` (bilinmeyen kategori yutulmaz; limit `[1,MAX]` kırp); `/api/v1/event-timeline` + `/config`; UI Zaman Çizelgesi düğmesi + kategori filtresi + renk kodlu liste; `ui_states`'e `event_timeline` anahtarı; `EVENT_TIMELINE_DEFAULT/MAX_LIMIT`; model/migration yok (persistence none) |
+| 33 | EM-082 Çoklu yangın yönetimi (#82) | E8 | DONE | Aktif `fire_events` + `suppression_resources` durumları + EM-047/053 karar denetim kaydını birleştiren **salt okuma zamanı** çoklu-yangın envanteri; her aktif yangına konuşlanmış birim EM-053 kuralıyla (hâlâ `en_route`/`deployed` + en yeni satır `accept`/`edit`); üç deterministik **çapraz-yangın çakışma** kovası: `orphaned_units` (meşgul ama olayı artık aktif değil) / `contended_bases` (üs birden çok aktif yangına veriyor) / `understaffed_critical` (acil yangın boş); `event_key` olayları kapsar ama çakışma taraması **küresel**; şiddet sıralı envanter; `/api/v1/multi-fire` + `/config`; UI Çoklu Yangın paneli (listesi + çakışma uyarıları); `ui_states`'e `multi_fire` anahtarı; `MULTI_FIRE_MAX_EVENTS`; model/migration yok (persistence none) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1015,11 +1016,46 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **924** (906 + 18 yeni).
 - **Commit:** `feat(EM-081): ...` (bu dal).
 
+### EM-082 — Çoklu yangın yönetimi (#82) — DONE
+
+- **Eksik analizi:** koordinatörün eş zamanlı yangınları tek görünümde görüp
+  kaynak paylaşım çakışmasını uyarması yoktu — `recommendation_decision.py`
+  yalnızca **yazma zamanı** çift-koruması (EM-053) yapar, olay-içi; `git grep`
+  multi/cross-event/çoklu → çapraz-yangın envanteri/çakışma görünümü yok.
+  Gerçek boşluk doğrulandı (issue #82 kabul: "aynı anda birden çok yangın
+  izlenir; kaynaklar yangınlar arasında paylaşılırken çakışmalar uyarılır").
+- **Kapsam:** `src/services/multi_fire.py` (`multi_fire_overview`/
+  `multi_fire_config`; `_active_events` şiddet+başlangıç sıralı, `_busy_resources`
+  `en_route`/`deployed`, `_newest_assignment_rows` id-desc en-yeni-satır, `_rank`
+  şiddet; EM-053'le aynı "en yeni satır accept/edit" kadro kuralı),
+  `src/routes/multi_fire.py` (`/api/v1/multi-fire` + `/config`), `fastapi_app.py`
+  kaydı, `settings.py` + `.env.example` (`MULTI_FIRE_MAX_EVENTS`), `ui_states.py`
+  (`multi_fire` panel anahtarı), `operator_map.html` (Çoklu Yangın düğmesi +
+  `#multifire-panel` + `toggleMultifirePanel`/`loadMultifire`/`renderMultifire`;
+  EM-079 durum yardımcıları), `tests/unit/test_multi_fire.py` (18 test),
+  CHANGELOG + docs/api.
+- **Varsayımlar:** (1) **okuma zamanı projeksiyonu** — yeni model/göç yok
+  (persistence none); (2) kadro EM-053 kuralıyla (hâlâ meşgul + en yeni satır
+  `accept`/`edit`) — later `release` kazanır, konuşlanmaz; (3) provens-blindsiz
+  meşgul birim ne kadroya ne öksüz kovasına girir (görünmeyen provenans
+  iddia edilmez); (4) `event_key` yalnızca `events` listesini kapsar, çakışma
+  taraması küresel kalır.
+- **Kanıt:** yalnızca-aktif (2 aktif + 1 contained→2); şiddet sırası
+  critical>medium>low; `max_events=1`→1 (critical); accept→kadroda; release
+  sonrası boş+kadro+öksüz yok; edit→kadroda; contained olaya atanan→öksüz; aynı
+  üs iki aktif yangına→contended (1); tek yangına aynı üs→contended yok; kritik
+  boş→understaffed; düşük boş→flag yok; dengeli→has_conflicts false; toplamlar
+  1/2/1; `event_key` kapsamı events=1 total=2 + contended korunur; persistence
+  none; config 4/3/3; `/multi-fire` 200 (1), `/config` 200 (3).
+- **Kapılar:** black(191 temiz)/mypy(125)/pylint(10.00)/bandit(0) yeşil;
+  pytest **942** (924 + 18 yeni).
+- **Commit:** `feat(EM-082): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1032,8 +1068,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 188 değişmez · mypy Success (123) · pylint 10.00/10 ·
-  bandit 0 · pytest **924 passed**.
+- **Final kapılar:** black 191 değişmez · mypy Success (125) · pylint 10.00/10 ·
+  bandit 0 · pytest **942 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

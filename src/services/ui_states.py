@@ -29,6 +29,7 @@ PANEL_KEYS = (
     "crossborder",
     "support_request_draft",
     "event_timeline",
+    "multi_fire",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -101,6 +102,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Seçili filtrede olay yok; vardiya boyunca kayıt üretilmemiş.",
         "error": "Zaman çizelgesi alınamadı.",
         "error_action": "Filtreyi sıfırlayıp yeniden deneyin; sürerse bağlantıyı kontrol edin.",
+    },
+    "multi_fire": {
+        "title": "Çoklu yangın yönetimi",
+        "loading": "Aktif yangınlar ve konuşlanan kaynaklar derleniyor…",
+        "empty": "Şu anda aktif yangın yok; kaynak çakışması riski yok.",
+        "error": "Çoklu yangın envanteri alınamadı.",
+        "error_action": "Envanter ve olay verisini kontrol edip yeniden deneyin.",
     },
 }
 
