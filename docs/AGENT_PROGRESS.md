@@ -53,6 +53,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 20 | EM-054 Öneri kabul/ret geri bildirim döngüsü — analiz (#54) | E5 | DONE | EM-047 karar denetimi üzerinde salt okunur toplulaştırma: kabul/ret oranları, tip bazında kırılım, en çok reddedilen tipler, ret gerekçeleri + iyileştirme fikirleri; `release` hariç, tablo/migration yok |
 | 21 | EM-063 Saat dilimi, birim ve koordinat standardizasyonu (#63) | E7 | DONE | sunum katmanı: UTC→yerel (IANA, TR/GR varsayılanı) + 16 yön pusula + ayarlanabilir koordinat formatı (decimal/DMS) + metrik birim tanımı; durumsuz uçlar, tablo/migration yok |
 | 22 | EM-064 Ülke bazlı ayrış envanter (#64) | E7 | DONE | kapasite **ülke ayrı ayrı** toplanır/gösterilir; `merged_by_default:False` + açık `atanmamış` kovası → iki ülke sessizce birleştirilmez; `country` kolonu zaten mevcut, tablo/migration yok |
+| 23 | EM-065 Dış destek ihtiyacının erken tahmini (#65) | E7 | DONE | EM-030/033 açık çizelgesi üzerinde deterministik ileri projeksiyon: "ulusal kapasite T+X dk yetersiz, ≈ Y birim dış destek" + talep-gönderme son tarihi; açığın gerçekleşmesinden önce uyarı, tablo/migration yok |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -685,11 +686,41 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **748** (739 + 9 yeni).
 - **Commit:** `feat(EM-064): ...` (bu dal).
 
+### EM-065 — Dış destek ihtiyacının erken tahmini (#65) — DONE
+- **Eksik analizi:** sistemde **dış destek / yardım talebi** diye hiçbir
+  servis/uc yoktu (`external`/`destek`/`support_need` araması sadece veri
+  kaynağı lisans metinlerini donuyordu). EM-030/033 açık zaman çizelgesi
+  **ne zaman** açığın olacağını zaten veriyor ama **ulusal kapasite
+  yetersiz kalacak + ≈ Y birim dış destek** önerisini ve **gecikmeden talep**
+  son tarihini ureten bir katman yoktu. Kabul kriterleri: "Ulusal kapasite
+  T+X dk sonra yetersiz kalacak, dış destek ≈ Y birim" önerisi; açık
+  gerçekleşmeden once görünür. E7 Must (sp8).
+- **Kapsam:** `src/services/external_support.py` (`forecast_external_support`
+  — `capacity_gap_timeline` serisinden ilk açık dakikası/tepe açığı/tam
+  takviye birimi + talep-gönderme son tarihi), `src/config/settings.py` +
+  `.env.example` (`EXTERNAL_SUPPORT_UNIT_HA_PER_HOUR`, `EXTERNAL_SUPPORT_LEAD_TIME_MINUTES`),
+  `src/routes/external_support.py` (2 uç) + `fastapi_app.py` kaydı,
+  `risk_panel.html` (**Dış Destek Erken Tahmini** kartı + `refreshExternalSupport`),
+  `tests/unit/test_external_support.py` (12 test), CHANGELOG + docs/api.
+  **Yeni tablo/migration yok** — mevcut yayılım tahminlerinden canlı.
+- **Varsayım (deterministik projeksiyon):** "öğrenilen model" değil; açık
+  eşiği = talep > ulusal kapasite (ratio 1.0, kritik-yakin 1.2 değil);
+  ulusal kapasite = müsat + ETA'sı geçen yoldaki takviye (EM-033 zaman
+  çizelgesi), dolayısıyla takviyeler gelse bile açik öngörülür. Birim
+  sayısı = tepe açığı / `unit_ha_per_hour` yukarı yuvarlanır.
+- **Kanıt:** 2 ekip(4 ha/s) + talep 3/6/8 → ilk açık T+40 (enterpolasyon),
+  tepe 4 ha/s → unit 2 ile 2 birim; yeterli kapasitede uyarı yok ("yetersiz
+  yeterli"); sifır kapasite → ilk ufuk T+30; lead 10 → talep en geç T+30,
+  lead 60 → "hemen"; olay/özet/mesaj; `persistence:none`; uçlar 200/404/config.
+- **Kapılar:** black(160 değişmez)/mypy(104)/pylint(10.00)/bandit(0) yeşil;
+  pytest **760** (748 + 12 yeni).
+- **Commit:** `feat(EM-065): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -702,8 +733,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 157 değişmez · mypy Success (102) · pylint 10.00/10 ·
-  bandit 0 · pytest **748 passed**.
+- **Final kapılar:** black 160 değişmez · mypy Success (104) · pylint 10.00/10 ·
+  bandit 0 · pytest **760 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

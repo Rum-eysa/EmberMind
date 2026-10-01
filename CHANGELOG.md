@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-065: Dış destek ihtiyacının erken tahmini (E7)
+  - Sınır ötesi koordinatör, ulusal kapasitenin **ne zaman yetersiz
+    kalacağını açığın gerçekleşmesinden önce** bilmek ister ki dış destek
+    talebini geç kalmadan yapabilsin: **"Ulusal kapasite T+X dk sonra yetersiz
+    kalacak, dış destek ihtiyacı ≈ Y birim"** önerisi üretilir
+  - **Deterministik ileri projeksiyon (öğrenilen model değil):** EM-030/EM-033
+    kapasite-açığı zaman çizelgesini (her ufku, o dakikada istasyonda olacak
+    ulusal kapasiteye —müsait + ETA'sı geçen yoldaki takviyeler— karşılayan
+    çizelge) yeniden kullanır; olay başına talebin ulusal kapasiteyi aştığı
+    **ilk dakikayı** (doğrusal enterpolasyon), **tepe açığı** ve bunu kapatacak
+    **tam takviye birimi** sayısını hesaplar
+  - `src/services/external_support.py`: `forecast_external_support` + bir
+    **talep-gönderme son tarihi** (`EXTERNAL_SUPPORT_LEAD_TIME_MINUTES` kadar
+    önce); `request_by_minute <= 0` ise "talep hemen gönderilmeli"
+  - `src/config/settings.py` + `.env.example`: `EXTERNAL_SUPPORT_UNIT_HA_PER_HOUR`
+    (bir takviye biriminin varsayılan ha/saat kapasitesi) ve
+    `EXTERNAL_SUPPORT_LEAD_TIME_MINUTES`
+  - Uçlar: `GET /api/v1/external-support[?event_key=]` +
+    `GET /api/v1/external-support/config`. **Yeni tablo/migration yok**; tümü
+    mevcut yayılım tahminlerinden canlı hesaplanır (`persistence: none`)
+  - Komuta panelinde **Dış Destek Erken Tahmini (EM-065)** kartı her aktif
+    olay için ilk açık dakikasını ve gereken birim sayısını gösterir
 - EM-064: Ülke bazlı ayrış envanter / kapasite (E7)
   - Her söndürme kaynağı bir ülkeye aittir; **kapasite ülke ayrı ayrı**
     toplanır ve gösterilir. **İki ülkenin kaynağı hiçbir ekranda sessizce

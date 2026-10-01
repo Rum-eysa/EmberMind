@@ -319,6 +319,24 @@ Operatör haritasında **Görüntü standardizasyonu (EM-063)** paneli saat dili
 koordinat formatını seçtirir; seçili biçimde yerel saat ve harita merkezi
 koordinatını canlı gösterir.
 
+### Dış Destek Erken Tahmini (EM-065)
+
+Sınır ötesi koordinatör için **durumsuz erken uyarı**: ulusal kapasitenin (müsait
++ ETA'sı geçen yoldaki takviyeler) yayılım talebini ne zaman karşılayamayacağı,
+açık **gerçekleşmeden önce** projekte edilir. EM-030/EM-033 kapasite-açığı zaman
+çizelgesinin seri noktaları üzerinden olay başına ilk açık dakikası (`T+X`), tepe
+açığı (ha/saat) ve bunu kapatacak tam takviye birimi sayısı (`≈ Y birim`)
+hesaplanır; `EXTERNAL_SUPPORT_LEAD_TIME_MINUTES` kadar öncesine bir **talep-gönderme
+son tarihi** verilir. Yeni tablo/migration yoktur (`persistence: none`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/external-support` | Her aktif olay için `first_shortfall_minute`, `peak_shortfall_ha_h`, `estimated_support_units`, `request_by_minute`, `message` + genel `summary`; `?event_key=` ile tek olay (bilinmeyen → 404) |
+| `GET /api/v1/external-support/config` | `support_unit_ha_per_hour`, `lead_time_minutes`, desteklenen ufuklar |
+
+Komuta panelinde **Dış Destek Erken Tahmini (EM-065)** kartı her olayın ilk açık
+dakikasını ve gereken takviye birimini gösterir.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

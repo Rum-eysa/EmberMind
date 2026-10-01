@@ -170,6 +170,18 @@
         </table>
       </div>
       <div class="card">
+        <h2>Dış Destek Erken Tahmini (EM-065)</h2>
+        <div class="muted-note">Ulusal kapasitenin (müsait + yoldaki takviye)
+          ne zaman yetersiz kalacağı açığın gerçekleşmesinden önce uyarı olarak
+          gösterilir; gereken tahmini takviye birim sayısı ile birlikte.</div>
+        <table id="ext-support">
+          <thead><tr><th>Olay</th><th class="num">İlk açık (dk)</th>
+            <th class="num">Destek (birim)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="ext-support-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
         <h2>Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
@@ -214,6 +226,8 @@
   const RISK_FEED = "/api/v1/risk-index";
   // EM-064: country-separated capacity account (two nations never merge).
   const COUNTRY_CAP_FEED = "/api/v1/capacity/by-country";
+  // EM-065: external-support early forecast over the capacity-gap timeline.
+  const EXT_SUPPORT_FEED = "/api/v1/external-support";
   const CATEGORY_TR = {
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
@@ -331,6 +345,40 @@
     refreshTimeline();
     refreshPerfBudget();
     refreshCapacityByCountry();
+    refreshExternalSupport();
+  }
+
+  // EM-065: dış destek erken tahmini — ulusal kapasitenin ne zaman
+  // yetersiz kalacağı + gereken takviye birim sayısı (açık gerçekleşmeden).
+  async function refreshExternalSupport() {
+    const body = document.querySelector("#ext-support tbody");
+    const summary = document.getElementById("ext-support-summary");
+    try {
+      const res = await fetch(EXT_SUPPORT_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      const rows = data.events || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="3">aktif yangın olayı yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const ev of rows) {
+        const tr = document.createElement("tr");
+        const first = ev.predicted_shortfall
+          ? "T+" + Math.round(ev.first_shortfall_minute) : "yeterli";
+        const units = ev.predicted_shortfall ? ev.estimated_support_units : "—";
+        const color = ev.predicted_shortfall ? "var(--color-danger)" : "var(--color-success)";
+        tr.innerHTML = `<td>${escapeHtml(ev.event_key)}</td>`
+          + `<td class="num" style="color:${color}">${first}</td>`
+          + `<td class="num">${units}</td>`;
+        body.appendChild(tr);
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="3">dış destek tahmini alınamadı</td></tr>';
+    }
   }
 
   // EM-064: ülke bazında etkin kapasite — her ülke ayrı satır, ülkesiz

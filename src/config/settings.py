@@ -302,6 +302,20 @@ class Config:
         "on",
     )
 
+    # EM-065: external support early forecast (Epic E7). When the projected
+    # national capacity (available now + en-route reinforcements) is forecast
+    # to fall short of the spread demand at some horizon, the coordinator is
+    # warned early so an international request can be raised in time. The
+    # shortfall (ha/hour) is converted into whole reinforcement units using
+    # this per-unit capacity, and the request must go out this many minutes
+    # before the predicted shortfall so the support can actually arrive.
+    EXTERNAL_SUPPORT_UNIT_HA_PER_HOUR = float(
+        os.getenv("EXTERNAL_SUPPORT_UNIT_HA_PER_HOUR", "12.0")
+    )
+    EXTERNAL_SUPPORT_LEAD_TIME_MINUTES = int(
+        os.getenv("EXTERNAL_SUPPORT_LEAD_TIME_MINUTES", "60")
+    )
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

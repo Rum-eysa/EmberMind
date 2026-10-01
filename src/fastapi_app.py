@@ -20,6 +20,7 @@ from src.routes.data_governance import register_data_governance_routes
 from src.routes.data_quality import register_data_quality_routes
 from src.routes.design_system import register_design_system_routes
 from src.routes.exposure import register_exposure_routes
+from src.routes.external_support import register_external_support_routes
 from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.inventory import register_inventory_routes
@@ -404,6 +405,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_task_instruction_routes(api, database, settings)
     register_risk_panel_routes(api, database, settings)
     register_risk_index_routes(api, database, settings)
+    register_external_support_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
     register_localization_routes(api, database, settings)
     register_inventory_routes(api, database, settings)
