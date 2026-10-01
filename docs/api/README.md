@@ -469,6 +469,26 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Panel Durum Kataloğu ve Bağlantı Bandı (EM-079)
+
+Panellerde **yükleme / boş / hata** durumları ile **bağlantı-kesildi** bandı tek
+bir salt okunur **katalogdan** gelir (`persistence: none`, yeni tablo/göç yok).
+Her panel anahtarı için `title/loading/empty/error/error_action` Türkçe metinleri
+tanımlıdır; `error_action` **her zaman yapılabilir bir fiil** içerir (deneyin /
+kontrol edin / seçin / gözden geçirin / sıfırlayın) — hata mesajı hem **ne
+olduğunu** hem **ne yapılacağını** söyler.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/ui-states` | Tüm panel durumları + `connection` bandı + dil/üretim üst verisi |
+| `GET /api/v1/ui-states/panel/{panel_key}` | Tek panel durumu; bilinmeyen anahtar **404** |
+
+Operatör haritasındaki **`#conn-lost` bandı**, canlı akış WebSocket `onclose`
+veya REST yoklama `catch` ile görünür olur, `onopen`/`ok` ile kalkar; «Şimdi
+yeniden dene» düğmesi bağlantıyı yeniler. Sessiz bölge / etki / konuşlanma
+panelleri yükleme iskeleti (`.skel`), boş durum ve hata (`.panel-err`) metinlerini
+katalogdan çeker.
+
 ### Sessiz Bölge Güven Paneli (EM-078)
 
 Operatör, **sessiz bölgelerin** (kayıt dışı/görüş açıksız bölgeler) hangilerine

@@ -5,6 +5,25 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-079: Panel durum kataloğu ve bağlantı-kesildi bandı (E8)
+  - Operatör, panellerde yükleme/boş/hata durumlarını tutarlı görmek ister;
+    paneller dağınık `.empty` satırları ve `setStatus` metinleri kullanıyordu,
+    bağlantı kopunca tek tip bir uyarı bandı yoktu (kabul kriterleri: tüm
+    panellerde yükleme iskeleti/boş durum/hata mesajı; hata hem ne olduğunu hem
+    ne yapılacağını söyler; bağlantı koparsa 'bağlantı kesildi' bandı)
+  - `src/services/ui_states.py`: 9 panel için tek **durum kataloğu**
+    (`PANEL_STATES`) — her panelde `title/loading/empty/error/error_action`
+    Türkçe metinleri; ayrıca `CONNECTION_LOST` bandı ve `connection_state()`.
+    Katalog **salt okunur**, hiçbir şey yazılmaz (`persistence` `none`)
+  - Hata metni **eylem yönlendirir**: `error_action` her zaman yapılabilir bir
+    fiil içerir (deneyin/kontrol edin/seçin/gözden geçirin/sıfırlayın)
+  - `src/routes/ui_states.py` (`/api/v1/ui-states` + `/api/v1/ui-states/panel/{key}`,
+    bilinmeyen anahtar 404) + `src/fastapi_app.py` kaydı. `settings.py` +
+    `.env.example`: `UI_STATE_LANGUAGE`
+  - `src/static/operator_map.html`: `#conn-lost` bandı (canlı akış WebSocket
+    `onclose`/REST yoklama `catch` ile görünür, `onopen`/`ok` ile kalkar),
+    `.skel` yükleme iskeleti ve `.panel-err` işaretleme yardımcıları; sessiz
+    bölge/etki/konuşlanma panelleri katalog durumlarını kullanır
 - EM-078: Sessiz bölge güven paneli (E8)
   - Operatör, hangi sessiz bölgelere gerçekten güvenebileceğine odaklanmak
     ister; var olan `silent_regions` verisinde güven alanı/filtresi/sıralı

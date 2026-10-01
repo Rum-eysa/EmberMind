@@ -215,6 +215,23 @@
                     border: 2px solid #ff5252; animation: em-alert 1s ease-in-out 3; }
     #alert-banner.show { display: block; }
     @keyframes em-alert { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+    /* EM-079: bağlantı-kesildi bandı (canlı akış sağlığı) + panel yükleme iskeleti */
+    #conn-lost { position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+                 z-index: 1003; display: none; max-width: 92%;
+                 padding: 8px 16px; border-radius: 10px; text-align: center;
+                 background: #b00020; color: #fff; border: 2px solid #ff5252;
+                 box-shadow: 0 4px 16px rgba(0,0,0,.4); font-size: var(--font-size-xs); }
+    #conn-lost.show { display: block; }
+    #conn-lost .cl-title { font-weight: 800; font-size: var(--font-size-sm); }
+    #conn-lost .cl-hint { opacity: .9; margin-top: 2px; }
+    #conn-lost .cl-retry { margin-top: 6px; padding: 2px 12px; cursor: pointer;
+                 border: 1px solid #fff; border-radius: 6px; background: rgba(255,255,255,.14);
+                 color: #fff; font-size: var(--font-size-xs); }
+    .skel { color: var(--text-secondary); font-style: italic; }
+    .skel::after { content: "\2026"; animation: em-skel 1.2s steps(3, end) infinite; }
+    @keyframes em-skel { from { content: ""; } to { content: "\2026\2026\2026"; } }
+    .panel-err { color: #b71c1c; }
+    .panel-err .act { display: block; color: var(--text-secondary); font-weight: 400; }
     #sound-toggle { font-size: 12px; cursor: pointer; padding: 2px 8px;
                     border: 1px solid var(--border-color); border-radius: 6px;
                     background: none; }
@@ -273,6 +290,13 @@
   <div id="live-flash" class="panel" aria-live="polite"></div>
 
   <div id="alert-banner" role="alert" aria-live="assertive"></div>
+
+  <div id="conn-lost" role="alert" aria-live="assertive">
+    <div class="cl-title" id="conn-lost-title"></div>
+    <div id="conn-lost-text"></div>
+    <div class="cl-hint" id="conn-lost-hint"></div>
+    <button type="button" class="cl-retry" id="conn-lost-retry"></button>
+  </div>
 
   <div id="legend" class="panel">
     <h1>Lejant</h1>
@@ -477,6 +501,8 @@
   let silentPanelOpen = false;
   let silentRegions = [];           // son güven sıralı bölge listesi
   let silentHighlight = null;       // seçili bölgenin vurgu dikdörtgeni (L.Rectangle)
+  // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
+  const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
   // EM-090: canlı güncelleme (WebSocket) durumu.
   let catalogLayers = [];      // kataloğun meta listesi (canlı yenileme için)
@@ -661,7 +687,8 @@
     const feats = (data.features || []).slice();
     if (countEl) countEl.textContent = feats.length ? `(${feats.length})` : "(0)";
     if (!feats.length) {
-      box.innerHTML = '<div class="empty">Seçili olayın tahmin poligonlarında tehdit altındaki yapı yok.</div>';
+      panelEmpty(box, "exposure",
+        "Seçili olayın tahmin poligonlarında tehdit altındaki yapı yok.");
       return;
     }
     // Backend öncelik skoruna göre sıralı; UI de aynı sırayı korur.
@@ -714,8 +741,8 @@
     const impactBox = document.getElementById("positioning-impact");
     if (impactBox) { impactBox.hidden = true; impactBox.innerHTML = ""; }
     if (!points.length) {
-      box.innerHTML = '<div class="empty">Öneri yok. Yukarıdan bir olay seçin; '
-        + 'seçili olay için müsait kaynak ve yol ağı olmalı.</div>';
+      panelEmpty(box, "positioning",
+        "Öneri yok. Yukarıdan bir olay seçin; seçili olay için müsait kaynak ve yol ağı olmalı.");
       return;
     }
     for (const f of points) {
@@ -1648,7 +1675,7 @@
       const layer = layers[meta.key];
       if (layer && map.hasLayer(layer)) {
         try { await loadLayer(meta.key); }
-        catch (err) { setStatus(`Hata: ${err.message}`); }
+        catch (err) { statusLayerError(err); }
       }
     }
   }
@@ -1731,6 +1758,7 @@
     liveSocket = socket;
     socket.onopen = () => {
       liveDelay = 1000;
+      showConnLost(false);  // EM-079: bağlantı kurulunca bandı kaldır
       setLive("on", "● canlı", "EM-090: canlı akış bağlı — sayfa yenilemeden güncellenir");
     };
     socket.onmessage = ev => {
@@ -1743,6 +1771,7 @@
     };
     socket.onclose = () => {
       if (liveClosed) return;
+      showConnLost(true);  // EM-079: 'bağlantı kesildi' bandı (yalnızca koptuysa)
       setLive("warn", "● yeniden bağlanıyor…",
         "EM-090: bağlantı koptu, kaçırılan güncellemeler telafi edilecek");
       setTimeout(startLive, liveDelay);
@@ -1759,12 +1788,77 @@
           const frame = await res.json();
           applyLiveUpdates(frame.updates);
           if (frame.last_id > liveLastId) liveLastId = frame.last_id;
+          showConnLost(false);
           setLive("on", "● canlı (yoklama)", "EM-090: WebSocket yedeği — REST yoklaması");
         }
-      } catch (err) { /* sessiz */ }
+      } catch (err) { showConnLost(true); }
       setTimeout(tick, 5000);
     }
     tick();
+  }
+
+  // EM-079: panel durum kataloğu (yükleme/boş/hata) + bağlantı-kesildi bandı.
+  async function loadUiStates() {
+    try {
+      const res = await fetch("/api/v1/ui-states");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      for (const p of data.panels || []) { UI_STATES.panels[p.key] = p; }
+      UI_STATES.connection = data.connection || null;
+      const retry = document.getElementById("conn-lost-retry");
+      if (retry && UI_STATES.connection) {
+        retry.textContent = UI_STATES.connection.retry_label || "Yeniden dene";
+      }
+    } catch (err) {
+      // Katalog gelmezse paneller kendi yerel metinlerini kullanmaya devam eder.
+      setStatus(`Durum kataloğu alınamadı: ${err.message}`);
+    }
+  }
+  function uiPanel(key) {
+    return UI_STATES.panels[key] || null;
+  }
+  // Katman yükleme hatasında durum satırı: ne olduğu + ne yapılacağı (EM-079).
+  function statusLayerError(err) {
+    const state = uiPanel("map_layers");
+    const what = state ? state.error : "Katman yüklenemedi.";
+    const action = state ? state.error_action : "Yeniden deneyin.";
+    setStatus(`${what} ${err.message} — ${action}`);
+  }
+  // Yükleme iskeleti: panel gövdesine kısa bir 'yükleniyor' satırı koyar.
+  function panelLoading(box, key) {
+    if (!box) return;
+    const state = uiPanel(key);
+    const text = state ? state.loading : "Yükleniyor…";
+    box.innerHTML = `<div class="skel">${escapeHtml(text)}</div>`;
+  }
+  // Boş durum: katalogdaki 'boş' metnini kullanır.
+  function panelEmpty(box, key, fallback) {
+    if (!box) return;
+    const state = uiPanel(key);
+    const text = (state && state.empty) ? state.empty : (fallback || "Kayıt yok.");
+    box.innerHTML = `<div class="empty">${escapeHtml(text)}</div>`;
+  }
+  // Hata: hem ne olduğu hem ne yapılacağı (katalogdaki error + error_action).
+  function panelErrorHtml(key, detail) {
+    const state = uiPanel(key);
+    const what = state ? state.error : "Bir hata oluştu.";
+    const action = state ? state.error_action : "Lütfen yeniden deneyin.";
+    const extra = detail ? ` (${escapeHtml(detail)})` : "";
+    return `<div class="panel-err">${escapeHtml(what)}${extra}`
+      + `<span class="act">${escapeHtml(action)}</span></div>`;
+  }
+  // Bağlantı-kesildi bandı: canlı akış sağlığına göre göster/gizle.
+  function showConnLost(on) {
+    const band = document.getElementById("conn-lost");
+    if (!band) return;
+    const conn = UI_STATES.connection;
+    if (!on) { band.classList.remove("show"); return; }
+    if (conn) {
+      document.getElementById("conn-lost-title").textContent = conn.title || "Bağlantı kesildi";
+      document.getElementById("conn-lost-text").textContent = conn.text || "";
+      document.getElementById("conn-lost-hint").textContent = conn.hint || "";
+    }
+    band.classList.add("show");
   }
 
   // EM-078: sessiz bölge güven paneli — bant filtresi, sıralı liste, harita senkron seçim.
@@ -1785,12 +1879,15 @@
   async function loadSilentZones() {
     const band = document.getElementById("silent-filter").value || "";
     const url = band ? `${SILENT_API}?confidence=${encodeURIComponent(band)}` : SILENT_API;
+    const box = document.getElementById("silent-list");
+    panelLoading(box, "silent_zones");
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       renderSilentList(data);
     } catch (err) {
+      if (box) { box.innerHTML = panelErrorHtml("silent_zones", err.message); }
       setStatus(`Sessiz bölge paneli açılamadı: ${err.message}`);
     }
   }
@@ -1806,7 +1903,7 @@
         : "(0)";
     }
     if (!silentRegions.length) {
-      box.innerHTML = '<div class="empty">Bu filtrede sessiz bölge yok.</div>';
+      panelEmpty(box, "silent_zones", "Bu filtrede sessiz bölge yok.");
       return;
     }
     for (const region of silentRegions) {
@@ -1932,14 +2029,14 @@
         exposureEventKey = e.target.value || null;
         if (layers.exposure && map.hasLayer(layers.exposure)) {
           try { await loadLayer("exposure"); }
-          catch (err) { setStatus(`Hata: ${err.message}`); }
+          catch (err) { statusLayerError(err); }
         } else {
           document.getElementById("exposure-panel").style.display = "none";
         }
         // EM-052: olay değişince konumlandırma katmanı da yeniden hesaplanır.
         if (layers.positioning && map.hasLayer(layers.positioning)) {
           try { await loadLayer("positioning"); }
-          catch (err) { setStatus(`Hata: ${err.message}`); }
+          catch (err) { statusLayerError(err); }
         } else {
           document.getElementById("positioning-panel").style.display = "none";
         }
@@ -1960,7 +2057,7 @@
           if (on && !layer._loaded) {
             layer._loaded = true;
             try { await loadLayer(meta.key); }
-            catch (err) { setStatus(`Hata: ${err.message}`); }
+            catch (err) { statusLayerError(err); }
           }
           if (!on && meta.key === "exposure") {
             document.getElementById("exposure-panel").style.display = "none";
@@ -1977,7 +2074,7 @@
       if (!layer) continue;
       layer.addTo(map);
       layer._loaded = true;
-      try { await loadLayer(key); } catch (err) { setStatus(`Hata: ${err.message}`); }
+      try { await loadLayer(key); } catch (err) { statusLayerError(err); }
     }
 
     // EM-090: canlı akışı başlat; sayfa kapanırken yeniden bağlanmayı durdur.
@@ -1987,6 +2084,17 @@
       if (liveSocket) { try { liveSocket.close(); } catch (err) { /* yoksay */ } }
     });
     startLive();
+
+    // EM-079: panel durum kataloğunu çek ve bağlantı bandı yeniden-dene düğmesini bağla.
+    await loadUiStates();
+    const connRetry = document.getElementById("conn-lost-retry");
+    if (connRetry) {
+      connRetry.addEventListener("click", () => {
+        showConnLost(false);
+        if (liveSocket) { try { liveSocket.close(); } catch (err) { /* yoksay */ } }
+        startLive();
+      });
+    }
 
     // EM-032: risk eşik aşımı değerlendirmesini periyodik yokla (uyarılar
     // canlı beslemeye yazılır ve WebSocket/REST yordamıyla tüm istemcilere akar).

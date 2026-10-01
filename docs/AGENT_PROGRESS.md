@@ -61,6 +61,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 28 | EM-069 Ortak sınır ötesi erken uyarı bildirimi (#69) | E7 | DONE | EM-067 geçiş projeksiyonunu **eşik kapısından** geçirip (olasılık + geçiş süresi) karşı ülke koordinasyon birimine **önceden tanımlı kanaldan** bildirim düzenler/kaydedeeder; **kenar-tetiklemeli** (olay+hedef başına tek açık) + geçiş öngörülmezse otomatik **çözülen**; `crossborder_notification` (V024); status/sweep/dispatch/list/config uçları; panel "Tara ve bildir" kartı |
 | 29 | EM-071 Dış destek talebi taslağı üretme (#71) | E7 | DONE | EM-065 erken tahmininden olay başına **ihtiyaç/zaman/konum**la **otomatik tek satır özet** + çok satırlı **düzenlenebilir** metin gövdesi besteler; **TR/EN/EL** (EM-068 `normalize_language`; bilinmeyen dil→400); açık öngörülmeyen olay "yeterli" notlu taslak; panel kartı: olay seç + metin alanı + **Kopyala** + **PDF/Yazdır** (gizli iframe); tablo/migration yok (persistence none) |
 | 30 | EM-078 Sessiz bölge güven paneli (#78) | E8 | DONE | Mevcut `silent_regions` üzerinde **okuma zamanı** deterministik güven puanı: bbox içi aktif yangın=ağır çelişki cezası + en yakın yangın **yakınlık cezası** (PROXIMITY_FAR_KM'ye kadar doğrusal); `[0,1]` kırp + **yüksek/orta/düşük** bant; güven azalan **sıralı liste**; `?confidence=` bant filtresi; operatör haritası **Sessiz Bölgeler** paneli satır→**harita senkron seçim** (fitBounds + vurgu dikdörtgeni); model/migration yok (persistence none) |
+| 31 | EM-079 Panel durum kataloğu + bağlantı bandı (#79) | E8 | DONE | 9 panel için tek **salt okunur durum kataloğu** (`PANEL_STATES`: title/loading/empty/error/error_action, Türkçe); `error_action` her zaman **yapılabilir fiil** içerir (hata ne olduğunu + ne yapılacağını söyler); `CONNECTION_LOST` bandı + `connection_state()`; `/api/v1/ui-states` + `/ui-states/panel/{key}` (bilinmeyen→404); operatör haritası `#conn-lost` bandı WebSocket `onclose`/REST `catch` ile görünür, `onopen`/`ok` ile kalkar; `.skel`/`.panel-err` yardımcıları sessiz/etki/konuşlanma panellerinde; `UI_STATE_LANGUAGE`; model/migration yok (persistence none) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -944,11 +945,45 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **892** (875 + 17 yeni).
 - **Commit:** `feat(EM-078): ...` (bu dal).
 
+### EM-079 — Panel durum kataloğu + bağlantı bandı (#79) — DONE
+
+- **Eksik analizi:** panellerde **yükleme iskeleti / boş durum / hata mesajı**
+  tek tip katalog yerine dağınık `.empty` div'leri ve `setStatus("Hata ...")`
+  metinleriyle veriliyordu; `live-chip` "yeniden bağlanıyor" **rozet** gösteriyor
+  ama **bağlantı-kesildi bandı** yoktu. `git grep` skeleton/ui-state/boş durum/
+  connection-lost → 0 eşleşme. Gerçek boşluk doğrulandı (issue #79 kabul: "tüm
+  panellerde yükleme iskeleti, boş durum ve hata mesajı; hata ne olduğunu ve ne
+  yapılacağını söyler; bağlantı koparsa 'bağlantı kesildi' bandı görünür").
+- **Kapsam:** `src/services/ui_states.py` (`PANEL_KEYS` 9 panel, `PANEL_STATES`
+  title/loading/empty/error/error_action Türkçe, `CONNECTION_LOST`,
+  `ui_state_catalog`/`panel_state`/`panel_states_by_key`/`connection_state`),
+  `src/routes/ui_states.py` (`/api/v1/ui-states` + `/api/v1/ui-states/panel/{key}`,
+  LookupError→404), `fastapi_app.py` kaydı, `settings.py` + `.env.example`
+  (`UI_STATE_LANGUAGE`), `operator_map.html` (`#conn-lost` bandı + `.skel` +
+  `.panel-err`; `loadUiStates`/`uiPanel`/`statusLayerError`/`panelLoading`/
+  `panelEmpty`/`panelErrorHtml`/`showConnLost`; sessiz/etki/konuşlanma boş
+  durumları + 5 `setStatus(Hata)` → `statusLayerError`; WebSocket `onopen`/`onclose`
+  ve REST `ok`/`catch` → `showConnLost`; `#conn-lost-retry` → `startLive`),
+  `tests/unit/test_ui_states.py` (14 test), CHANGELOG + docs/api.
+- **Varsayımlar:** (1) katalog **salt okunur**, hiçbir şey yazılmaz
+  (persistence none, model/göç yok); (2) EM-075 `design_system` kalıbı —
+  test edilebilir UI arka ucu + Python testi; (3) `error_action` her zaman
+  yapılabilir fiil içerir; (4) katalog gelmezse paneller yerel metinlerine düşer.
+- **Kanıt:** her panel 4 durumu dolu; `error_action`'da etken fiil; `connection`
+  title "Bağlantı kesildi" + `auto_reconnect`; katalog metadata (catalog=ui_states,
+  language=tr, persistence=none); `_Settings.UI_STATE_LANGUAGE="en"` honore;
+  `panel_state` kopya döner; bilinmeyen→LookupError; `connection_state(lost)`
+  bandı taşır, recovered "geldi"; `/ui-states` 200 (9 panel), `/panel/map_layers`
+  200, `/panel/nope` 404.
+- **Kapılar:** black(185 değişmez)/mypy(121)/pylint(10.00)/bandit(0) yeşil;
+  pytest **906** (892 + 14 yeni).
+- **Commit:** `feat(EM-079): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -961,8 +996,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 182 değişmez · mypy Success (119) · pylint 10.00/10 ·
-  bandit 0 · pytest **892 passed**.
+- **Final kapılar:** black 185 değişmez · mypy Success (121) · pylint 10.00/10 ·
+  bandit 0 · pytest **906 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

@@ -52,6 +52,7 @@ from src.routes.support_request_draft import (
 )
 from src.routes.synthetic import register_synthetic_routes
 from src.routes.task_instruction import register_task_instruction_routes
+from src.routes.ui_states import register_ui_state_routes
 from src.routes.whatif import register_whatif_routes
 from src.routes.whatif_history import register_whatif_history_routes
 from src.services.data_governance import attribution_for
@@ -420,6 +421,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_crossborder_notification_routes(api, database, settings)
     register_support_request_draft_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
+    register_ui_state_routes(api, database, settings)
     register_localization_routes(api, database, settings)
     register_i18n_routes(api, database, settings)
     register_share_policy_routes(api, database, settings)

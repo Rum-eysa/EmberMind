@@ -337,6 +337,12 @@ class Config:
         os.getenv("SILENT_ZONE_PROXIMITY_FAR_KM", "25.0")
     )
 
+    # EM-079: panel durumu kataloğu (Epic E8)
+    # Operatör panellerinin yükleme/boş/hata metinlerinin ve bağlantı-kesildi
+    # bandının üretildiği dil. Kataloğun tek kaynağı deterministiktir; yalnızca
+    # arayüzün çektiği etiket dilini ayarlar (hiçbir şey kalıcı değildir).
+    UI_STATE_LANGUAGE = os.getenv("UI_STATE_LANGUAGE", "tr")
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(
