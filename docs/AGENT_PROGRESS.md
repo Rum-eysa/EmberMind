@@ -58,6 +58,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 25 | EM-067 Sınır bölgesi yangın yayılımı (#67) | E7 | DONE | sınır geçiş olasılığı + süresi deterministik geometriyle: cos(EM-015 baş yönü ↔ sınır yönü) olasılık, uzaklık/(ROS×pay) dakika; EM-066 pilot sınır boylamı ortak; pencere içi/dışı bayrağı; tablo/migration yok |
 | 26 | EM-068 Çok dilli arayüz (TR/EL/EN) (#68) | E7 | DONE | arayüz metinleri koda derlenmiş **i18n mesaj kataloğundan** çözülür (TR+EN tam, EL çekirdek; eksik→EN→ham anahtar fallback); `normalize_language`/`translate`/`get_messages`/`coverage`; `I18N_DEFAULT_LANGUAGE`; `GET /api/v1/i18n/messages`+`/config`; panel dil seçici + `data-i18n`; tablo/migration yok (persistence none) |
 | 27 | EM-070 Ülke bazlı yetki ve veri paylaşım politikası (#70) | E7 | DONE | EM-066'nın ertelediği **yetki katmanı**: ülke+rol kapsamına göre paylaşılan alan grupları (fire/risk/support); öncelik **adlı rol→ülke varsayılanı(`*`)→yapılandırılmış varsayılan** (`SHARE_POLICY_DEFAULT_FIELDS`); **ek-yazılımlı** `country_share_policy` (en yeni=geçerli, dizi=denetim); `preview`; matris/preview/POST/audit uçları; panel politika kartı; EM-066 `?fields=` korundu |
+| 28 | EM-069 Ortak sınır ötesi erken uyarı bildirimi (#69) | E7 | DONE | EM-067 geçiş projeksiyonunu **eşik kapısından** geçirip (olasılık + geçiş süresi) karşı ülke koordinasyon birimine **önceden tanımlı kanaldan** bildirim düzenler/kaydedeeder; **kenar-tetiklemeli** (olay+hedef başına tek açık) + geçiş öngörülmezse otomatik **çözülen**; `crossborder_notification` (V024); status/sweep/dispatch/list/config uçları; panel "Tara ve bildir" kartı |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -844,11 +845,46 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **838** (816 + 22 yeni).
 - **Commit:** `feat(EM-070): ...` (bu dal).
 
+### EM-069 — Ortak sınır ötesi erken uyarı bildirimi (#69) — DONE
+
+- **Eksik analizi:** `grep crossborder_notify|partner_notif` boş; mevcut
+  "notification" eşleşmeleri yalnız yurt içi EM-063 risk eşiği uyarısı
+  (`risk_alert.py`) — sınır ötesi **bildirim eylemi** (kabul kriteri: eşik
+  aşımında karşı ülkeye önceden tanımlı kanaldan bildirim) hiç yok. EM-067
+  projeksiyonu salt okunur üretiyor, bildirime dönmüyor. Gerçek boşluk doğrulandı.
+- **Kapsam:** `src/models/crossborder_notification.py` (`CrossborderNotification`,
+  `status` open/resolved) + `scripts/migration/V024__crossborder_notification.sql`
+  (yalnızca ekleme), `src/services/crossborder_notification.py`
+  (`evaluate_thresholds`/`dispatch`/`sweep`/`list_notifications`/
+  `notification_status`/`channel_for`), `src/routes/crossborder_notification.py`
+  (status/sweep/dispatch/list/config), `settings.py` + `.env.example`
+  (`CROSSBORDER_NOTIFY_MIN_LIKELIHOOD`/`_WINDOW_MINUTES`/`_ENABLED`),
+  `fastapi_app.py` kaydı, `risk_panel.html` (Ortak Erken Uyarı kartı +
+  `refreshXborderNotify`/`runXborderNotifySweep`), `tests/unit/test_crossborder_notification.py`
+  (18 test), CHANGELOG + docs/api.
+- **Varsayımlar:** (1) bildirim **kanala kuyruğa alınarak** kalıcı kaydedilir —
+  canlı ağ çağrısı mock edilmez ("bitti" göstermeme kuralı); (2) kanal
+  alıcıları (`COORDINATION_CHANNELS`: TR MOBİL / GR Genel Sekreterlik) config'tir;
+  (3) **kenar-tetiklemeli**: olay+hedef başına tek açık bildirim, yeniden
+  süpürme spam yapmaz; (4) geçiş artık öngörülmediğinde açık bildirim otomatik
+  çözülenre döner (yaşam döngüsü denetimi); (5) eşik olasılık + geçiş süresi
+  pencercesinden geçer.
+- **Kanıt:** düz-batı TR olayı → GR'ye eşik aşar (likelihood 1.0); 0.71 kayık
+  geçit 0.4 kapıdan geçer 0.95'te kalır; uzak geçiş varsayılan pencerede dışarı,
+  geniş pencerede içeride; uzaklaşan yön projeksiyon dışı; `dispatch` GR hedef
+  TR kaynakla tek kayıt; ikinci `dispatch` dedup; `sweep` yaratır/yineler/çözer;
+  GR tarafı TR'yi hedefler; `notification_status` notified False→True; uçlar
+  config/status/sweep/list 200, bilinmeyen hedef → 400.
+- **Kapılar:** black(176 değişmez)/mypy(115)/pylint(10.00)/bandit(0) yeşil;
+  pytest **856** (838 + 18 yeni). Migration testi: V024 açıklama satırındaki `;`
+  naive bölmede sahte ifademe yol açtı — açıklamadan kaldırıldı.
+- **Commit:** `feat(EM-069): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -861,8 +897,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 172 değişmez · mypy Success (112) · pylint 10.00/10 ·
-  bandit 0 · pytest **838 passed**.
+- **Final kapılar:** black 176 değişmez · mypy Success (115) · pylint 10.00/10 ·
+  bandit 0 · pytest **856 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

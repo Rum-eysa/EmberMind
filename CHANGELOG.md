@@ -5,6 +5,30 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-069: Ortak sınır ötesi erken uyarı bildirimi (E7)
+  - Sınır ötesi koordinatör, sınır geçiş projeksiyonu (EM-067) **eşiği aştığında**
+    karşı ülke koordinasyon birimine otomatik bildirim gitmesini ister ki ortak
+    erken uyarı başlasın (kabul kriteri: "eşik aşımında karşı ülkeye önceden
+    tanımlı kanaldan bildirim gider")
+  - `src/services/crossborder_notification.py`: EM-067 projeksiyonunu **eşik
+    kapısından** geçirir (`CROSSBORDER_NOTIFY_MIN_LIKELIHOOD` +
+    `CROSSBORDER_NOTIFY_WINDOW_MINUTES`); geçen her olay için karşı ülkenin
+    **önceden tanımlı koordinasyon kanalı**na (MOBİL / Genel Sekreterlik) bir
+    bildirim **düzenler ve kalıcı kaydeder**
+  - **Kenar-tetiklemeli yaşam döngüsü**: olay+hedef başına yalnız **tek açık**
+    bildirim olur (yeniden hesaplama karşı ülkeyi spamlamaz); geçiş artık
+    öngörülmediğinde açık bildirim otomatik **çözülen**e döner — gönderilen her
+    şey `crossborder_notification` tablosunda denetlenebilir kayıttır
+  - `src/models/crossborder_notification.py` +
+    `scripts/migration/V024__crossborder_notification.sql` (yalnızca ekleme).
+    `src/config/settings.py` + `.env.example`: eşik + `_ENABLED`. Uçlar:
+    `GET /api/v1/crossborder/notifications` (kayıt), `GET
+    /api/v1/crossborder/notification-status` (eşik aşanlar + bildirildi mi),
+    `POST /api/v1/crossborder/notifications/sweep` (tarayıp gönder + çöz),
+    `POST /api/v1/crossborder/notifications` (tek olay), `.../config`.
+    Bildirim **kanala kuyruğa alınarak** kaydedilir (canlı ağ çağrısı mock edilmez)
+  - Komuta panelinde **Ortak Erken Uyarı Bildirimi kartı**: eşik aşan geçişler,
+    yön/olasılık/geçiş süresi, bildirildi/bekliyor rozeti ve "Tara ve bildir"
 - EM-070: Ülke bazlı yetki ve veri paylaşım politikası (E7)
   - Sınır ötesi ortak ekranda (EM-066) her ülke, **kendi verisinin hangi alan
     gruplarının** karşı ülkeye geçeceğine kalıcı ve yetkili biçimde karar

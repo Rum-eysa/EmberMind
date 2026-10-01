@@ -451,6 +451,21 @@ class Config:
         "SHARE_POLICY_DEFAULT_FIELDS", "fire,risk,support"
     )
 
+    # EM-069: joint cross-border early-warning notification (Epic E7). When the
+    # EM-067 border-crossing projection reaches these thresholds the partner
+    # country's coordination unit is warned over a pre-defined channel. Edge-
+    # triggered (one open warning per event/target), persisted to the
+    # crossborder_notification table; ``..._ENABLED`` gates the periodic sweep.
+    CROSSBORDER_NOTIFY_MIN_LIKELIHOOD = float(
+        os.getenv("CROSSBORDER_NOTIFY_MIN_LIKELIHOOD", "0.4")
+    )
+    CROSSBORDER_NOTIFY_WINDOW_MINUTES = int(
+        os.getenv("CROSSBORDER_NOTIFY_WINDOW_MINUTES", "120")
+    )
+    CROSSBORDER_NOTIFY_ENABLED = os.getenv(
+        "CROSSBORDER_NOTIFY_ENABLED", "true"
+    ).lower() in ("1", "true", "yes", "on")
+
 
 class DevelopmentConfig(Config):
     """Geliştirme konfigürasyonu"""

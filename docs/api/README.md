@@ -421,6 +421,31 @@ Komuta panelindeki **Veri Paylaşım Politikası (EM-070)** kartı ülke/rol mat
 kaynak rozetiyle listeler, ülke/rol seçildikçe canlı önizleme gösterir ve
 yöneticinin `fire`/`risk`/`support` seçip kaydedtiği bir form sunar.
 
+### Ortak Sınır Ötesi Erken Uyarı Bildirimi (EM-069)
+
+EM-067 sınır geçiş projeksiyonunu **koordinasyon eylemine** dönüştürür: bir
+yangının sınır geçiş olasılığı ve süresi anlaşılan eşikleri
+(`CROSSBORDER_NOTIFY_MIN_LIKELIHOOD`, `CROSSBORDER_NOTIFY_WINDOW_MINUTES`) aştığında,
+karşı ülke koordinasyon birimine **önceden tanımlı kanaldan** (TR: MOBİL,
+GR: Genel Sekreterlik) bildirim düzenlenir ve `crossborder_notification`
+tablosuna kalıcı yazılır. Tetikleme **kenar tabanlıdır**: olay+hedef başına yalnız
+bir **açık** bildirim bulunur (yeniden hesaplama spamlamaz); geçiş artık
+öngörülmediğinde açık bildirim otomatik **çözülen**e geçer. Bildirim kanala
+kuyruğa alınarak kaydedilir — canlı ağ çağrısı mock edilmez (salt `persistence:
+crossborder_notification`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/crossborder/notifications[?event_key=&target=&status=&limit=]` | Gönderilen erken uyarı kayıtları (en yeni önce) |
+| `GET /api/v1/crossborder/notification-status` | Eşiği aşan geçişler + her biri için bildirilip bildirilmediği (`notified`) |
+| `POST /api/v1/crossborder/notifications/sweep` | Tüm aktif geçişlerde kenar-tetiklemeli gönderim + otomatik çözim |
+| `POST /api/v1/crossborder/notifications?event_key=&target_country=` | Tek olay için bildirim düzenle (varsa yeniden kullan; bilinmeyen ülke → 400) |
+| `GET /api/v1/crossborder/notifications/config` | Eşikler, yaşam döngüsü ve önceden tanımlı kanallar |
+
+Komuta panelindeki **Ortak Erken Uyarı Bildirimi (EM-069)** kartı eşik aşan
+geçişleri yön/olasılık/geçiş süresiyle listeler, bildirildi/bekliyor rozetini
+gösterir ve **Tara ve bildir** eylemiyle süpürmeyi çalıştırır.
+
 ### Kabul/Ret Geri Bildirim Döngüsü (EM-054)
 
 Operatörün EM-047 karar denetimi (kabul/ret/düzenleme) **salt okunur** bir

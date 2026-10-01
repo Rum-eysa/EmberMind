@@ -243,6 +243,21 @@
         <span id="sp-status" class="muted-note"></span>
       </div>
       <div class="card">
+        <h2>Ortak Erken Uyarı Bildirimi (EM-069)</h2>
+        <div class="muted-note">Sınır geçiş projeksiyonu (EM-067) eşiği aştığında
+          karşı ülke koordinasyon birimine önceden tanımlı kanaldan bildirim
+          gider. Kenar-tetiklemeli: olay+hedef başına tek açık bildirim;
+          geçiş artık öngörülmediğinde otomatik çözülür.</div>
+        <table id="xborder-notify">
+          <thead><tr><th>Olay</th><th>Yön</th><th>Olasılık</th>
+            <th class="num">Geçiş (dk)</th><th>Bildirim</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button id="xb-notify-sweep" type="button" class="assume-input">Tara ve bildir</button>
+        <span id="xb-notify-status" class="muted-note"></span>
+        <div id="xborder-notify-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
         <h2 data-i18n="card.inventory">Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
@@ -295,6 +310,9 @@
   const XBORDER_SPREAD_FEED = "/api/v1/crossborder/spread";
   // EM-070: country/role data-sharing authorization policy (append-only audit).
   const SHARE_POLICY_FEED = "/api/v1/share-policy";
+  // EM-069: joint cross-border early-warning notification (edge-triggered).
+  const XBORDER_NOTIFY_FEED = "/api/v1/crossborder/notification-status";
+  const XBORDER_NOTIFY_SWEEP = "/api/v1/crossborder/notifications/sweep";
   // EM-068: interface text resolved from the i18n catalogue (TR/EN complete,
   // EL core screens, EN bridge fallback). The language lives only here/localStorage.
   const I18N_FEED = "/api/v1/i18n/messages";
@@ -424,6 +442,7 @@
     refreshCrossborder();
     refreshXborderSpread();
     refreshSharePolicy();
+    refreshXborderNotify();
   }
 
   // EM-067: sınır geçiş projeksiyonu — olay başına geçiş yönü, olasılık
@@ -597,6 +616,58 @@
       const data = await res.json();
       status.textContent = data.changed ? "kaydedildi" : "değişiklik yok";
       await refreshSharePolicy();
+    } catch (err) {
+      status.textContent = "hata: " + err.message;
+    }
+  }
+
+  // EM-069: ortak sınır ötesi erken uyarı bildirimi — eşik aşan geçişler + durum.
+  async function refreshXborderNotify() {
+    const body = document.querySelector("#xborder-notify tbody");
+    const summary = document.getElementById("xborder-notify-summary");
+    try {
+      const res = await fetch(XBORDER_NOTIFY_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      const rows = data.qualifying || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5">eşiği aşan sınır geçiş yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const ev of rows) {
+        const tr = document.createElement("tr");
+        const mins = ev.crossing_minutes === null
+          ? "—" : "T+" + Math.round(ev.crossing_minutes);
+        const notif = ev.notified
+          ? '<span style="color:var(--color-success)">✓ gönderildi</span>'
+          : '<span style="color:var(--color-warning)">bekliyor</span>';
+        tr.innerHTML = `<td>${escapeHtml(ev.event_key)}</td>`
+          + `<td>${escapeHtml(ev.source_country)}→${escapeHtml(ev.target_country)}</td>`
+          + `<td>${escapeHtml(ev.likelihood_level)} (${ev.likelihood})</td>`
+          + `<td class="num">${mins}</td>`
+          + `<td>${notif}</td>`;
+        body.appendChild(tr);
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="5">erken uyarı durumu alınamadı</td></tr>';
+    }
+  }
+
+  async function runXborderNotifySweep() {
+    const status = document.getElementById("xb-notify-status");
+    status.textContent = "taranıyor…";
+    try {
+      const res = await fetch(XBORDER_NOTIFY_SWEEP, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const created = (data.created || []).length;
+      const deduped = (data.deduped || []).length;
+      const resolved = (data.resolved || []).length;
+      status.textContent = `yeni ${created} · yinelenen ${deduped} · çözülen ${resolved}`;
+      await refreshXborderNotify();
     } catch (err) {
       status.textContent = "hata: " + err.message;
     }
@@ -1001,6 +1072,9 @@
   document.getElementById("sp-save").addEventListener("click", saveSharePolicy);
   document.getElementById("sp-country").addEventListener("change", refreshSharePreview);
   document.getElementById("sp-role").addEventListener("change", refreshSharePreview);
+
+  // EM-069: ortak erken uyarı — durumu ve tarayıp bildir eylemini bağla.
+  document.getElementById("xb-notify-sweep").addEventListener("click", runXborderNotifySweep);
 
   // EM-028 yönetici düzenlemesi: ha/saat varsayımlarını kaydet ve paneli tazele.
   document.getElementById("save-assumptions").addEventListener("click", async () => {
