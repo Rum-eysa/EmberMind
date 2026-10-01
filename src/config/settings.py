@@ -343,6 +343,13 @@ class Config:
     # arayüzün çektiği etiket dilini ayarlar (hiçbir şey kalıcı değildir).
     UI_STATE_LANGUAGE = os.getenv("UI_STATE_LANGUAGE", "tr")
 
+    # EM-081: olay zaman çizelgesi (Epic E8)
+    # Vardiya devrinde operatörün kronolojik akışı kaç olayla göreceğini
+    # sınırlar. Sayfa boyutu varsayılanı ve üst sınırı (birleştirme canlı
+    # akış + kabul edilen öneri denetim kayıtlarından okuma zamanıdır).
+    EVENT_TIMELINE_DEFAULT_LIMIT = int(os.getenv("EVENT_TIMELINE_DEFAULT_LIMIT", "50"))
+    EVENT_TIMELINE_MAX_LIMIT = int(os.getenv("EVENT_TIMELINE_MAX_LIMIT", "200"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

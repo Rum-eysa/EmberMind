@@ -469,6 +469,27 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Olay Zaman Çizelgesi (EM-081)
+
+Vardiya devri için operatör, olan her şeyi **tek kronolojik akışta** görmek
+ister. Akış iki mevcut kaynağı birleştiren **salt okuma zamanı projeksiyonudur**
+(yeni tablo/göç yok, `persistence: none`): canlı değişim beslemesi (EM-090 —
+`fire_event`/`forecast`/`alert`) ve operatörün **kabul ettiği** önerilerin
+_denetim kayıtları_ (EM-047 — `accept`/`edit`). `reject`/`release` kabul
+sayılmadığı için akışa girmez.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/event-timeline[?event_key=&category=&limit=]` | Yeniden eskiye sıralı birleşik olay akışı; `category_counts` + filtre üst verisi |
+| `GET /api/v1/event-timeline/config` | Kategoriler/etiketler, kaynaklar ve sıralama sözleşmesi |
+
+Her girdi sabit bir `category` (+ Türkçe `category_label`), `event_key`, UTC
+`at` damgası ve `ref` (kaynak tablo + id) taşır. Sıralama **yeniden eskiye**;
+zaman eşitliği **kaynak-sırası + id** ile deterministik bozulur. Bilinmeyen
+`category` **sessizce yutulmaz**: `filter` `null`, `requested_category` korunur,
+süzülmemiş akış gelir. Operatör haritasındaki **Zaman Çizelgesi (EM-081)**
+paneli kategoriyi süzer ve renk kodlu satırlarla gösterir.
+
 ### Panel Durum Kataloğu ve Bağlantı Bandı (EM-079)
 
 Panellerde **yükleme / boş / hata** durumları ile **bağlantı-kesildi** bandı tek

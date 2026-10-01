@@ -62,6 +62,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 29 | EM-071 Dış destek talebi taslağı üretme (#71) | E7 | DONE | EM-065 erken tahmininden olay başına **ihtiyaç/zaman/konum**la **otomatik tek satır özet** + çok satırlı **düzenlenebilir** metin gövdesi besteler; **TR/EN/EL** (EM-068 `normalize_language`; bilinmeyen dil→400); açık öngörülmeyen olay "yeterli" notlu taslak; panel kartı: olay seç + metin alanı + **Kopyala** + **PDF/Yazdır** (gizli iframe); tablo/migration yok (persistence none) |
 | 30 | EM-078 Sessiz bölge güven paneli (#78) | E8 | DONE | Mevcut `silent_regions` üzerinde **okuma zamanı** deterministik güven puanı: bbox içi aktif yangın=ağır çelişki cezası + en yakın yangın **yakınlık cezası** (PROXIMITY_FAR_KM'ye kadar doğrusal); `[0,1]` kırp + **yüksek/orta/düşük** bant; güven azalan **sıralı liste**; `?confidence=` bant filtresi; operatör haritası **Sessiz Bölgeler** paneli satır→**harita senkron seçim** (fitBounds + vurgu dikdörtgeni); model/migration yok (persistence none) |
 | 31 | EM-079 Panel durum kataloğu + bağlantı bandı (#79) | E8 | DONE | 9 panel için tek **salt okunur durum kataloğu** (`PANEL_STATES`: title/loading/empty/error/error_action, Türkçe); `error_action` her zaman **yapılabilir fiil** içerir (hata ne olduğunu + ne yapılacağını söyler); `CONNECTION_LOST` bandı + `connection_state()`; `/api/v1/ui-states` + `/ui-states/panel/{key}` (bilinmeyen→404); operatör haritası `#conn-lost` bandı WebSocket `onclose`/REST `catch` ile görünür, `onopen`/`ok` ile kalkar; `.skel`/`.panel-err` yardımcıları sessiz/etki/konuşlanma panellerinde; `UI_STATE_LANGUAGE`; model/migration yok (persistence none) |
+| 32 | EM-081 Olay zaman çizelgesi (#81) | E8 | DONE | Canlı değişim beslemesi (EM-090: `fire_event`/`forecast`/`alert`) + operatörün **kabul ettiği** öneri denetim kayıtlarını (EM-047 `accept`/`edit`) tek **kronolojik (yeniden eskiye)** akışta birleştiren salt okuma zamanı projeksiyonu; sabit `category` + Türkçe `category_label` + `event_key` + UTC `at` + `ref`; `reject`/`release` hariç; zaman eşitliğinde **kaynak-sırası + id** deterministik; `?event_key=`/`?category=`/`?limit=` (bilinmeyen kategori yutulmaz; limit `[1,MAX]` kırp); `/api/v1/event-timeline` + `/config`; UI Zaman Çizelgesi düğmesi + kategori filtresi + renk kodlu liste; `ui_states`'e `event_timeline` anahtarı; `EVENT_TIMELINE_DEFAULT/MAX_LIMIT`; model/migration yok (persistence none) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -979,11 +980,46 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **906** (892 + 14 yeni).
 - **Commit:** `feat(EM-079): ...` (bu dal).
 
+### EM-081 — Olay zaman çizelgesi (#81) — DONE
+
+- **Eksik analizi:** olaylar iki ayrı yerdeydi — canlı değişim beslemesi
+  (`live_updates`, EM-090: `fire_event`/`forecast`/`alert`) ve kabul edilen
+  öneriler (`recommendation_decisions`, EM-047) — ve hiçbiri diğerini
+  göstermiyordu; **tek zaman-sıralı akış** yoktu. `git grep` kronolojik/timeline/
+  olay akış/vardiya → yalnızca EM-030 kapasite-açığı çizelgesi (farklı şey).
+  Gerçek boşluk doğrulandı (issue #81 kabul: "tüm olaylar (tahmin güncellemesi,
+  kabul edilen öneri, uyarı) kronolojik akışta görünür").
+- **Kapsam:** `src/services/event_timeline.py` (`event_timeline`/`timeline_config`;
+  `_live_entries` + `_decision_entries` birleştirme, `_sort_key` yeniden eskiye +
+  kaynak-sırası/id deterministik eşitlik bozucu, `_opt_str` ORM-normalizasyon;
+  `accepted_recommendation` yalnızca `accept`/`edit`), `src/routes/event_timeline.py`
+  (`/api/v1/event-timeline` + `/config`), `fastapi_app.py` kaydı, `settings.py` +
+  `.env.example` (`EVENT_TIMELINE_DEFAULT/MAX_LIMIT`), `ui_states.py`
+  (`event_timeline` panel anahtarı), `operator_map.html` (Zaman Çizelgesi düğmesi +
+  `#timeline-panel` + kategori filtresi + `toggleTimelinePanel`/`loadEventTimeline`/
+  `renderTimelineList`/`timelineClock`; EM-079 `panelLoading`/`panelEmpty`/
+  `panelErrorHtml` ile durumlar), `tests/unit/test_event_timeline.py` (18 test),
+  CHANGELOG + docs/api.
+- **Varsayımlar:** (1) **okuma zamanı projeksiyonu** — yeni model/göç yok
+  (persistence none); (2) `reject`/`release` **kabul olmadığı için** çizelgeye
+  girmez; (3) sıralama salt `created_at` (UTC) + deterministik eşitlik bozucu;
+  (4) küçük sayfa boyutu/bir filtre tam yakın pencereyi görebilsin diye her
+  kaynak `MAX_LIMIT`'e kadar çekilir.
+- **Kanıt:** dört kategori de eşleşir; `edit`→"düzenlenerek kabul edildi";
+  `reject` hariç (0 girdi); yeniden eskiye sıralı (alert en yeni); `event_key`
+  ve `category` filtresi; ` FORECAST ` küçük/karışık; `bogus`→filtre null +
+  `requested_category` + süzülmemiş 4; `category_counts` 1/1/1/1; `limit=2`→2
+  sayfa `total_matching=4`; `limit=999`→MAX'a kırp; settingsiz varsayılan
+  50/200; `/event-timeline` 200 (4), `?category=alert` 200, `/config` 200 (4).
+- **Kapılar:** black(temiz)/mypy(123)/pylint(10.00)/bandit(0) yeşil;
+  pytest **924** (906 + 18 yeni).
+- **Commit:** `feat(EM-081): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -996,8 +1032,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 185 değişmez · mypy Success (121) · pylint 10.00/10 ·
-  bandit 0 · pytest **906 passed**.
+- **Final kapılar:** black 188 değişmez · mypy Success (123) · pylint 10.00/10 ·
+  bandit 0 · pytest **924 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

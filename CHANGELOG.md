@@ -5,6 +5,30 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-081: Olay zaman çizelgesi (E8)
+  - Operatör vardiya devrinde "ne oldu?" sorusunu **kronolojik** yanıtlamak
+    ister; olaylar iki ayrı yerde duruyordu — canlı değişim akışı (EM-090)
+    olay/tahmin/uyarı taşır, kabul edilen öneriler ise EM-047 denetim
+    kayıtlarında — ve tek bir zaman sıralı akış yoktu (kabul kriteri: "tüm
+    olaylar (tahmin güncellemesi, kabul edilen öneri, uyarı) kronolojik
+    akışta görünür")
+  - `src/services/event_timeline.py`: iki kaynağı tek **okuma zamanı
+    projeksiyonunda** birleştirir (yeni tablo/göç yok, `persistence` `none`) —
+    her satır sabit bir `category` (`fire_event`/`forecast`/`alert`/
+    `accepted_recommendation`), Türkçe `category_label`, `event_key` ve UTC
+    damgasıyla bir çizelge girdisine dönüşür
+  - Yalnızca **kabul eden** eylemler (`accept`/`edit`) `accepted_recommendation`
+    sayılır; `reject`/`release` çizelgeye girmez. Akış **yeniden eskiye**
+    sıralanır; zaman eşitliklerinde kaynak-sırası + id ile **deterministik**
+    eşitlik bozucu kullanılır
+  - `?event_key=` ve `?category=` filtreleri; bilinmeyen `category` **sessizce
+    yutulmaz** (`filter` null + `requested_category` korunur, süzülmemiş akış
+    gelir); sayfa boyutu `[1, EVENT_TIMELINE_MAX_LIMIT]`'e kırpılır
+  - `src/routes/event_timeline.py` (`/api/v1/event-timeline` + `/config`) +
+    `src/fastapi_app.py` kaydı. `settings.py` + `.env.example`:
+    `EVENT_TIMELINE_DEFAULT_LIMIT`/`EVENT_TIMELINE_MAX_LIMIT`.
+    `src/services/ui_states.py`: `event_timeline` panel anahtarı. `operator_map.html`:
+    Zaman Çizelgesi düğmesi + kategori filtresi + renk kodlu kronolojik liste
 - EM-079: Panel durum kataloğu ve bağlantı-kesildi bandı (E8)
   - Operatör, panellerde yükleme/boş/hata durumlarını tutarlı görmek ister;
     paneller dağınık `.empty` satırları ve `setStatus` metinleri kullanıyordu,

@@ -28,6 +28,7 @@ PANEL_KEYS = (
     "external_support",
     "crossborder",
     "support_request_draft",
+    "event_timeline",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -93,6 +94,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Taslak için bir olay seçin.",
         "error": "Taslak oluşturulamadı.",
         "error_action": "Olay ve dil seçimini kontrol edip yeniden deneyin.",
+    },
+    "event_timeline": {
+        "title": "Olay zaman çizelgesi",
+        "loading": "Olaylar kronolojik akışta derleniyor…",
+        "empty": "Seçili filtrede olay yok; vardiya boyunca kayıt üretilmemiş.",
+        "error": "Zaman çizelgesi alınamadı.",
+        "error_action": "Filtreyi sıfırlayıp yeniden deneyin; sürerse bağlantıyı kontrol edin.",
     },
 }
 
