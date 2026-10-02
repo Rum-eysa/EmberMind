@@ -551,6 +551,35 @@
     #szc-panel .syn { color: #e65100; font-weight: 600; }
     #szc-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-042: sessiz bölge performans ölçümü — sentetik senaryoda TPR/FPR/gecikme */
+    #sdp-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 320px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #sdp-panel h1 { margin-bottom: 4px; }
+    #sdp-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #sdp-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #sdp-panel .bar label { display: block; margin: 2px 0; }
+    #sdp-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #sdp-panel .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px;
+      margin-bottom: 6px; padding: 4px 6px; border: 1px solid var(--border-color);
+      border-radius: 6px; }
+    #sdp-panel .metrics b { font-weight: 700; }
+    #sdp-panel .scen { color: #e65100; font-weight: 600; }
+    #sdp-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #sdp-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #sdp-panel .nm { font-weight: 600; }
+    #sdp-panel .cf { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #sdp-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #sdp-panel .miss { color: #b71c1c; font-weight: 600; }
+    #sdp-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #sdp-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -598,6 +627,9 @@
     <button type="button" id="szc-open"
       title="EM-038 yanlış alarm önleme — sessiz adayları yapısal kapsama gücüne ve ani düşüşe göre düşük/orta/yüksek güvenle etiketle">
       Yanlış Alarm Önleme</button>
+    <button type="button" id="sdp-open"
+      title="EM-042 sessiz bölge performans ölçümü — sentetik senaryoda TPR/FPR ve uyarı gecikmesi">
+      Sessiz Bölge Performans</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -905,6 +937,21 @@
     <div id="szc-list"></div>
   </div>
 
+  <div id="sdp-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölge Performans <span id="sdp-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Ufuk: <select id="sdp-horizon">
+        <option value="14">14 gün</option>
+        <option value="30" selected>30 gün</option>
+        <option value="60">60 gün</option>
+      </select></label>
+      <div class="acts"><button type="button" id="sdp-refresh">Yenile</button></div>
+    </div>
+    <div id="sdp-metrics" class="metrics"></div>
+    <div class="head2">Enjekte Edilen Sessiz Epizotlar</div>
+    <div id="sdp-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -1004,6 +1051,8 @@
   // EM-038: yanlış alarm önleme güven etiketi paneli durumu.
   let szcPanelOpen = false;
   let szcHighlight = null;         // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
+  // EM-042: sessiz bölge performans ölçümü paneli durumu.
+  let sdpPanelOpen = false;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -3767,6 +3816,78 @@
     szcHighlight.openPopup();
   }
 
+  // --- EM-042: sessiz bölge performans ölçümü — sentetik senaryo ------------
+  const SDP_API = "/api/v1/silent-detection-performance";
+  async function toggleSDPPanel() {
+    const panel = document.getElementById("sdp-panel");
+    if (sdpPanelOpen) { sdpPanelOpen = false; panel.style.display = "none"; return; }
+    sdpPanelOpen = true;
+    panel.style.display = "block";
+    await loadSDP();
+  }
+  async function loadSDP() {
+    const box = document.getElementById("sdp-list");
+    panelLoading(box, "silent_detection_performance");
+    const horizon = document.getElementById("sdp-horizon").value;
+    try {
+      const res = await fetch(`${SDP_API}?horizon_days=${encodeURIComponent(horizon)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSDP(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("silent_detection_performance", err.message);
+      setStatus(`Sessiz bölge performans ölçümü alınamadı: ${err.message}`);
+    }
+  }
+  function _sdpPct(v) {
+    return v === null || v === undefined ? "—" : `${Math.round(v * 1000) / 10}%`;
+  }
+  function renderSDP(data) {
+    const box = document.getElementById("sdp-list");
+    const metricsBox = document.getElementById("sdp-metrics");
+    const countEl = document.getElementById("sdp-count");
+    box.dataset.sdpLast = JSON.stringify(data);
+    const c = data.confusion || {};
+    const delay = data.alert_delay || {};
+    if (countEl) {
+      countEl.textContent = `(epizot ${data.episode_count || 0}, hücre-gün ${c.evaluated_cell_days || 0})`;
+    }
+    if (metricsBox) {
+      metricsBox.innerHTML =
+        `<div><b>TPR</b> ${_sdpPct(data.tpr)}</div>`
+        + `<div><b>FPR</b> ${_sdpPct(data.fpr)}</div>`
+        + `<div><b>kesginlik</b> ${_sdpPct(data.precision)}</div>`
+        + `<div><b>F1</b> ${_sdpPct(data.f1)}</div>`
+        + `<div><b>gecikme ort.</b> ${escapeHtml(String(delay.mean_days ?? "—"))} gün</div>`
+        + `<div><b>kaçırılan</b> ${escapeHtml(String(delay.undetected_episodes ?? 0))}</div>`;
+    }
+    box.innerHTML = "";
+    const episodes = (data.episodes || []).slice();
+    if (!episodes.length) {
+      panelEmpty(box, "silent_detection_performance",
+        "Enjekte edilmiş sessiz epizot yok; enjekte oranını/ufku artırın.");
+      return;
+    }
+    for (const ep of episodes) {
+      const row = document.createElement("div");
+      row.className = "item";
+      const color = ep.detected ? "#2e7d32" : "#b71c1c";
+      const scenTag = data.synthetic ? `<span class="scen">SENTETİK SEN.</span> ` : "";
+      const delayTxt = ep.detected
+        ? `gecikme ${escapeHtml(String(ep.alert_delay_days))} gün`
+        : `<span class="miss">kaçırıldı</span>`;
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${scenTag}${escapeHtml(ep.region_key)}</b>`
+        + `<br><span class="meta">başlangıç ${escapeHtml(ep.onset)} · ${ep.positive_cell_days} pozitif gün</span></span>`
+        + `<span class="cf">${delayTxt}</span>`;
+      box.appendChild(row);
+    }
+    setStatus(
+      `Sessiz bölge performans — TPR ${_sdpPct(data.tpr)}, FPR ${_sdpPct(data.fpr)}, `
+      + `gecikme ort. ${delay.mean_days ?? "—"} gün — ${data.scenario_label}`);
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -4034,6 +4155,14 @@
         renderSZCList(JSON.parse(box.dataset.szcLast));
       }
     });
+
+    // EM-042: sessiz bölge performans paneli düğmeleri + ufuk seçimi.
+    const sdpBtn = document.getElementById("sdp-open");
+    if (sdpBtn) sdpBtn.addEventListener("click", toggleSDPPanel);
+    const sdpRefresh = document.getElementById("sdp-refresh");
+    if (sdpRefresh) sdpRefresh.addEventListener("click", loadSDP);
+    const sdpHorizon = document.getElementById("sdp-horizon");
+    if (sdpHorizon) sdpHorizon.addEventListener("change", loadSDP);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

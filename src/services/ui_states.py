@@ -39,6 +39,7 @@ PANEL_KEYS = (
     "signal_baseline",
     "silent_region_risk",
     "silent_zone_confidence",
+    "silent_detection_performance",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -181,6 +182,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Etiketlenen sessiz bölge adayı yok; EM-035 baz çizgisinde sessiz aday var mı kontrol edin.",
         "error": "Sessiz bölge güven etiketleri alınamadı.",
         "error_action": "Eşik/kaynak/tarih seçimini gözden geçirip yeniden deneyin.",
+    },
+    "silent_detection_performance": {
+        "title": "Sessiz Bölge Performans Ölçümü",
+        "loading": "Sentetik senaryoda tespit TPR/FPR ve uyarı gecikmesi hesaplanıyor…",
+        "empty": "Enjekte edilmiş sessiz epizot yok; enjekte oranını/ufku artırıp yeniden deneyin.",
+        "error": "Sessiz bölge performans ölçümü alınamadı.",
+        "error_action": "Ufk/pencere/enjekte oranı seçimlerini gözden geçirip yeniden deneyin.",
     },
 }
 

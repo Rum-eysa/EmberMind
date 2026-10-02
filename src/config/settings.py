@@ -483,6 +483,32 @@ class Config:
     FALSE_ALARM_STRONG_DROP_Z = float(os.getenv("FALSE_ALARM_STRONG_DROP_Z", "2.5"))
     FALSE_ALARM_MAX_LIMIT = int(os.getenv("FALSE_ALARM_MAX_LIMIT", "200"))
 
+    # EM-042: sessiz bölge performans ölçümü - sentetik senaryoda TPR/FPR/gecikme (Epic E4)
+    # Gerçek etiketli kataloq olmadığından ground-truth senaryoya deterministik enjekte
+    # edilir ve EM-035 algılayıcısı gün gün yeniden çalıştırılır (kalıcılık: none).
+    # ufuk_gun: değerlendirme penceresi genişliği; baz_pencere_gun: her gün için
+    # öğrenilen geçmiş pencere; hassasiyet_z: sessizlik eşiği (z <= -bu); enjekte_orani:
+    # hücrelerin sessiz epizot alma olasılığı; kesinti_gun: epizot uzunluğu;
+    # kesinti_derinligi: sessiz günde sinyal normalin bu katına düşer;
+    # azami_gecikme_gun: uyarı gecikmesi için ilk işaretleme arama ufku.
+    SILENT_DETECTION_HORIZON_DAYS = int(
+        os.getenv("SILENT_DETECTION_HORIZON_DAYS", "30")
+    )
+    SILENT_DETECTION_BASELINE_WINDOW_DAYS = int(
+        os.getenv("SILENT_DETECTION_BASELINE_WINDOW_DAYS", "14")
+    )
+    SILENT_DETECTION_SENSITIVITY_Z = float(
+        os.getenv("SILENT_DETECTION_SENSITIVITY_Z", "1.5")
+    )
+    SILENT_DETECTION_ONSET_RATE = float(os.getenv("SILENT_DETECTION_ONSET_RATE", "0.4"))
+    SILENT_DETECTION_OUTAGE_DAYS = int(os.getenv("SILENT_DETECTION_OUTAGE_DAYS", "3"))
+    SILENT_DETECTION_OUTAGE_DEPTH = float(
+        os.getenv("SILENT_DETECTION_OUTAGE_DEPTH", "0.05")
+    )
+    SILENT_DETECTION_MAX_LATENCY_DAYS = int(
+        os.getenv("SILENT_DETECTION_MAX_LATENCY_DAYS", "5")
+    )
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

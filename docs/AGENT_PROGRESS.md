@@ -1413,11 +1413,38 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1186** (1162 + 24 yeni).
 - **Commit:** `feat(EM-038): ...` (bu dal).
 
+### EM-042 — Sessiz bölge performans ölçümü (#42) — DONE
+- **Eksik analizi:** Veri bilimcisi, sessiz bölge tespitinin gerçek doğruluğunu
+  kanıtlamak için ölçmek istiyor (kabul: "sentetik senaryo kümesi üzerinde TPR, FPR
+  ve uyarı gecikmesi hesaplanır; rapor 'sentetik senaryo' etiketiyle sunulur").
+  EM-035 sessiz adayı üretiyor, EM-037/EM-038 sıralıyor/etiketliyor; ama dedektörün
+  isabeti (kaç gerçek sessizliği yakalar, kaç yanlış alarm, ne kadar gecikir)
+  hiçbir yerde **ölçülmüyordu** (`silent_detection_performance` kod tabanında yok).
+  E4 Must (sp3).
+- **Kapsam kararları:** **Gerçek EM-035 dedektörü** (`compute_cell_baseline`)
+  deterministik sentetik senaryoda gün gün yeniden oynatılır; kök-hakikat senaryoya
+  enjekte edilir (canlı veri/model yok). Ağır ML **değil** — okuma zamanı bileşimi,
+  `persistence: none` — model/migration yok. Tanımsız oranlar `None` (0.0 değil).
+- **Uygulama:** `silent_detection_performance.py` servisi: `SilentEpisode`
+  (yarı-açık `covers`), `ScenarioSpec.truth`, `OutageInjectedSource` (bölümde
+  okumayı `depth`'e çökertir), `build_scenario` (deterministik onset/slot),
+  `confusion_metrics` (TP/FP/FN/TN → TPR/FPR/precision/recall/F1/accuracy),
+  `evaluate_detection` (kafa karışıklığı + uyarı gecikmesi özeti + bölüm satırları,
+  daima `synthetic: true`/`scenario_label`), `performance_config`.
+  `/api/v1/silent-detection-performance` + `/config` (bozuk `as_of`→400;
+  `SilentDetectionPerformanceError`→400); `settings.py` + `.env.example`
+  (`SILENT_DETECTION_*`); `ui_states`'e `silent_detection_performance`; `operator_map`
+  Sessiz Bölge Performans paneli (ana metrikler + bölüm satırları + SENTETİK etiketi);
+  27 test
+- **Kapılar:** black(temiz, 231)/mypy(Success, 153 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1213** (1186 + 27 yeni).
+- **Commit:** `feat(EM-042): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1430,8 +1457,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 228 değişmez · mypy Success (151 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1186 passed**.
+- **Final kapılar:** black 231 değişmez · mypy Success (153 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1213 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

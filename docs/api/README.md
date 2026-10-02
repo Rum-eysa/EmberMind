@@ -1197,6 +1197,24 @@ yazılmaz** (`persistence: none`, okuma zamanı hesaplanır). UI: `/ui` haritas�
 **Yanlış Alarm Önleme** paneli (güven derecesi süzgeci istemci tarafında + harita
 senkron hücre seçimi, yüksek/orta/düşük renk rozetleri, SENTETİK etiketi).
 
+### Sessiz Bölge Performans Ölçümü (EM-042)
+```
+GET    /api/v1/silent-detection-performance/config           # senaryo düğmeleri, sınırlar, metrekataloğu
+GET    /api/v1/silent-detection-performance[?source=&as_of=YYYY-MM-DD&horizon_days=N&window_days=N&onset_rate=F&sensitivity_z=F]  # sentetik senaryoda TPR/FPR/uyarı gecikmesi
+```
+Tespit doğruluğunu kanıtlamak için **gerçek EM-035 dedektörü** deterministik bir
+sentetik senaryo üzerinde gün gün yeniden oynatılır. Senaryo, her izleme hücresine
+`onset_rate` oranında enjekte edilen sessiz bölümler (`SilentEpisode`, kök-hakikat)
+içerir; `OutageInjectedSource` bölüm günlerinde okumayı `depth` seviyesine çökertir.
+`compute_cell_baseline` tahmini ile enjekte kök-hakikat karşılaştırılıp kafa karışıklık
+matrisi (TP/FP/FN/TN) çıkarılır; TPR/FPR/precision/recall/F1/accuracy + uyarı gecikmesi
+özeti (yakalanan/bulunamayan bölüm, ortalama/dk/maks gün) + bölüm bazında satırlar
+üretilir. **Tanımsız oranlar `None`** döner (yanıltıcı `0.0` değil). Çıktı daima
+`synthetic: true` + `scenario_label` ile **sentetik senaryo** olarak etiketlenir.
+Geçersiz `as_of` → `400`; doğrulama hatası → `400`; **hiçbir şey yazılmaz**
+(`persistence: none`). UI: `/ui` haritasındaki **Sessiz Bölge Performans** paneli
+(ana metrikler + bölüm satırları + SENTETİK etiketi).
+
 ## Error Codes
 
 - `200`: Başarılı

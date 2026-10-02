@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-042: Sessiz bölge performans ölçümü — sentetik senaryoda tespit doğruluğu (E4)
+  - Veri bilimcisi, sessiz bölge tespitinin gerçek doğruluğunu kanıtlamak için
+    ölçmek istiyor (kabul kriterleri: "sentetik senaryo kümesi üzerinde TPR, FPR ve
+    uyarı gecikmesi hesaplanır; rapor 'sentetik senaryo' etiketiyle sunulur") —
+    bugüne dek EM-035 hangi hücrenin sessiz aday olduğunu üretiyor, EM-037/EM-038
+    bunları sıralıyor/etiketliyor; ancak dedektörün ne kadar isabetli olduğu
+    (kaç gerçek sessizliği yakalıyor, kaç yanlış alarm üretiyor, ne kadar gecikiyor)
+    hiçbir yerde **ölçülmüyordu** (gerçek eksik: `silent_detection_performance` yok)
+  - `src/services/silent_detection_performance.py`: deterministik sentetik senaryo
+    (kök-hakikat enjekte edilmiş `SilentEpisode`'lar) üzerinde **gerçek EM-035
+    dedektörü** (`compute_cell_baseline`) gün gün yeniden oynatılır; `OutageInjectedSource`
+    bölüm günlerinde okumayı `depth` seviyesine çökertir; kafa karışıklık matrisinden
+    TPR/FPR/precision/recall/F1/accuracy + uyarı gecikmesi özeti (yakalanan/bulunamayan
+    bölüm sayıları, ortalama/dk/maks gün) + bölüm bazındaki satırlar üretilir;
+    tanımsız oranlar `None` (yanıltıcı `0.0` değil); `persistence: none` — her
+    istekte yeniden hesaplanır, hiçbir şey yazılmaz; çıktı daima `synthetic: true` +
+    `scenario_label` ile işaretlenir
+  - `src/routes/silent_detection_performance.py` `/api/v1/silent-detection-performance`
+    (rapor + `source`/`as_of`/`horizon_days`/`window_days`/`onset_rate`/`sensitivity_z`
+    düğmeleri, geçersiz `as_of` → 400, doğrulama hatası → 400) + `/config`; operatör
+    haritasına "Sessiz Bölge Performans" paneli (ana metrikler: TPR/FPR/precision/F1/
+    ortalama gecikme + bölüm satırları + SENTETİK etiketi) eklendi
 - EM-038: Yanlış alarm önleme — sessiz adaylara kapsama gücüne göre güven etiketi (E4)
   - "Sessiz bölge" okumasının gerçek acil durum mu yoksa **yanlış alarm** mı olduğu
     ayrıştırılmalı (kabul kriterleri: "sessiz bölge tespiti, yapısal olarak zayıf
