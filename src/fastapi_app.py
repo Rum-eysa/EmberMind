@@ -52,6 +52,7 @@ from src.routes.scenario_share import register_scenario_share_routes
 from src.routes.share_policy import register_share_policy_routes
 from src.routes.shift_handover import register_shift_handover_routes
 from src.routes.silent_zone_panel import register_silent_zone_panel_routes
+from src.routes.signal_baseline import register_signal_baseline_routes
 from src.routes.sitrep_report import register_sitrep_routes
 from src.routes.spread import register_spread_routes
 from src.routes.support_request_draft import (
@@ -444,6 +445,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_webhook_routes(api, database, settings)
     register_share_policy_routes(api, database, settings)
     register_silent_zone_panel_routes(api, database, settings)
+    register_signal_baseline_routes(api, database, settings)
     register_inventory_routes(api, database, settings)
     register_capacity_routes(api, database, settings)
     register_whatif_routes(api, database, settings)

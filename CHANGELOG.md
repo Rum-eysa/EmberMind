@@ -5,6 +5,35 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-035: Bölge bazlı sinyal baz çizgisi — sessiz bölge anomalisi için "normal" öğrenimi (E4)
+  - Sessiz bölge **anomalisi**nin anlam kazanması için önce bölgenin normalinin
+    bilinmesi gerekir (kabul kriterleri: "yangın öncesi sinyal seviyesinin bölge
+    (hücre) bazlı normal değeri öğrenilir; 30 günlük baz çizgi hücre bazında
+    hesaplanır; sinyal kaynağı olarak pilot için sentetik iletişim/rapor akışı,
+    gerçek kaynak arayüzü (trafik yoğunluğu, sosyal medya, sensör) soyutlanır") —
+    bugüne dek EM-078 paneli yalnızca operatör kayıtlarının **güven bandını**
+    canlı yangınlarla derecelendiriyordu; hiçbir sinyal/iletişim baz çizgisi ve
+    kaynak soyutlaması yoktu (gerçek eksik: `signal_baseline`/`SignalSource` yok)
+  - `src/services/signal_baseline.py`: `SignalSource` ABC — gerçek beslemeler tek
+    `daily_signal(region_key, day)` metodunu uygulayarak takılır; pilot için
+    deterministik `SyntheticCommunicationSource` (hücre bazlı taban + hafta sonu
+    ritmi + günlük titreme, `sha256` tabanlı → süreçler arası yeniden üretilebilir,
+    **SENTETİK etiketiyle**, asla gerçek gibi sunulmaz); `PLANNED_SOURCE_KINDS`
+    (trafik/sosyal medya/sensör) arayüzü görünür kılar ama **uygulanmaz/hapsedilmez**;
+    `monitoring_cells` pilot kutusu üzerinde kaba satır×sütun hücresel ızgarası;
+    `compute_cell_baseline` as_of'tan önceki 30 günlük kayan pencerede
+    ortalama/yayılım/medyan/aralık öğrenir, son okumanın **z-skoru** ve
+    sessizlik oranını üretir (`candidate_silent = z ≤ -eşik`); anomali
+    sınıflandırıcısı bilinçli olarak EM-036'ya bırakıldı (kapsam disiplini);
+    `persistence: none` — baz çizgi okuma zamanı yeniden hesaplanır, hiçbir şey yazılmaz
+  - `src/routes/signal_baseline.py` `/api/v1/signal-baseline` (config + hücre
+    bazında rapor [kaynak/as_of/pencere/bölge/limit süzgeçleri] + tek hücre
+    uçları; 400/404 ayrımı) + `fastapi_app.py` kaydı; `settings.py` +
+    `.env.example` (`SIGNAL_BASELINE_WINDOW_DAYS`/`_CELL_ROWS`/`_CELL_COLS`/
+    `_MAX_CELLS`/`_SENSITIVITY_Z`/`_DEFAULT_SOURCE` + `SIGNAL_PILOT_MIN/MAX_LAT/LON`); `ui_states`'e
+    `signal_baseline`; `operator_map` Sinyal Baz Çizgisi paneli (kaynak seçici +
+    referans tarih + yalnızca-sessiz-adayı süzmesi + harita senkron hücre seçimi,
+    SENTETİK rozeti); 28 test
 - EM-096: Birleşik denetim kaydı — değişmez, alt-sistemler-arası hesap verebilirlik defteri (E10)
   - Yönetici, hangi alt sistemden gelirse gelsin **kimin hangi kararı/değişikliği ne
     zaman verdiğini** tek bir yerde görmek ve kayıtların sonradan değiştirilemez/

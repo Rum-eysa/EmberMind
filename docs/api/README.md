@@ -1123,6 +1123,32 @@ okuma hiçbir şey yazmaz ve mevcut alt-özellik denetim tablolarına dokunulmaz
 (yalnızca-eklenen `audit_trail`, **V030**). UI: `/ui` haritasındaki **Birleşik
 Denetim Kaydı** paneli (alan/aktör filtresi + alan sayımlı değişmez geçmiş).
 
+### Bölge Sinyal Baz Çizgisi (EM-035)
+```
+GET    /api/v1/signal-baseline/config                  # kullanılabilir+planlanan kaynaklar, pencere sınırları, ızgara, duyarlılık
+GET    /api/v1/signal-baseline                         # hücre bazında baz çizgi + son okumanın z-skoru (en sessiz önce)
+GET    /api/v1/signal-baseline/cells/{region_key}      # tek hücre baz çizgisi (bilinmeyen anahtar → 404)
+```
+Sessiz bölge **anomalisi**nin anlam kazanması için önce "normal" öğrenilir:
+her izleme hücresi için `as_of` gününden önceki kayan pencerede (varsayılan
+**30 gün**, `SIGNAL_BASELINE_WINDOW_DAYS`, 7–120 arası kırpılır) sinyal
+seviyesinin ortalaması/yayılımı/medyanı/aralığı hesaplanır; son okumanın
+z-skoru ve sessizlik oranı üretilir, `candidate_silent = z ≤ -eşik`
+(`SIGNAL_BASELINE_SENSITIVITY_Z`) sessizlik **ön göstergesidir** — çok
+özellikli anomali sınıflandırıcısı EM-036'nın kapsamıdır, burada öğrenilmez.
+Sinyal, takılabilir bir `SignalSource` arayüzünden gelir: pilot için tek
+uygulanan kaynak **deterministik sentetik** iletişim/rapor akışıdır
+(hücre bazlı taban + hafta sonu ritmi + günlük titreme; tüm yanıtlar
+`synthetic: true` + SENTETİK etiketiyle döner, asla gerçek gibi sunulmaz).
+Gerçek beslemeler (trafik yoğunluğu, sosyal medya, sensör) `planned` olarak
+listelenir ama bilinçli olarak uygulanmaz (ağ entegrasyonu bu görevin kapsamı
+dışı). Izgara `SIGNAL_BASELINE_CELL_ROWS`×`_CELL_COLS` (azami `_MAX_CELLS`),
+kutu pilot sınırlarından (`SIGNAL_PILOT_MIN/MAX_LAT/LON`) türetilir.
+Bilinmeyen kaynak/geçersiz `as_of` → `400`; **hiçbir şey yazılmaz**
+(`persistence: none`, okuma zamanı hesaplanır). UI: `/ui` haritasındaki
+**Sinyal Baz Çizgisi** paneli (kaynak seçici + referans tarih + yalnızca
+sessiz adayı süzmesi + harita senkron hücre seçimi).
+
 ## Error Codes
 
 - `200`: Başarılı

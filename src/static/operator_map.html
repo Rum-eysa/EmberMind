@@ -466,6 +466,36 @@
     #audit-panel .dom { display: inline-block; padding: 0 5px; border-radius: 8px;
       color: #fff; font-size: 10px; }
     #audit-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    /* EM-035: sinyal baz çizgisi — hücre bazında 30 günlük normal + z-skoru */
+    #signal-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 280px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #signal-panel h1 { margin-bottom: 4px; }
+    #signal-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #signal-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #signal-panel .bar label { display: block; margin: 2px 0; }
+    #signal-panel input[type=text], #signal-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #signal-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #signal-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #signal-panel .item:hover { background: rgba(33,102,172,.10); }
+    #signal-panel .item.sel { background: rgba(33,102,172,.18); }
+    #signal-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #signal-panel .nm { font-weight: 600; }
+    #signal-panel .z { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #signal-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #signal-panel .syn { color: #e65100; font-weight: 600; }
+    #signal-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #signal-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -504,6 +534,9 @@
       title="EM-094 olay & uyarı webhook'ları — uç nokta ve olay tiplerini yapılandır, imzalı gönder ve teslim geçmişini izle">Webhook'lar</button>
     <button type="button" id="audit-open"
       title="EM-096 birleşik denetim kaydı — hangi alt sistemden gelirse gelsin kim/ne zaman/hangi kararı-ğişikliği değiştiremez silinemez defterde gör">Denetim Kaydı</button>
+    <button type="button" id="signal-open"
+      title="EM-035 sinyal baz çizgisi — hücre bazında 30 günlük iletişim/rapor normali ve bugünkü sessizlik adayı">
+      Sinyal Baz Çizgisi</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -772,6 +805,21 @@
     <div id="audit-list"></div>
   </div>
 
+  <div id="signal-panel" class="panel" aria-live="polite">
+    <h1>Sinyal Baz Çizgisi <span id="signal-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Kaynak:
+        <select id="signal-source" aria-label="Sinyal kaynağı seçimi"></select>
+      </label>
+      <label>Referans tarih: <input type="text" id="signal-asof" size="10"
+        placeholder="boş = bugün"></label>
+      <label><input type="checkbox" id="signal-candidate" checked>
+        yalnızca sessiz adayı</label>
+      <div class="acts"><button type="button" id="signal-refresh">Yenile</button></div>
+    </div>
+    <div id="signal-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -861,6 +909,10 @@
   // EM-096: birleşik denetim kaydı paneli durumu.
   let auditPanelOpen = false;
   let auditConfigLoaded = false;
+  // EM-035: sinyal baz çizgisi paneli durumu.
+  let signalPanelOpen = false;
+  let signalConfigLoaded = false;
+  let signalHighlight = null;      // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -3316,6 +3368,117 @@
     await loadAudit();
   }
 
+  // --- EM-035: bölge bazlı sinyal baz çizgisi (sessizlik ön göstergesi) ----
+  const SIGNAL_API = "/api/v1/signal-baseline";
+  async function toggleSignalPanel() {
+    const panel = document.getElementById("signal-panel");
+    if (signalPanelOpen) {
+      signalPanelOpen = false;
+      panel.style.display = "none";
+      if (signalHighlight) { map.removeLayer(signalHighlight); signalHighlight = null; }
+      return;
+    }
+    signalPanelOpen = true;
+    panel.style.display = "block";
+    await loadSignalBaseline();
+  }
+  async function loadSignalBaseline() {
+    const box = document.getElementById("signal-list");
+    panelLoading(box, "signal_baseline");
+    try {
+      if (!signalConfigLoaded) { await loadSignalConfig(); }
+      const params = new URLSearchParams();
+      const src = document.getElementById("signal-source").value;
+      if (src) params.set("source", src);
+      const asof = document.getElementById("signal-asof").value.trim();
+      if (asof) params.set("as_of", asof);
+      const res = await fetch(`${SIGNAL_API}?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSignalList(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("signal_baseline", err.message);
+      setStatus(`Sinyal baz çizgisi alınamadı: ${err.message}`);
+    }
+  }
+  async function loadSignalConfig() {
+    const res = await fetch(`${SIGNAL_API}/config`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const cfg = await res.json();
+    const sel = document.getElementById("signal-source");
+    if (sel && !sel.options.length) {
+      for (const kind of (cfg.sources.available || [])) {
+        const op = document.createElement("option");
+        op.value = kind;
+        op.textContent = kind;
+        sel.appendChild(op);
+      }
+    }
+    signalConfigLoaded = true;
+  }
+  function renderSignalList(data) {
+    const box = document.getElementById("signal-list");
+    const countEl = document.getElementById("signal-count");
+    // Son yanıtı önbelleğe al: aday süzmesi sunucuya gitmeden yeniden işlenir.
+    box.dataset.signalLast = JSON.stringify(data);
+    let cells = (data.cells || []).slice();
+    const onlyCandidate = document.getElementById("signal-candidate").checked;
+    if (onlyCandidate) { cells = cells.filter(c => c.candidate_silent); }
+    if (countEl) {
+      countEl.textContent = `(${data.candidate_silent_count}/${data.cell_count})`;
+    }
+    box.innerHTML = "";
+    if (!cells.length) {
+      panelEmpty(box, "signal_baseline",
+        data.synthetic ? "Sessiz adayı yok — akış SENTETİK, gerçek uyarı değil." : null);
+      setStatus(`Sinyal baz çizgisi — ${data.as_of}: sessiz adayı yok — ${data.attribution}`);
+      return;
+    }
+    for (const cell of cells) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const color = cell.candidate_silent ? "#c62828" : "#2e7d32";
+      const syn = cell.synthetic ? ' <span class="syn">SENTETİK</span>' : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${escapeHtml(cell.name || cell.region_key)}</b>${syn}`
+        + `<br><span class="meta">baz ${escapeHtml(String(cell.baseline_mean))}`
+        + ` · son ${escapeHtml(String(cell.latest_value))}</span></span>`
+        + `<span class="z">z=${escapeHtml(String(cell.z_score))}</span>`;
+      const select = () => focusSignalCell(cell, row);
+      row.addEventListener("click", select);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+      box.appendChild(row);
+    }
+    setStatus(
+      `Sinyal baz çizgisi — ${data.as_of}, ${data.window_days} gün, `
+      + `sessiz aday ${data.candidate_silent_count} — ${data.attribution}`);
+  }
+  function focusSignalCell(cell, row) {
+    for (const el of document.querySelectorAll("#signal-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    // Harita senkron seçim: hücre sınırlarına odaklan ve vurgula.
+    const bounds = L.latLngBounds(
+      [[cell.min_lat, cell.min_lon], [cell.max_lat, cell.max_lon]]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+    if (signalHighlight) { map.removeLayer(signalHighlight); }
+    signalHighlight = L.rectangle(bounds, {
+      color: "#2166ac", weight: 3, dashArray: "6 4",
+      fillColor: "#2166ac", fillOpacity: 0.12,
+    }).addTo(map);
+    signalHighlight.bindPopup(
+      `<b>${escapeHtml(cell.name || cell.region_key)}</b><br>`
+      + `baz: ${escapeHtml(String(cell.baseline_mean))} ± ${escapeHtml(String(cell.baseline_std))}<br>`
+      + `son okuma: ${escapeHtml(String(cell.latest_value))} (z=${escapeHtml(String(cell.z_score))})`);
+    signalHighlight.openPopup();
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -3537,6 +3700,24 @@
     if (auditRefresh) auditRefresh.addEventListener("click", loadAudit);
     const auditFilterDomain = document.getElementById("audit-filter-domain");
     if (auditFilterDomain) auditFilterDomain.addEventListener("change", loadAudit);
+
+    // EM-035: sinyal baz çizgisi düğmeleri + kaynak/tarih/filtre seçimleri.
+    const signalBtn = document.getElementById("signal-open");
+    if (signalBtn) signalBtn.addEventListener("click", toggleSignalPanel);
+    const signalRefresh = document.getElementById("signal-refresh");
+    if (signalRefresh) signalRefresh.addEventListener("click", loadSignalBaseline);
+    const signalSource = document.getElementById("signal-source");
+    if (signalSource) signalSource.addEventListener("change", loadSignalBaseline);
+    const signalAsof = document.getElementById("signal-asof");
+    if (signalAsof) signalAsof.addEventListener("change", loadSignalBaseline);
+    const signalCandidate = document.getElementById("signal-candidate");
+    if (signalCandidate) signalCandidate.addEventListener("change", () => {
+      // Ön yüz süzme: son yanıt yeniden işlenir, sunucuya gidilmez.
+      const box = document.getElementById("signal-list");
+      if (box && box.dataset.signalLast) {
+        renderSignalList(JSON.parse(box.dataset.signalLast));
+      }
+    });
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

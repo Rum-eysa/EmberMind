@@ -36,6 +36,7 @@ PANEL_KEYS = (
     "shift_handover",
     "webhooks",
     "audit_trail",
+    "signal_baseline",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -157,6 +158,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Henüz denetim kaydı yok; karar/değişiklik oldukça buraya yazılır.",
         "error": "Denetim kaydı alınamadı.",
         "error_action": "Alan/aktör filtresini gözden geçirip yeniden deneyin.",
+    },
+    "signal_baseline": {
+        "title": "Sinyal Baz Çizgisi",
+        "loading": "Hücre bazında 30 günlük sinyal normali hesaplanıyor…",
+        "empty": "Seçili filtrede izleme hücresi yok; ızgara aralığını gözden geçirin.",
+        "error": "Sinyal baz çizgisi alınamadı.",
+        "error_action": "Kaynak ve tarih seçimini kontrol edip yeniden deneyin.",
     },
 }
 

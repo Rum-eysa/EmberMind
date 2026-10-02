@@ -427,6 +427,29 @@ class Config:
     AUDIT_DEFAULT_LIMIT = int(os.getenv("AUDIT_DEFAULT_LIMIT", "50"))
     AUDIT_MAX_LIMIT = int(os.getenv("AUDIT_MAX_LIMIT", "500"))
 
+    # EM-035: bölge bazlı iletişim sinyali baz çizgisi (Epic E4)
+    # Sessiz bölge anomalisinin anlam kazanması için önce "normal" öğrenilir:
+    # her izleme hücresi için kayan baz çizgi (ortalama/yayılım/medyan) ve son
+    # okumanın z-skoru okuma zamanı hesaplanır (kalıcılık: none). Pencere gün
+    # sayısı, hücresel ızgara boyutu (satır x sütun, azami hücre ile sınırlı),
+    # sessizlik eşiği z-skoru ve pilot varsayılan sinyal kaynağı.
+    SIGNAL_BASELINE_WINDOW_DAYS = int(os.getenv("SIGNAL_BASELINE_WINDOW_DAYS", "30"))
+    SIGNAL_BASELINE_CELL_ROWS = int(os.getenv("SIGNAL_BASELINE_CELL_ROWS", "4"))
+    SIGNAL_BASELINE_CELL_COLS = int(os.getenv("SIGNAL_BASELINE_CELL_COLS", "5"))
+    SIGNAL_BASELINE_MAX_CELLS = int(os.getenv("SIGNAL_BASELINE_MAX_CELLS", "60"))
+    SIGNAL_BASELINE_SENSITIVITY_Z = float(
+        os.getenv("SIGNAL_BASELINE_SENSITIVITY_Z", "1.5")
+    )
+    SIGNAL_BASELINE_DEFAULT_SOURCE = os.getenv(
+        "SIGNAL_BASELINE_DEFAULT_SOURCE", "synthetic_communication"
+    )
+    # Hücre izgarasının oturtulduğu pilot kutusu (config/pilot_region.json ile
+    # aynı varsayılanlar); yeniden kapsamlanan pilot için kod değişikliği gerekmez.
+    SIGNAL_PILOT_MIN_LAT = float(os.getenv("SIGNAL_PILOT_MIN_LAT", "36.0"))
+    SIGNAL_PILOT_MAX_LAT = float(os.getenv("SIGNAL_PILOT_MAX_LAT", "39.5"))
+    SIGNAL_PILOT_MIN_LON = float(os.getenv("SIGNAL_PILOT_MIN_LON", "26.0"))
+    SIGNAL_PILOT_MAX_LON = float(os.getenv("SIGNAL_PILOT_MAX_LON", "30.0"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

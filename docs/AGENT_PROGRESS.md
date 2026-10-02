@@ -72,6 +72,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 39 | EM-034 Kapasite varsayımları yönetim ekranı — denetim kaydı (#34) | E3 | DONE | EM-028 düzenleme yüzeyini (tip başına `ha/saat` + doğrulama + panel) zaten vermişti; ama yalnızca **tek `updated_by` kolonu** tutulur, eski değer/kim/ne zaman geçmişi hiç olmaz — "değişiklik denetim kaydına yazılır" (kabul #2) gerçek boşluk; `capacity_assumption_audit` modeli + **V028** (her gerçek değişim için `resource_type/old/new/updated_by` + damga, salt-additive, kapasite matematiğini beslemez); `update_assumptions` değer gerçekten değişince denetim yazar (aynı değeri tekrar kaydetme üretmez) + `applied_count` döner, yeni `list_audit` (yeniden eskiye + tip filtresi + `[1,MAX]` kırpma); `PUT` gövdesine `updated_by`, `GET /api/v1/capacity/assumptions/audit`; `risk_panel` kartına **Düzenleyen** + Değişiklik geçmişi tablosu (açılışta + kayıt sonrası yenilenir); `CAPACITY_AUDIT_DEFAULT/MAX_LIMIT`; 17 test |
 | 40 | EM-094 Olay ve uyarı webhook'ları (#94) | E9 | DONE | Bütünleştirici olay/uyarıların alt sistem servisine anında **itilmesini** ister (kabul: URL+olay tipleri yapılandırılabilir / imzalı istek + yeniden deneme / teslim geçmişi görüntülenebilir) — canlı akış (EM-090) + bildirim merkezi (EM-086) yalnızca **çekme**; dışa dönük imzalı itme kanadı hiç yoktu (`webhook` kod tabanında tamamen yok); `webhook_subscriptions` + salt-eklenen `webhook_deliveries` defteri (**V029**; `as_dict` gizli anahtarı maskele→`has_secret`); `signature_for` `"<ts>.<body>"` HMAC-SHA256 (`X-EmberMind-Signature: t=…,v1=…`); CRUD (URL http(s) + olay tipleri `LIVE_KINDS` kataloğuna karşı + azami); `dispatch_event` en son feed olaylarını imzalar (`dry_run`/`simulate_fail_for`), `retry_due` sınırlı üstel geri çekilme bütçesini tek kapı olarak uygular, `record_attempt` taşıyıcı düğümü; **gerçek HTTPS taşıyıcısı bilerek çağrılmaz** (EM-069 emsali: canlı ağ gönderimi "teslim edildi" diye sahtelenmez — defter imzalı isteğin kalıcı kaydı); `/api/v1/webhooks/*` + config/overview/subscriptions/dispatch/preview/attempt/retry/deliveries; `WEBHOOK_MAX_SUBSCRIPTIONS/DELIVERIES/RETRIES/BACKOFF_SECONDS`; `ui_states`'e `webhooks`; `operator_map` Webhook'lar paneli (abonelik formu + Dağıt/Yeniden Dene + imzalı teslim geçmişi); 32 test |
 | 41 | EM-096 Birleşik denetim kaydı (#96) | E10 | DONE | Yönetici hangi alt sistemden gelirse gelsin **kimin hangi kararı/değişikliği ne zaman verdiğini** tek yerde görmek ve kayıtların **değiştirilemez/silinemez** olmasını ister (kabul: "kabul/ret, senaryo, eşik/kapasite varsayımı değişiklikleri kim/ne zaman/ne ile kaydedilir. Kayıtlar silinemez") — bugüne dek denetim **parça parça**ydı (kapasite `capacity_assumption_audit` EM-034, kararlar `recommendation_decisions` EM-047, paylaşım/webhook kendi tabloları); tek, birleşik ve değişmez bir defter yoktu (`audit_trail`/birleşik uç kod tabanında tamamen yok); `AuditTrailEntry` + yalnızca-eklenen **V030** (alan+eylem+özne anahtarı+**aktör**+`summary`+`old_value`/`new_value` JSON anlık görüntüsü); `record_audit` kontrollü sözlükleri doğrular (bilinmeyen alan/eylem + boş aktör/özet→`AuditError`), `list_audit` öksüzden eskiye + alan/aktör/özne filtresi + `AUDIT_MAX_LIMIT` kırpma, `audit_config` sözlükler + değişmezlik politikası, `count_by_domain` panel sayacı; **uygulama dikişinde güncelleme/silme/temizleme fonksiyonu YOKTUR** ("kayıtlar silinemez" garantisi budur; okuma hiçbir şey yazmaz); `/api/v1/audit` config + özet beslemesi + tek POST (güncelle/sil UÇLARI BİLİNÇLİ YOK); `AUDIT_DEFAULT/MAX_LIMIT`; `ui_states`'e `audit_trail`; `operator_map` Birleşik Denetim Kaydı paneli (alan/aktör filtresi + yeni kayıt + alan sayımlı değişmez geçmiş); 21 test |
+| 42 | EM-035 Bölge bazlı sinyal baz çizgisi (#35) | E4 | DONE | Sessiz bölge **anomalisi**nin anlam kazanması için önce "normal" öğrenilir (kabul: yangın öncesi sinyal seviyesinin hücre bazlı normal değeri + 30 günlük baz çizgi hücre bazında + sentetik iletişim/rapor akışı, gerçek kaynak arayüzü soyutlanır) — EM-078 yalnızca operatör kayıtlarının güven bandını canlı yangınlarla derecelendiriyordu; sinyal baz çizgisi/`SignalSource` soyutlaması hiç yoktu; `signal_baseline.py` (persistence none): `SignalSource` ABC + deterministik `SyntheticCommunicationSource` (sha256; SENTETİK etiketli, asla gerçek gibi sunulmaz; trafik/sosyal medya/sensör `planned` — uygulanmaz/hapsedilmez, ağ yok), `monitoring_cells` satır×sütun ızgarası, `compute_cell_baseline` kayan 30 günde ortalama/yayılım/medyan/aralık + son okumanın z-skoru (`candidate_silent = z ≤ -eşik`; anomali sınıflandırıcısı EM-036'ya bırakıldı), en-sessiz-önce rapor; `/api/v1/signal-baseline` + `/config` + `/cells/{key}` (kötü kaynak/tarih→400, bilinmeyen hücre→404); `SIGNAL_BASELINE_*` + `SIGNAL_PILOT_*`; `ui_states`'e `signal_baseline`; `operator_map` paneli (kaynak seçici + referans tarih + yalnızca-sessiz-adayı + harita senkron hücre seçimi); 28 test |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1324,11 +1325,44 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1114** (1093 + 21 yeni).
 - **Commit:** `feat(EM-096): ...` (bu dal).
 
+### EM-035 — Bölge bazlı sinyal baz çizgisi (#35) — DONE
+- **Eksik analizi:** Sessiz bölge **anomalisi**nin anlam kazanması için önce
+  bölgenin "normal"inin öğrenilmesi gerekir (kabul: "yangın öncesi sinyal
+  seviyesinin bölge (hücre) bazlı normal değeri öğrenilir; 30 günlük baz çizgi
+  hücre bazında hesaplanır; sinyal kaynağı pilot için sentetik
+  iletişim/rapor akışı, gerçek kaynak arayüzü (trafik/sosyal medya/sensör)
+  soyutlanır"). EM-078 paneli yalnızca operatör kayıtlarının **güven bandını**
+  canlı yangınlarla derecelendiriyordu; sinyal/iletişim baz çizgisi ve kaynak
+  soyutlaması hiç yoktu (`signal_baseline`/`SignalSource` kod tabanında yok).
+- **Kapsam kararları:** anomali sınıflandırıcısı (EM-036 Isolation Forest,
+  ağır ML → kapsam dışı) burada **öğrenilmez**; `z_score`/`candidate_silent`
+  yalnızca istatistiksel ön göstergedir. Gerçek beslemeler `planned` olarak
+  listelenir ama **uygulanmaz/hapsedilmez** (ağ yok). Deterministik sentetik
+  akış `sha256` ile süreçler arası yeniden üretilebilir ve her yanıtta
+  SENTETİK etiketi taşır. `persistence: none` — model/migration yok.
+- **Uygulama:** `signal_baseline.py` servisi: `SignalSource` ABC (tek
+  `daily_signal(region_key, day)` — gerçek beslemeler buraya takılır),
+  `SyntheticCommunicationSource` (hücre tabanı + hafta sonu ritmi + titreme),
+  `monitoring_cells` pilot kutusunda satır×sütun ızgarası (`SB-RrCc`),
+  `compute_cell_baseline` as_of'tan önceki kayan 30 günde
+  ortalama/yayılım/medyan/aralık + son okumanın z-skoru/sessizlik oranı
+  (`candidate_silent = z ≤ -eşik`), `baseline_report` en-sessiz-önce +
+  kaynak/tarih/bölge/limit süzgeçleri, `baseline_config` kataloglar.
+  `/api/v1/signal-baseline` + `/config` + `/cells/{region_key}`
+  (bilinmeyen kaynak/tarih→400, bilinmeyen hücre→404); `settings.py` +
+  `.env.example` (`SIGNAL_BASELINE_*` + `SIGNAL_PILOT_*` kutusu);
+  `ui_states`'e `signal_baseline`; `operator_map` Sinyal Baz Çizgisi paneli
+  (kaynak seçici + referans tarih + yalnızca-sessiz-adayı süzmesi + harita
+  senkron hücre seçimi + SENTETİK rozeti); 28 test
+- **Kapılar:** black(temiz, 222)/mypy(Success, 147 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1142** (1114 + 28 yeni).
+- **Commit:** `feat(EM-035): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1341,8 +1375,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 219 değişmez · mypy Success (145 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1114 passed**.
+- **Final kapılar:** black 222 değişmez · mypy Success (147 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1142 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
