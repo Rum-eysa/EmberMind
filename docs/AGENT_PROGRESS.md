@@ -71,6 +71,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 38 | EM-089 Vardiya devri notları ve olay notu ekleme (#89) | E8 | DONE | Canlı akış (EM-090), kabul edilen öneriler (EM-047) ve zaman çizelgesi (EM-081) makine üretimidir — operatörün serbest metin yazabileceği **kalıcı bir not yüzeyi** ve insan yorumunu makine görünümüyle birleştiren **devir özeti** hiç yoktu; `event_notes` modeli + **V027** (olay başına `event_key/body/author`, salt-additive); `shift_handover.py`: `add_note` (boş not/tanınmayan olay yükseltir), `list_notes` (yeniden eskiye + olay filtresi + `MAX_NOTES` kırpma), `get/delete_note`, `handover_summary` — aktif olay kartları (EM-082 kadro+çakışma) ile notları EM-081 kronolojik akışında **okuma zamanında** birleştirir, notlar `operator_note` kategorisiyle akışa katılır (**EM-081'in 4-kategori kümesi/testlerine dokunulmadı** — bu yüzden ayrı servis); `GET /api/v1/shift-handover` + `/notes` GET/POST, `/notes/{id}` GET/DELETE, `/config` (tanınmayan olay→404, boş→400); `ui_states`'e `shift_handover` anahtarı; UI Vardiya Devri paneli (form + Ekle/Yenile/Sil + Devir Özetini Oluştur, haritadan olay önceden doldurulur); `SHIFT_HANDOVER_MAX_NOTES`; 27 test |
 | 39 | EM-034 Kapasite varsayımları yönetim ekranı — denetim kaydı (#34) | E3 | DONE | EM-028 düzenleme yüzeyini (tip başına `ha/saat` + doğrulama + panel) zaten vermişti; ama yalnızca **tek `updated_by` kolonu** tutulur, eski değer/kim/ne zaman geçmişi hiç olmaz — "değişiklik denetim kaydına yazılır" (kabul #2) gerçek boşluk; `capacity_assumption_audit` modeli + **V028** (her gerçek değişim için `resource_type/old/new/updated_by` + damga, salt-additive, kapasite matematiğini beslemez); `update_assumptions` değer gerçekten değişince denetim yazar (aynı değeri tekrar kaydetme üretmez) + `applied_count` döner, yeni `list_audit` (yeniden eskiye + tip filtresi + `[1,MAX]` kırpma); `PUT` gövdesine `updated_by`, `GET /api/v1/capacity/assumptions/audit`; `risk_panel` kartına **Düzenleyen** + Değişiklik geçmişi tablosu (açılışta + kayıt sonrası yenilenir); `CAPACITY_AUDIT_DEFAULT/MAX_LIMIT`; 17 test |
 | 40 | EM-094 Olay ve uyarı webhook'ları (#94) | E9 | DONE | Bütünleştirici olay/uyarıların alt sistem servisine anında **itilmesini** ister (kabul: URL+olay tipleri yapılandırılabilir / imzalı istek + yeniden deneme / teslim geçmişi görüntülenebilir) — canlı akış (EM-090) + bildirim merkezi (EM-086) yalnızca **çekme**; dışa dönük imzalı itme kanadı hiç yoktu (`webhook` kod tabanında tamamen yok); `webhook_subscriptions` + salt-eklenen `webhook_deliveries` defteri (**V029**; `as_dict` gizli anahtarı maskele→`has_secret`); `signature_for` `"<ts>.<body>"` HMAC-SHA256 (`X-EmberMind-Signature: t=…,v1=…`); CRUD (URL http(s) + olay tipleri `LIVE_KINDS` kataloğuna karşı + azami); `dispatch_event` en son feed olaylarını imzalar (`dry_run`/`simulate_fail_for`), `retry_due` sınırlı üstel geri çekilme bütçesini tek kapı olarak uygular, `record_attempt` taşıyıcı düğümü; **gerçek HTTPS taşıyıcısı bilerek çağrılmaz** (EM-069 emsali: canlı ağ gönderimi "teslim edildi" diye sahtelenmez — defter imzalı isteğin kalıcı kaydı); `/api/v1/webhooks/*` + config/overview/subscriptions/dispatch/preview/attempt/retry/deliveries; `WEBHOOK_MAX_SUBSCRIPTIONS/DELIVERIES/RETRIES/BACKOFF_SECONDS`; `ui_states`'e `webhooks`; `operator_map` Webhook'lar paneli (abonelik formu + Dağıt/Yeniden Dene + imzalı teslim geçmişi); 32 test |
+| 41 | EM-096 Birleşik denetim kaydı (#96) | E10 | DONE | Yönetici hangi alt sistemden gelirse gelsin **kimin hangi kararı/değişikliği ne zaman verdiğini** tek yerde görmek ve kayıtların **değiştirilemez/silinemez** olmasını ister (kabul: "kabul/ret, senaryo, eşik/kapasite varsayımı değişiklikleri kim/ne zaman/ne ile kaydedilir. Kayıtlar silinemez") — bugüne dek denetim **parça parça**ydı (kapasite `capacity_assumption_audit` EM-034, kararlar `recommendation_decisions` EM-047, paylaşım/webhook kendi tabloları); tek, birleşik ve değişmez bir defter yoktu (`audit_trail`/birleşik uç kod tabanında tamamen yok); `AuditTrailEntry` + yalnızca-eklenen **V030** (alan+eylem+özne anahtarı+**aktör**+`summary`+`old_value`/`new_value` JSON anlık görüntüsü); `record_audit` kontrollü sözlükleri doğrular (bilinmeyen alan/eylem + boş aktör/özet→`AuditError`), `list_audit` öksüzden eskiye + alan/aktör/özne filtresi + `AUDIT_MAX_LIMIT` kırpma, `audit_config` sözlükler + değişmezlik politikası, `count_by_domain` panel sayacı; **uygulama dikişinde güncelleme/silme/temizleme fonksiyonu YOKTUR** ("kayıtlar silinemez" garantisi budur; okuma hiçbir şey yazmaz); `/api/v1/audit` config + özet beslemesi + tek POST (güncelle/sil UÇLARI BİLİNÇLİ YOK); `AUDIT_DEFAULT/MAX_LIMIT`; `ui_states`'e `audit_trail`; `operator_map` Birleşik Denetim Kaydı paneli (alan/aktör filtresi + yeni kayıt + alan sayımlı değişmez geçmiş); 21 test |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1287,11 +1288,47 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **1093** (1061 + 32 yeni).
 - **Commit:** `feat(EM-094): ...` (bu dal).
 
+### EM-096 — Birleşik denetim kaydı (#96) — DONE
+- **Eksik analizi:** Yönetici, hangi alt sistemden gelirse gelsin **kimin hangi
+  kararı/değişikliği ne zaman verdiğini** tek bir yerde görmek ve kayıtların
+  sonradan değiştirilemez/silinemez olmasını ister (kabul kriteri: "kabul/ret,
+  senaryo, eşik/kapasite varsayımı değişiklikleri kim/ne zaman/ne ile kaydedilir.
+  Kayıtlar silinemez"). Bugüne dek denetim **parça parça**ydı: kapasite
+  `capacity_assumption_audit` (EM-034), kararlar `recommendation_decisions`
+  (EM-047), paylaşım/webhook kendi tabloları. `git grep audit_trail` ve birleşik
+  uç **hiçbir şey** döndürmedi → tek, birleşik, değişmez bir hesap verebilirlik
+  defteri gerçek bir boşluk. E10 (auth/identity KISMI kapsam dışı; buradaki gerçek
+  kod boşluğu **değişmezlik + birleşik okuma modeli**). E10 Must.
+- **Kapsam:** `src/models/audit_trail.py` (`AuditTrailEntry`; `as_dict` JSON
+  anlık görüntülerini çözümler) + `scripts/migration/V030__unified_audit_trail.sql`,
+  `src/services/audit_trail.py` (`record_audit`/`list_audit`/`audit_config`/
+  `count_by_domain` + `AUDIT_DOMAINS`/`AUDIT_ACTIONS` kontrollü sözlükleri),
+  `src/routes/audit_trail.py` (`/api/v1/audit` config + özet + tek POST),
+  `fastapi_app.py` kaydı, `settings.py` + `.env.example`
+  (`AUDIT_DEFAULT_LIMIT`/`AUDIT_MAX_LIMIT`), `ui_states.py` (`audit_trail`),
+  `operator_map.html` (Birleşik Denetim Kaydı paneli),
+  `tests/unit/test_audit_trail.py` (21 test), CHANGELOG + docs/api + models/__init__.
+- **Varsayımlar:** (1) birleşik defter **yalnızca-eklenen**dir — mevcut alt-özellik
+  denetim tablolarına (EM-034/EM-047) dokunulmaz, onları beslemez/fork etmez; (2)
+  "kayıtlar silinemez" garantisi servis ve rota yüzeyinde **güncelleme/silme/
+  temizleme fonksiyonlarının yokluğu** ile verilir (pozitif bir kilit değil);
+  (3) okuma hiçbir şey yazmaz, defter tohumlanmaz → dokunulmamış sistem boş liste;
+  (4) `actor` zorunlu — sistemi kendi başına çıkaramayacağı "kim" alanıdır;
+  (5) auth/identity yok (E10), `subject_key`/`summary` opsiyonel ve kolon genişliğine kırpılır.
+- **Kanıt:** geçersiz alan/eylem + boş aktör/özet→`AuditError`; tek kayıt alan/
+  eylem/aktör/JSON anlık görüntüsüyle döner; öksüzden-eskiye sıralama; alan/aktör/
+  özne filtresi; `AUDIT_MAX_LIMIT` kırpma; `count_by_domain` alan sayımları;
+  `audit_config` sözlükler + `immutable`/`persistence=append_only`; yüzeyde
+  güncelle/sil fonksiyonu **yok**; uçlar POST→200 + GET özet/config + geçersiz→400.
+- **Kapılar:** black(temiz, 219)/mypy(Success, 145 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1114** (1093 + 21 yeni).
+- **Commit:** `feat(EM-096): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1304,8 +1341,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 215 değişmez · mypy Success (142 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1093 passed**.
+- **Final kapılar:** black 219 değişmez · mypy Success (145 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1114 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

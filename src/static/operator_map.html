@@ -441,6 +441,31 @@
       color: #fff; font-size: 10px; }
     #webhook-panel .head2 { font-weight: 600; margin: 6px 0 2px; }
     #webhook-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    /* EM-096: birleşik denetim kaydı — değişmez kim/ne zaman/ne defteri */
+    #audit-panel {
+      position: absolute; top: 70px; right: 630px; z-index: 1000;
+      width: 360px; max-height: 72vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #audit-panel h1 { margin-bottom: 4px; }
+    #audit-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #audit-panel .summary { color: var(--text-secondary); margin: 0 0 6px; }
+    #audit-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #audit-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #audit-panel .bar label { display: block; margin: 2px 0; }
+    #audit-panel input[type=text], #audit-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #audit-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #audit-panel .acts { margin-top: 4px; display: flex; gap: 6px; }
+    #audit-panel .row { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #audit-panel .row .meta { color: var(--text-secondary); font-weight: 400; word-break: break-word; }
+    #audit-panel .dom { display: inline-block; padding: 0 5px; border-radius: 8px;
+      color: #fff; font-size: 10px; }
+    #audit-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -477,6 +502,8 @@
       title="EM-089 vardiya devri notları — olaya not ekle, notları zaman çizelgesinde gör, tek tıkla devir özeti oluştur">Vardiya Devri</button>
     <button type="button" id="webhook-open"
       title="EM-094 olay & uyarı webhook'ları — uç nokta ve olay tiplerini yapılandır, imzalı gönder ve teslim geçmişini izle">Webhook'lar</button>
+    <button type="button" id="audit-open"
+      title="EM-096 birleşik denetim kaydı — hangi alt sistemden gelirse gelsin kim/ne zaman/hangi kararı-ğişikliği değiştiremez silinemez defterde gör">Denetim Kaydı</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -710,6 +737,41 @@
     <div id="webhook-history"></div>
   </div>
 
+  <div id="audit-panel" class="panel" aria-live="polite">
+    <h1>Birleşik Denetim Kaydı <span id="audit-count" class="count"></span></h1>
+    <div class="summary" id="audit-summary"></div>
+    <div class="bar">
+      <label>Filtre — Alan:
+        <select id="audit-filter-domain"><option value="">tümü</option></select>
+      </label>
+      <label>Aktör: <input type="text" id="audit-filter-actor" size="14"
+        placeholder="boş = tümü"></label>
+      <div class="acts">
+        <button type="button" id="audit-refresh">Yenile</button>
+      </div>
+    </div>
+    <div class="head2">Yeni Denetim Kaydı Ekle</div>
+    <div class="bar">
+      <label>Alan:
+        <select id="audit-domain"></select>
+      </label>
+      <label>Eylem:
+        <select id="audit-action"></select>
+      </label>
+      <label>Aktör: <input type="text" id="audit-actor" size="14"
+        placeholder="kim (zorunlu)"></label>
+      <label>Özne anahtarı: <input type="text" id="audit-subject" size="18"
+        placeholder="ör. EVT-… / üs anahtarı"></label>
+      <label>Özet: <input type="text" id="audit-summary-text" size="28"
+        placeholder="ne oldu (tek satır)"></label>
+      <div class="acts">
+        <button type="button" id="audit-add">Kaydet</button>
+      </div>
+    </div>
+    <div class="head2">Değişmez Geçmiş</div>
+    <div id="audit-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -796,6 +858,9 @@
   let handoverPanelOpen = false;
   // EM-094: olay & uyarı webhook'ları paneli durumu.
   let webhookPanelOpen = false;
+  // EM-096: birleşik denetim kaydı paneli durumu.
+  let auditPanelOpen = false;
+  let auditConfigLoaded = false;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -3115,6 +3180,142 @@
     await loadWebhooks();
   }
 
+  // --- EM-096: birleşik, değişmez denetim kaydı ---------------------------
+  const AUDIT_API = "/api/v1/audit";
+  async function toggleAuditPanel() {
+    const panel = document.getElementById("audit-panel");
+    if (auditPanelOpen) {
+      auditPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    auditPanelOpen = true;
+    panel.style.display = "block";
+    await loadAudit();
+  }
+  async function loadAudit() {
+    const box = document.getElementById("audit-list");
+    panelLoading(box, "audit_trail");
+    try {
+      if (!auditConfigLoaded) { await loadAuditConfig(); }
+      const params = new URLSearchParams();
+      const domSel = document.getElementById("audit-filter-domain");
+      const actorEl = document.getElementById("audit-filter-actor");
+      if (domSel && domSel.value) params.set("domain", domSel.value);
+      if (actorEl && actorEl.value.trim()) params.set("actor", actorEl.value.trim());
+      const qs = params.toString();
+      const res = await fetch(AUDIT_API + (qs ? `?${qs}` : ""));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderAudit(data);
+    } catch (err) {
+      if (box) { box.innerHTML = panelErrorHtml("audit_trail", err.message); }
+      setStatus(`Denetim kaydı alınamadı: ${err.message}`);
+    }
+  }
+  async function loadAuditConfig() {
+    try {
+      const res = await fetch(AUDIT_API + "/config");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const cfg = await res.json();
+      fillAuditSelect("audit-domain", cfg.domains || []);
+      fillAuditSelect("audit-action", cfg.actions || []);
+      fillAuditSelect("audit-filter-domain", cfg.domains || [], true);
+      auditConfigLoaded = true;
+    } catch (err) {
+      setStatus(`Denetim sözlüğü yüklenemedi: ${err.message}`);
+    }
+  }
+  function fillAuditSelect(id, values, withAll) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = "";
+    if (withAll) {
+      const all = document.createElement("option");
+      all.value = "";
+      all.textContent = "tümü";
+      sel.appendChild(all);
+    }
+    for (const v of values) {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
+    }
+  }
+  function renderAudit(data) {
+    const box = document.getElementById("audit-list");
+    const countEl = document.getElementById("audit-count");
+    const sum = document.getElementById("audit-summary");
+    const entries = data.entries || [];
+    if (countEl) { countEl.textContent = `(${data.total_matching || 0} kayıt)`; }
+    if (sum) {
+      const counts = data.counts_by_domain || {};
+      const parts = Object.keys(counts).map(d => `${d}: ${counts[d]}`);
+      sum.textContent = (data.immutable ? "Değişmez defter · " : "")
+        + (parts.length ? parts.join(" · ") : "kayıt yok");
+    }
+    box.innerHTML = "";
+    if (!entries.length) {
+      panelEmpty(box, "audit_trail", "Filtrede denetim kaydı yok.");
+      return;
+    }
+    for (const e of entries) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const diff = `${fmtAuditVal(e.old_value)} → ${fmtAuditVal(e.new_value)}`;
+      row.innerHTML =
+        `<span class="dom">${escapeHtml(e.domain)}</span>`
+        + ` <strong>${escapeHtml(e.action)}</strong>`
+        + ` <span class="meta">${escapeHtml(e.created_at || "")}</span>`
+        + `<div class="meta"><strong>${escapeHtml(e.actor || "?")}</strong>`
+        + (e.subject_key ? ` · özne ${escapeHtml(e.subject_key)}` : "") + `</div>`
+        + `<div class="meta">${escapeHtml(e.summary || "")}</div>`
+        + `<div class="meta">${diff}</div>`;
+      box.appendChild(row);
+    }
+    setStatus(`Denetim kaydı — ${data.attribution}`);
+  }
+  function fmtAuditVal(v) {
+    if (v === null || v === undefined) return "—";
+    if (typeof v === "object") {
+      try { return JSON.stringify(v); } catch (_e) { return "{…}"; }
+    }
+    return String(v);
+  }
+  async function addAuditEntry() {
+    const domSel = document.getElementById("audit-domain");
+    const actSel = document.getElementById("audit-action");
+    const actorEl = document.getElementById("audit-actor");
+    const subjEl = document.getElementById("audit-subject");
+    const sumEl = document.getElementById("audit-summary-text");
+    const body = {
+      domain: domSel ? domSel.value : "",
+      action: actSel ? actSel.value : "",
+      actor: actorEl ? actorEl.value.trim() : "",
+      subject_key: subjEl && subjEl.value.trim() ? subjEl.value.trim() : null,
+      summary: sumEl && sumEl.value.trim() ? sumEl.value.trim() : null,
+    };
+    try {
+      const res = await fetch(AUDIT_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        throw new Error((d.detail && d.detail.error) || `HTTP ${res.status}`);
+      }
+      setStatus(`Denetim kaydı eklendi (silinemez): ${d.entry.audit_key}`);
+      if (actorEl) { actorEl.value = ""; }
+      if (subjEl) { subjEl.value = ""; }
+      if (sumEl) { sumEl.value = ""; }
+    } catch (err) {
+      setStatus(`Denetim kaydı eklenemedi: ${err.message}`);
+    }
+    await loadAudit();
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -3326,6 +3527,16 @@
     if (webhookRetry) webhookRetry.addEventListener("click", retryWebhooks);
     const webhookRefresh = document.getElementById("webhook-refresh");
     if (webhookRefresh) webhookRefresh.addEventListener("click", loadWebhooks);
+
+    // EM-096: denetim kaydı düğmeleri + filtre/ekleme formu.
+    const auditBtn = document.getElementById("audit-open");
+    if (auditBtn) auditBtn.addEventListener("click", toggleAuditPanel);
+    const auditAdd = document.getElementById("audit-add");
+    if (auditAdd) auditAdd.addEventListener("click", addAuditEntry);
+    const auditRefresh = document.getElementById("audit-refresh");
+    if (auditRefresh) auditRefresh.addEventListener("click", loadAudit);
+    const auditFilterDomain = document.getElementById("audit-filter-domain");
+    if (auditFilterDomain) auditFilterDomain.addEventListener("change", loadAudit);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

@@ -1101,6 +1101,28 @@ defter imzalı isteğin kalıcı kaydıdır ve `record_attempt` / `dispatch_even
 / `retry` uçları başarısızlık + yeniden-deneme yolunu belirlenimci biçimde çalıştırır.
 UI: `/ui` haritasındaki **Webhook'lar** paneli.
 
+### Birleşik Denetim Kaydı (EM-096)
+```
+GET    /api/v1/audit/config                            # kontrollü sözlükler (alan/eylem) + değişmezlik politikası + sınırlar
+GET    /api/v1/audit                                   # panel beslemesi: değişmez kayıtlar (öksüzden eskiye) + alan bazlı sayım
+POST   /api/v1/audit                                    # tek bir değişmez hesap verebilirlik kaydı ekle (kim/ne zaman/ne)
+```
+Yönetici, hangi alt sistemden gelirse gelsin **kimin hangi kararı/değişikliği ne
+zaman verdiğini** tek bir yerde görmek ve kayıtların sonradan değiştirilemez/
+silinemez olmasını ister. Bugüne dek denetim **parça parça**ydı (kapasite
+`capacity_assumption_audit` EM-034, kararlar `recommendation_decisions` EM-047,
+webhook/abonelik kendi tabloları); tek, birleşik ve değişmez bir defter yoktu.
+Her kayıt bir **alan** (`recommendation` / `capacity_assumption` / `threshold` /
+`scenario` / `share_policy` / `webhook` / `general`), bir **eylem** (`create` /
+`update` / `delete` / `accept` / `reject` / `edit` / `enable` / `disable` /
+`publish`), zorunlu bir **aktör**, opsiyonel bir özne anahtarı ve `old_value` →
+`new_value` JSON anlık görüntüleri taşır; bilinmeyen alan/eylem veya boş aktör
+`400` ile reddedilir. Servis yüzeyinde ve rota katmanında **güncelleme/silme/
+temizleme UÇLARI BİLİNÇLİ OLARAK YOKTUR** — "kayıtlar silinemez" garantisi budur;
+okuma hiçbir şey yazmaz ve mevcut alt-özellik denetim tablolarına dokunulmaz
+(yalnızca-eklenen `audit_trail`, **V030**). UI: `/ui` haritasındaki **Birleşik
+Denetim Kaydı** paneli (alan/aktör filtresi + alan sayımlı değişmez geçmiş).
+
 ## Error Codes
 
 - `200`: Başarılı

@@ -1,4 +1,5 @@
 """Persisted wildfire models."""
+from .audit_trail import AuditTrailEntry
 from .capacity import CapacityAssumption
 from .capacity_audit import CapacityAssumptionAudit
 from .crossborder_notification import CrossborderNotification
@@ -34,6 +35,7 @@ from .webhook import WebhookDelivery, WebhookSubscription
 from .weather import WeatherDataPoint
 
 __all__ = [
+    "AuditTrailEntry",
     "CapacityAssumption",
     "CapacityAssumptionAudit",
     "CrossborderNotification",

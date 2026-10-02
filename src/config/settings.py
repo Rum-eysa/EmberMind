@@ -417,6 +417,16 @@ class Config:
     WEBHOOK_MAX_RETRIES = int(os.getenv("WEBHOOK_MAX_RETRIES", "3"))
     WEBHOOK_BACKOFF_SECONDS = int(os.getenv("WEBHOOK_BACKOFF_SECONDS", "30"))
 
+    # EM-096: birleşik denetim kaydı (Epic E10)
+    # Yönetici, hangi alt sistemden gelirse gelsin kimin hangi kararı/ğişikliği
+    # ne zaman verdiğini tek, değişmez bir defterde görmek ister. Kayıt başına
+    # alan (domain) + eylem (action) + özne + aktör + eski/yeni değer anlık
+    # görüntüsü tutulur. Servis yüzeyinde güncelleme/silme yoktur; defter yalnız
+    # eklenendir ("kayıtlar silinemez"). Bu sınırlar bir istekte okunacak azami
+    # satır sayısını belirler.
+    AUDIT_DEFAULT_LIMIT = int(os.getenv("AUDIT_DEFAULT_LIMIT", "50"))
+    AUDIT_MAX_LIMIT = int(os.getenv("AUDIT_MAX_LIMIT", "500"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

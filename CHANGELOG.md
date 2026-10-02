@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-096: Birleşik denetim kaydı — değişmez, alt-sistemler-arası hesap verebilirlik defteri (E10)
+  - Yönetici, hangi alt sistemden gelirse gelsin **kimin hangi kararı/değişikliği ne
+    zaman verdiğini** tek bir yerde görmek ve kayıtların sonradan değiştirilemez/
+    silinemez olmasını ister (kabul kriteri: "kabul/ret, senaryo, eşik/kapasite
+    varsayımı değişiklikleri kim/ne zaman/ne ile kaydedilir. Kayıtlar silinemez") —
+    bugüne dek denetim **parça parça**ydı (kapasite `capacity_assumption_audit` EM-034,
+    kararlar `recommendation_decisions` EM-047, paylaşım/webhook kendi tabloları); tek,
+    birleşik ve değişmez bir defter yoktu (gerçek eksik: `audit_trail`/birleşik uç yok)
+  - `src/models/audit_trail.py` + `scripts/migration/V030__unified_audit_trail.sql`:
+    `AuditTrailEntry` — alan (`domain`) + eylem (`action`) + özne anahtarı + **aktör** +
+    `summary` + `old_value`/`new_value` JSON anlık görüntüleri; `as_dict` çözümlenmiş
+    değerlerle döner; mevcut alt-özellik denetim tablolarına dokunulmaz (yalnızca-eklenen)
+  - `src/services/audit_trail.py`: `record_audit` (kontrolü sözlükler: bilinmeyen
+    alan/eylem + boş aktör/özet → `AuditError`), `list_audit` (öksüzden eskiye, alan/
+    aktör/özne filtresi, `AUDIT_MAX_LIMIT` Kırpma), `audit_config` (sözlükler + değişmezlik
+    politikası), `count_by_domain`; **uygulama dikişinde güncelleme/silme/temizleme fonksiyonu
+    YOKTUR** — "kayıtlar silinemez" garantisi budur; okuma hiçbir şey yazmaz
+  - `src/routes/audit_trail.py` `/api/v1/audit` (config + özet beslemesi + tek POST; güncelle/
+    sil UÇLARI BİLİNÇLİ YOK) + `fastapi_app.py` kaydı; `settings.py` + `.env.example`
+    (`AUDIT_DEFAULT_LIMIT`/`AUDIT_MAX_LIMIT`); `ui_states`'e `audit_trail`; `operator_map`
+    Birleşik Denetim Kaydı paneli (alan/aktör filtresi + yeni kayıt + alan sayımlı değişmez
+    geçmiş); 21 test
 - EM-094: Olay ve uyarı webhook'ları — imzalı gönderim + yeniden deneme defteri (E9)
   - Bütünleştirici, olay ve uyarıları kuyruklamak yerine bunların bir alt sistem
     servisine anında **itilmesini** ister (kabul kriterleri: "webhook URL'i ve olay

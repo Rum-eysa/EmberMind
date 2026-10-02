@@ -35,6 +35,7 @@ PANEL_KEYS = (
     "sitrep",
     "shift_handover",
     "webhooks",
+    "audit_trail",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -149,6 +150,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Kayıtlı webhook aboneliği yok; bir uç nokta ve olay tipleri ekleyin.",
         "error": "Webhook durumu alınamadı.",
         "error_action": "Abonelik URL'sini ve olay tiplerini kontrol edip yeniden deneyin.",
+    },
+    "audit_trail": {
+        "title": "Birleşik Denetim Kaydı",
+        "loading": "Karar ve değişiklik geçmişi yükleniyor…",
+        "empty": "Henüz denetim kaydı yok; karar/değişiklik oldukça buraya yazılır.",
+        "error": "Denetim kaydı alınamadı.",
+        "error_action": "Alan/aktör filtresini gözden geçirip yeniden deneyin.",
     },
 }
 
