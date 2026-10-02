@@ -38,6 +38,7 @@ PANEL_KEYS = (
     "audit_trail",
     "signal_baseline",
     "silent_region_risk",
+    "silent_zone_confidence",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -173,6 +174,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Yayılım tahmini ulaşan sessiz bölge yok; aktif yangın/tahmin var mı kontrol edin.",
         "error": "Sessiz bölge risk kesişimi alınamadı.",
         "error_action": "Eşik/filtre seçimini gözden geçirip yeniden deneyin.",
+    },
+    "silent_zone_confidence": {
+        "title": "Yanlış Alarm Önleme: Güven Etiketi",
+        "loading": "Sessiz adaylar kapsama gücüne göre güven derecesiyle etiketleniyor…",
+        "empty": "Etiketlenen sessiz bölge adayı yok; EM-035 baz çizgisinde sessiz aday var mı kontrol edin.",
+        "error": "Sessiz bölge güven etiketleri alınamadı.",
+        "error_action": "Eşik/kaynak/tarih seçimini gözden geçirip yeniden deneyin.",
     },
 }
 

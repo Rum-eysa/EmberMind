@@ -523,6 +523,34 @@
     #srisk-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #srisk-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-038: yanlış alarm önleme — sessiz aday güven etiketi (kapsama gücü) */
+    #szc-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 300px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #szc-panel h1 { margin-bottom: 4px; }
+    #szc-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #szc-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #szc-panel .bar label { display: block; margin: 2px 0; }
+    #szc-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #szc-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #szc-panel .item:hover { background: rgba(33,102,172,.10); }
+    #szc-panel .item.sel { background: rgba(33,102,172,.18); }
+    #szc-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #szc-panel .nm { font-weight: 600; }
+    #szc-panel .cf { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #szc-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #szc-panel .weak { color: #b71c1c; font-weight: 600; }
+    #szc-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #szc-panel .syn { color: #e65100; font-weight: 600; }
+    #szc-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -567,6 +595,9 @@
     <button type="button" id="srisk-open"
       title="EM-037 yüksek öncelikli sessiz bölge — yayılım tahmini ulaşan ama SOS olmayan bölgeler, risk × sessizlik sıralı">
       Yüksek Öncelikli Sessiz Bölge</button>
+    <button type="button" id="szc-open"
+      title="EM-038 yanlış alarm önleme — sessiz adayları yapısal kapsama gücüne ve ani düşüşe göre düşük/orta/yüksek güvenle etiketle">
+      Yanlış Alarm Önleme</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -860,6 +891,20 @@
     <div id="srisk-list"></div>
   </div>
 
+  <div id="szc-panel" class="panel" aria-live="polite">
+    <h1>Yanlış Alarm Önleme <span id="szc-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Güven: <select id="szc-confidence">
+        <option value="all" selected>tümü</option>
+        <option value="high">yüksek</option>
+        <option value="medium">orta</option>
+        <option value="low">düşük (yanlış alarm)</option>
+      </select></label>
+      <div class="acts"><button type="button" id="szc-refresh">Yenile</button></div>
+    </div>
+    <div id="szc-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -956,6 +1001,9 @@
   // EM-037: yüksek öncelikli sessiz bölge paneli durumu.
   let sriskPanelOpen = false;
   let sriskHighlight = null;       // seçili bölgenin vurgu dikdörtgeni (L.Rectangle)
+  // EM-038: yanlış alarm önleme güven etiketi paneli durumu.
+  let szcPanelOpen = false;
+  let szcHighlight = null;         // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -3623,6 +3671,102 @@
     sriskHighlight.openPopup();
   }
 
+  // --- EM-038: yanlış alarm önleme — sessiz aday güven etiketi --------------
+  const SZC_API = "/api/v1/silent-zone-confidence";
+  const SZC_COLORS = { high: "#c62828", medium: "#ef6c00", low: "#9e9e9e" };
+  async function toggleSZCPanel() {
+    const panel = document.getElementById("szc-panel");
+    if (szcPanelOpen) {
+      szcPanelOpen = false;
+      panel.style.display = "none";
+      if (szcHighlight) { map.removeLayer(szcHighlight); szcHighlight = null; }
+      return;
+    }
+    szcPanelOpen = true;
+    panel.style.display = "block";
+    await loadSZC();
+  }
+  async function loadSZC() {
+    const box = document.getElementById("szc-list");
+    panelLoading(box, "silent_zone_confidence");
+    try {
+      const res = await fetch(`${SZC_API}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSZCList(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("silent_zone_confidence", err.message);
+      setStatus(`Sessiz bölge güven etiketleri alınamadı: ${err.message}`);
+    }
+  }
+  function renderSZCList(data) {
+    const box = document.getElementById("szc-list");
+    const countEl = document.getElementById("szc-count");
+    // Son yanıtı önbelleğe al: güven süzmesi sunucuya gitmeden yeniden işlenir.
+    box.dataset.szcLast = JSON.stringify(data);
+    let rows = (data.candidates || []).slice();
+    const pick = document.getElementById("szc-confidence").value;
+    if (pick && pick !== "all") { rows = rows.filter(r => r.confidence_code === pick); }
+    const s = data.summary || {};
+    if (countEl) {
+      countEl.textContent = `(yüksek ${s.high_confidence || 0}/${s.candidate_silent_count || 0})`;
+    }
+    box.innerHTML = "";
+    if (!rows.length) {
+      panelEmpty(box, "silent_zone_confidence",
+        "Seçilen güven bandında etiketlenmiş sessiz aday yok.");
+      return;
+    }
+    for (const cell of rows) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const color = SZC_COLORS[cell.confidence_code] || "#9e9e9e";
+      const weak = (cell.coverage_strength === "weak" || cell.coverage_strength === "insufficient_data")
+        ? `<br><span class="weak">zayıf kapsama — yanlış alarm olabilir</span>` : "";
+      const synTag = data.synthetic
+        ? `<span class="syn">SENTETİK</span> ` : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${synTag}${escapeHtml(cell.name)}</b>`
+        + `<br><span class="meta">baz ${escapeHtml(String(cell.baseline_mean))}`
+        + ` · z=${escapeHtml(String(cell.z_score))}</span>${weak}</span>`
+        + `<span class="cf">${escapeHtml(cell.confidence_label)}</span>`;
+      const select = () => focusSZCRegion(cell, row);
+      row.addEventListener("click", select);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+      box.appendChild(row);
+    }
+    setStatus(
+      `Yanlış alarm önleme — yüksek ${s.high_confidence || 0}, orta ${s.medium_confidence || 0}, `
+      + `düşük ${s.low_confidence || 0} — ${data.attribution}`);
+  }
+  function focusSZCRegion(cell, row) {
+    for (const el of document.querySelectorAll("#szc-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    // Harita senkron seçim: hücre kutusuna odaklan ve vurgula.
+    const bounds = L.latLngBounds(
+      [[cell.min_lat, cell.min_lon], [cell.max_lat, cell.max_lon]]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+    if (szcHighlight) { map.removeLayer(szcHighlight); }
+    const stroke = SZC_COLORS[cell.confidence_code] || "#616161";
+    szcHighlight = L.rectangle(bounds, {
+      color: stroke, weight: 3, dashArray: "6 4",
+      fillColor: stroke, fillOpacity: 0.14,
+    }).addTo(map);
+    const reason = (cell.confidence_reasons || []).map(escapeHtml).join("<br>");
+    szcHighlight.bindPopup(
+      `<b>${escapeHtml(cell.name)}</b><br>`
+      + `güven: ${escapeHtml(cell.confidence_label)} · kapsama: ${escapeHtml(cell.coverage_strength)}<br>`
+      + `baz: ${escapeHtml(String(cell.baseline_mean))} · z=${escapeHtml(String(cell.z_score))}<br>${reason}`);
+    szcHighlight.openPopup();
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -3874,6 +4018,20 @@
       const box = document.getElementById("srisk-list");
       if (box && box.dataset.sriskLast) {
         renderSRiskList(JSON.parse(box.dataset.sriskLast));
+      }
+    });
+
+    // EM-038: yanlış alarm önleme güven paneli düğmeleri + güven süzmesi.
+    const szcBtn = document.getElementById("szc-open");
+    if (szcBtn) szcBtn.addEventListener("click", toggleSZCPanel);
+    const szcRefresh = document.getElementById("szc-refresh");
+    if (szcRefresh) szcRefresh.addEventListener("click", loadSZC);
+    const szcConfidence = document.getElementById("szc-confidence");
+    if (szcConfidence) szcConfidence.addEventListener("change", () => {
+      // Ön yüz süzme: son yanıt yeniden işlenir, sunucuya gidilmez.
+      const box = document.getElementById("szc-list");
+      if (box && box.dataset.szcLast) {
+        renderSZCList(JSON.parse(box.dataset.szcLast));
       }
     });
   }

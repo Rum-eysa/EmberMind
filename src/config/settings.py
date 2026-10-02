@@ -466,9 +466,22 @@ class Config:
     SILENT_REGION_RISK_MAX_FORECASTS = int(
         os.getenv("SILENT_REGION_RISK_MAX_FORECASTS", "200")
     )
-    SILENT_REGION_RISK_MAX_LIMIT = int(
-        os.getenv("SILENT_REGION_RISK_MAX_LIMIT", "200")
+    SILENT_REGION_RISK_MAX_LIMIT = int(os.getenv("SILENT_REGION_RISK_MAX_LIMIT", "200"))
+
+    # EM-038: yanlış alarm önleme - sessiz bölge güven etiketi (Epic E4)
+    # EM-035 hücre baz çizgisi yeniden kullanılır; sessiz adaylar yapısal kapsama
+    # gücüne ve ani düşüş derecesine göre düşük/orta/yüksek güvenle etiketlenir
+    # (kalıcılık: none). coverage_signal_alti: baz ortalaması bunun altındaysa
+    # kapsama "zayıf" sayılır (sessizlik büyük olasılıkla yanlış alarm -> düşük
+    # güven); min_gozlem: güvenilir baz için gereken asgari gözlem sayısı;
+    # ani_dusus_z: z bunun altında (-) ise düşüş "belirgin" -> yüksek güven;
+    # azami_limit: tek istekte dönecek azami aday sayısı.
+    FALSE_ALARM_MIN_COVERAGE_SIGNAL = float(
+        os.getenv("FALSE_ALARM_MIN_COVERAGE_SIGNAL", "100.0")
     )
+    FALSE_ALARM_MIN_OBSERVATIONS = int(os.getenv("FALSE_ALARM_MIN_OBSERVATIONS", "7"))
+    FALSE_ALARM_STRONG_DROP_Z = float(os.getenv("FALSE_ALARM_STRONG_DROP_Z", "2.5"))
+    FALSE_ALARM_MAX_LIMIT = int(os.getenv("FALSE_ALARM_MAX_LIMIT", "200"))
 
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.

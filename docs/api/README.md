@@ -1173,6 +1173,30 @@ da `summary` **genel** kalır. Azami tahmin `SILENT_REGION_RISK_MAX_FORECASTS`.
 süzmesi istemci tarafında + harita senkron bölge seçimi, risk/sessizlik/öncelik
 rozetleri).
 
+### Yanlış Alarm Önleme: Sessiz Bölge Güven Etiketi (EM-038)
+```
+GET    /api/v1/silent-zone-confidence/config                 # güven merdiveni, eşikler, kalıcılık
+GET    /api/v1/silent-zone-confidence[?confidence=high&limit=N&as_of=YYYY-MM-DD]  # güven dereceli sessiz aday raporu
+```
+EM-035 baz çizgisi hangi hücrenin **sessiz aday** olduğunu üretir; bu servis her
+adayı **neden** sessiz olduğunu ayırt ederek **güven derecesiyle** etiketler.
+`baseline_report` **yeniden kullanılır**; kapsama gücü `_coverage_strength` ile
+ölçülür: gözlem sayısı `FALSE_ALARM_MIN_OBSERVATIONS` altındaysa
+`insufficient_data`, baz ortalaması `FALSE_ALARM_MIN_COVERAGE_SIGNAL` altındaysa
+`weak` → **düşük güven** (yapısal zayıf kapsama, bölge zaten az raporluyor →
+**yanlış alarm** olasılığı). Sağlam kapsama üzerine okuma baz çizgisinin belirgin
+altındaysa (`z ≤ -FALSE_ALARM_STRONG_DROP_Z`) → **yüksek güven** (ani kesinti →
+**gerçek acil durum** işareti). Sağlam ama belirgin olmayan düşüş → **orta güven**
+(izlemeye değer). Zayıf kapsama, ani düşüşten **önceliklidir** (düşük güven kazanır).
+Her hücreye `confidence_code`/`confidence_label`/`confidence_reasons` eklenir.
+`confidence` süzgeci yalnız o dereceyi tutar (bilinmeyen değer `filter: null` +
+`requested_filter` olarak yankılanır); `limit` (<1 → `422`) listeyi kırparsa da
+`summary` **genel** kalır (yüksek/orta/düşük sayıları + zayıf-kapsama aday sayısı).
+Sıralama `(derece, z-skoru, bölge)`. Geçersiz `as_of` → `400`; **hiçbir şey
+yazılmaz** (`persistence: none`, okuma zamanı hesaplanır). UI: `/ui` haritasındaki
+**Yanlış Alarm Önleme** paneli (güven derecesi süzgeci istemci tarafında + harita
+senkron hücre seçimi, yüksek/orta/düşük renk rozetleri, SENTETİK etiketi).
+
 ## Error Codes
 
 - `200`: Başarılı

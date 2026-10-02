@@ -5,6 +5,32 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-038: Yanlış alarm önleme — sessiz adaylara kapsama gücüne göre güven etiketi (E4)
+  - "Sessiz bölge" okumasının gerçek acil durum mu yoksa **yanlış alarm** mı olduğu
+    ayrıştırılmalı (kabul kriterleri: "sessiz bölge tespiti, yapısal olarak zayıf
+    kapsama nedeniyle mi yoksa gerçekten ani kesinti nedeniyle mi sessiz olduğunu
+    ayırt eder; güven etiketi operatöre gösterilir") — bugüne dek EM-035 baz çizgisi
+    hangi hücrenin **sessiz aday** olduğunu üretiyor, EM-037 ise sessizliği riskle
+    çarpıyordu; ancak hiçbir yerde zayıf kapsama (yapısal, yanlış alarm) ile sağlam
+    kapsama üzerine ani düşüş (gerçek acil durum) ayrımı **güven derecesi** olarak
+    etiketlenmiyordu (gerçek eksik: `silent_zone_confidence` yok)
+  - `src/services/silent_zone_confidence.py`: EM-035 `baseline_report` **yeniden
+    kullanılarak** her sessiz aday hücre kapsama gücüyle sınıflandırılır — gözlem
+    sayısı/ortalaması eşiklerin altındaysa `insufficient_data`/`weak` → **düşük güven**
+    (yanlış alarm olasılığı), sağlam kapsama + belirgin ani düşüş (z ≤ −eşik) →
+    **yüksek güven** (gerçek acil durum), sağlam ama belirgin olmayan düşüş → **orta
+    güven**; her hücreye `confidence_code`/`confidence_label`/`confidence_reasons`
+    eklenir; rapor `confidence` süzgeci + `limit` + küresel özet (yüksek/orta/düşük
+    sayıları, zayıf-kapsama aday sayısı) döner; `persistence: none` — okuma zamanı
+    hesaplanır, hiçbir şey yazılmaz
+  - `src/routes/silent_zone_confidence.py` `/api/v1/silent-zone-confidence` (rapor +
+    `confidence`/`limit`/`as_of`/`window_days` süzgeçleri, `limit<1` → 422, bozuk
+    `as_of` → 400) + `/config` + `fastapi_app.py` kaydı; `settings.py` +
+    `.env.example` (`FALSE_ALARM_MIN_COVERAGE_SIGNAL`/`_MIN_OBSERVATIONS`/
+    `_STRONG_DROP_Z`/`_MAX_LIMIT`); `ui_states`'e `silent_zone_confidence`;
+    `operator_map` Yanlış Alarm Önleme paneli (güven derecesi süzgeci istemci
+    tarafında + harita senkron hücre seçimi, yüksek/orta/düşük renk rozetleri,
+    zayıf-kapsama notu, SENTETİK etiketi); 24 test
 - EM-037: Yüksek öncelikli sessiz bölge kesişimi — yayılım tahmini ulaşan ama SOS olmayan bölgeler (E4)
   - "Riskli ama sessiz" senaryosu: bir bölgeye yayılım tahmin poligonu **ulaşıyor**
     olmasına rağmen oradan hiçbir yardım/SOS sinyali **gelmiyor** olabilir (kabul
