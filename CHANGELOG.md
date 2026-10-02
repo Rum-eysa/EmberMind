@@ -5,6 +5,37 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-094: Olay ve uyarı webhook'ları — imzalı gönderim + yeniden deneme defteri (E9)
+  - Bütünleştirici, olay ve uyarıları kuyruklamak yerine bunların bir alt sistem
+    servisine anında **itilmesini** ister (kabul kriterleri: "webhook URL'i ve olay
+    tipleri yapılandırılabilir; imzalı istek + yeniden deneme desteği; teslim geçmişi
+    görüntülenebilir") — canlı akış (EM-090) ve bildirim merkezi (EM-086) yalnızca
+    **çekme** (pull) modelidir; dışa dönük, imzalı ve tekrar denemeli bir **itme**
+    (push) kanadı hiç yoktu (gerçek eksik: `webhook` kod tabanında tamamen yoktu)
+  - `src/models/webhook.py` + `scripts/migration/V029__event_alert_webhooks.sql`:
+    `WebhookSubscription` (uç nokta + istediği olay tipleri + paylaşılan gizli anahtar
+    + `enabled`) ve yalnızca-eklenen `WebhookDelivery` defteri (imzalanan gövde, imza,
+    sonuç, deneme sayısı, sonraki-deneme anı); abonelik silince geçmiş denetim izi olarak
+    kalır, `as_dict` gizli anahtarı asla geri vermez (yalnızca `has_secret`)
+  - `src/services/webhook_delivery.py`: `signature_for` — `"<timestamp>.<body>"` üzerinde
+    HMAC-SHA256 (GitHub/GitLab tarzı `t=…,v1=…` başlığı); `create/update/delete/list`
+    abonelik CRUD'u (URL http(s) doğrulaması, olay tipleri sabit kataloğa karşı,
+    azami abonelik); `dispatch_event` en son canlı-akış olaylarını ilgili abonelere
+    dağıtır (`dry_run` önizleme, `simulate_fail_for` hata enjeksiyonu); `retry_due`
+    sınırlı üstel geri çekilme bütçesini uygular; `webhook_overview` / `webhook_config`
+  - Gerçek HTTPS taşıyıcısı **bilerek çağrılmaz** (EM-069 emsali: canlı ağ gönderimi
+    asla "teslim edildi" diye sahtelenmez); teslim defteri imzalı isteğin kalıcı
+    kaydıdır, `record_attempt`/`retry_due` başarısızlık+yeniden-deneme yolunu
+    belirlenimci biçimde çalıştırır
+  - `src/routes/webhook.py` `/api/v1/webhooks/*` + `fastapi_app.py` kaydı; `settings.py`
+    + `.env.example`: `WEBHOOK_MAX_SUBSCRIPTIONS/DELIVERIES/RETRIES/BACKOFF_SECONDS`;
+    `ui_states.py`: `webhooks` panel anahtarı; `operator_map.html`: abonelik formu +
+    olay dağıtımı/yeniden deneme düğmeleri + imzalı teslim geçmişi kartı
+  - `tests/unit/test_webhook_delivery.py`: 32 birim test (gizli anahtar maskeleme,
+    URL/olay-tipi/ad/azami doğrulama, imza determinizmi, zarf başlığı, dağıtım
+    teslim/atlama/dry-run/bilinmeyen-tip/simüle-hata, yeniden-deneme başarı/genişleyen
+    geri çekilme/bütçe-tükenme, `record_attempt`, geçmiş sıralama+filtre+durum,
+    düzenle/duraklat, sil-geçmişi-korur, özet/yapılandırma, HTTP uçları + 400/404)
 - EM-034: Kapasite varsayımları yönetim ekranı — denetim kaydı (E3)
   - Yönetici, kaynak tipi başına ha/saat kapasite değerini arayüzden
     değiştirmek ister ve "değişiklik denetim kaydına yazılır" kabul kriterini

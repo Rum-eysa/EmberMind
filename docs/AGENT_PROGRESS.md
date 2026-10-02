@@ -70,6 +70,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 37 | EM-088 Kullanıcı ayarları (dil, birim, tema) kalıcı profil (#88) | E8 | DONE | EM-068 dili yalnız tarayıcı `localStorage`'ında, EM-063 saat dilimi/koordinat biçimi istek başına türetilir (ikisi de `persistence=none`), tema da yerelde kalır — sunucu tarafında **kayıtlı tercih profili** hiç yoktu; **tek operatör-wide satır** (sabit anahtar `default`: `language/theme/timezone/coordinate_format`, EM-086 tek-satır deseni); satır yoksa okuma ayarlardan türetilen varsayılanı `settings_default` ile **yazmadan** döner, ilk `PUT` satırı oluşturur; **kısmi güncelleme** her alanı sistemin zaten tanıdığı kümesine karşı doğrular (dil EM-068, saat/koordinat EM-063, tema `dark|light`; geçersiz→400); `reset` satırı siler → sonraki okuma `settings_default`; `GET/PUT/DELETE /api/v1/preferences` + `/config`; UI `risk_panel`: açılışta kayıtlı profil yüklenir (tema+birim+dil **anında uygulanır**), saat/koordinat açılır listeleri + **Varsayılana dön** düğmesi eklenir, `localStorage` çevrimdışı aynaya iner; `UI_DEFAULT_THEME` (dil/saat/koordinat EM-068/063'ten miras); `i18n` `btn.pref_reset` (TR/EN/EL); `user_preferences` (V026) |
 | 38 | EM-089 Vardiya devri notları ve olay notu ekleme (#89) | E8 | DONE | Canlı akış (EM-090), kabul edilen öneriler (EM-047) ve zaman çizelgesi (EM-081) makine üretimidir — operatörün serbest metin yazabileceği **kalıcı bir not yüzeyi** ve insan yorumunu makine görünümüyle birleştiren **devir özeti** hiç yoktu; `event_notes` modeli + **V027** (olay başına `event_key/body/author`, salt-additive); `shift_handover.py`: `add_note` (boş not/tanınmayan olay yükseltir), `list_notes` (yeniden eskiye + olay filtresi + `MAX_NOTES` kırpma), `get/delete_note`, `handover_summary` — aktif olay kartları (EM-082 kadro+çakışma) ile notları EM-081 kronolojik akışında **okuma zamanında** birleştirir, notlar `operator_note` kategorisiyle akışa katılır (**EM-081'in 4-kategori kümesi/testlerine dokunulmadı** — bu yüzden ayrı servis); `GET /api/v1/shift-handover` + `/notes` GET/POST, `/notes/{id}` GET/DELETE, `/config` (tanınmayan olay→404, boş→400); `ui_states`'e `shift_handover` anahtarı; UI Vardiya Devri paneli (form + Ekle/Yenile/Sil + Devir Özetini Oluştur, haritadan olay önceden doldurulur); `SHIFT_HANDOVER_MAX_NOTES`; 27 test |
 | 39 | EM-034 Kapasite varsayımları yönetim ekranı — denetim kaydı (#34) | E3 | DONE | EM-028 düzenleme yüzeyini (tip başına `ha/saat` + doğrulama + panel) zaten vermişti; ama yalnızca **tek `updated_by` kolonu** tutulur, eski değer/kim/ne zaman geçmişi hiç olmaz — "değişiklik denetim kaydına yazılır" (kabul #2) gerçek boşluk; `capacity_assumption_audit` modeli + **V028** (her gerçek değişim için `resource_type/old/new/updated_by` + damga, salt-additive, kapasite matematiğini beslemez); `update_assumptions` değer gerçekten değişince denetim yazar (aynı değeri tekrar kaydetme üretmez) + `applied_count` döner, yeni `list_audit` (yeniden eskiye + tip filtresi + `[1,MAX]` kırpma); `PUT` gövdesine `updated_by`, `GET /api/v1/capacity/assumptions/audit`; `risk_panel` kartına **Düzenleyen** + Değişiklik geçmişi tablosu (açılışta + kayıt sonrası yenilenir); `CAPACITY_AUDIT_DEFAULT/MAX_LIMIT`; 17 test |
+| 40 | EM-094 Olay ve uyarı webhook'ları (#94) | E9 | DONE | Bütünleştirici olay/uyarıların alt sistem servisine anında **itilmesini** ister (kabul: URL+olay tipleri yapılandırılabilir / imzalı istek + yeniden deneme / teslim geçmişi görüntülenebilir) — canlı akış (EM-090) + bildirim merkezi (EM-086) yalnızca **çekme**; dışa dönük imzalı itme kanadı hiç yoktu (`webhook` kod tabanında tamamen yok); `webhook_subscriptions` + salt-eklenen `webhook_deliveries` defteri (**V029**; `as_dict` gizli anahtarı maskele→`has_secret`); `signature_for` `"<ts>.<body>"` HMAC-SHA256 (`X-EmberMind-Signature: t=…,v1=…`); CRUD (URL http(s) + olay tipleri `LIVE_KINDS` kataloğuna karşı + azami); `dispatch_event` en son feed olaylarını imzalar (`dry_run`/`simulate_fail_for`), `retry_due` sınırlı üstel geri çekilme bütçesini tek kapı olarak uygular, `record_attempt` taşıyıcı düğümü; **gerçek HTTPS taşıyıcısı bilerek çağrılmaz** (EM-069 emsali: canlı ağ gönderimi "teslim edildi" diye sahtelenmez — defter imzalı isteğin kalıcı kaydı); `/api/v1/webhooks/*` + config/overview/subscriptions/dispatch/preview/attempt/retry/deliveries; `WEBHOOK_MAX_SUBSCRIPTIONS/DELIVERIES/RETRIES/BACKOFF_SECONDS`; `ui_states`'e `webhooks`; `operator_map` Webhook'lar paneli (abonelik formu + Dağıt/Yeniden Dene + imzalı teslim geçmişi); 32 test |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1251,11 +1252,46 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **1061** (1044 + 17 yeni).
 - **Commit:** `feat(EM-034): ...` (bu dal).
 
+### EM-094 — Olay ve uyarı webhook'ları (#94) — DONE
+- **Eksik analizi:** Bütünleştirici, olay ve uyarıları kuyruklamak yerine bir alt
+  sistem servisine anında **itilmesini** ister (kabul kriterleri: webhook URL'i +
+  olay tipleri yapılandırılabilir / imzalı istek + yeniden deneme desteği / teslim
+  geçmişi görüntülenebilir). Canlı akış (EM-090) ve bildirim merkezi (EM-086) yalnızca
+  **çekme** (pull) modelidir. `git grep webhook` kod tabanında **hiçbir şey**
+  döndürmedi → dışa dönük, imzalı, tekrar denemeli bir **itme** (push) kanadı gerçek
+  bir boşluk. E9 Should (sp3).
+- **Kapsam:** `src/models/webhook.py` (`WebhookSubscription` + salt-eklenen
+  `WebhookDelivery` defteri; `as_dict` gizli anahtarı maskeler) + `scripts/migration/
+  V029__event_alert_webhooks.sql`, `src/services/webhook_delivery.py` (CRUD +
+  HMAC-SHA256 imza + `dispatch_event` + `retry_due` + `record_attempt` +
+  `build_envelope[_preview]` + `webhook_overview`/`webhook_config`),
+  `src/routes/webhook.py` (`/api/v1/webhooks/*`), `fastapi_app.py` kaydı,
+  `settings.py` + `.env.example` (`WEBHOOK_MAX_SUBSCRIPTIONS/DELIVERIES/RETRIES/
+  BACKOFF_SECONDS`), `ui_states.py` (`webhooks`), `operator_map.html` (Webhook'lar
+  paneli), `tests/unit/test_webhook_delivery.py` (32 test), CHANGELOG + docs/api +
+  models/__init__.
+- **Varsayımlar:** (1) olay kataloğu `LIVE_KINDS` (`fire_event`/`forecast`/`alert`)
+  ile birebir — yeni tür yok; (2) **gerçek HTTPS taşıyıcısı bilinerek yapılmaz**
+  (EM-069 emsali), teslim defteri imzalı isteğin kalıcı/auditable kaydıdır, başarısızlık
+  + yeniden-deneme `simulate_fail_for`/`record_attempt`/`retry_due` ile belirlenimci
+  çalıştırılır; (3) `retry_due` tek bütçe kapısıdır — `_apply_failure` her zaman bir
+  sonraki-deneme anı planlar, bütçe dolan satır kuyruktan düşer; (4) `as_dict` gizli
+  anahtarı asla geri vermez (yalnızca `has_secret`); (5) auth yok (E10), `dispatch`
+  `dry_run` dışında commit eder.
+- **Kanıt:** gizli anahtar maskeleme; URL/olay-tipi/ad/azami doğrulama; imza
+  determinizmi (aynı üçlü → aynı hex); zarf başlığı; dağıtım teslim/atlama/dry-run/
+  bilinmeyen-tip/simüle-hata; yeniden-deneme başarı/genişleyen geri çekilme/bütçe-
+  tükenme (`exhausted`); `record_attempt` başarı/bilinmeyen; geçmiş sıralama+durum+
+  filtre; düzenle/duraklat; sil-geçmişi-korur; HTTP create/list/dispatch/history + 400/404.
+- **Kapılar:** black(temiz)/mypy(142 dosya, temiz)/pylint(10.00)/bandit(0) yeşil;
+  pytest **1093** (1061 + 32 yeni).
+- **Commit:** `feat(EM-094): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1268,8 +1304,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 211 değişmez · mypy Success (139) · pylint 10.00/10 ·
-  bandit 0 · pytest **1061 passed**.
+- **Final kapılar:** black 215 değişmez · mypy Success (142 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1093 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

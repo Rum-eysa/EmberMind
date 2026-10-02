@@ -405,6 +405,18 @@ class Config:
     # okuma zamanıdır; yalnızca event_notes kalıcıdır. Penceredeki azami not.
     SHIFT_HANDOVER_MAX_NOTES = int(os.getenv("SHIFT_HANDOVER_MAX_NOTES", "100"))
 
+    # EM-094: olay ve uyarı webhook'ları (Epic E9)
+    # Bir bütünleştirici, olay/uyarıları canlı akışı kuyruklamak yerine anında
+    # bir uç noktaya push ister. Kayıt başına URL + olay tipleri + HMAC imza
+    # gizli anahtarı tutulur; başarısız teslim sınırlı üstel geri çekilme ile
+    # yeniden denenir ve her deneme kalıcı geçmişe yazılır. Azami abonelik ve
+    # penceredeki azami teslim sayısı, azami deneme bütçesi ve taban geri
+    # çekilme saniyesi.
+    WEBHOOK_MAX_SUBSCRIPTIONS = int(os.getenv("WEBHOOK_MAX_SUBSCRIPTIONS", "20"))
+    WEBHOOK_MAX_DELIVERIES = int(os.getenv("WEBHOOK_MAX_DELIVERIES", "100"))
+    WEBHOOK_MAX_RETRIES = int(os.getenv("WEBHOOK_MAX_RETRIES", "3"))
+    WEBHOOK_BACKOFF_SECONDS = int(os.getenv("WEBHOOK_BACKOFF_SECONDS", "30"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

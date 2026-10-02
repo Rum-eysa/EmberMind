@@ -411,6 +411,36 @@
     #handover-panel .rec .meta { color: var(--text-secondary); font-weight: 400; }
     #handover-panel .rec .rechead { font-weight: 600; margin: 6px 0 2px; }
     #handover-panel .rec .recrow { padding: 1px 0; }
+    /* EM-094: olay & uyarı webhook'ları — abonelik + imzalı teslim geçmişi */
+    #webhook-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 340px; max-height: 70vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #webhook-panel h1 { margin-bottom: 4px; }
+    #webhook-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #webhook-panel .summary { color: var(--text-secondary); margin: 0 0 6px; }
+    #webhook-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #webhook-panel .subform { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #webhook-panel .subform label { display: block; margin: 2px 0; }
+    #webhook-panel .subform .types label { display: inline-block; margin-right: 8px; }
+    #webhook-panel input[type=text] { font-size: 12px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 4px; width: 96%; }
+    #webhook-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #webhook-panel .sub { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #webhook-panel .sub .url { color: var(--text-secondary); font-weight: 400;
+      word-break: break-all; }
+    #webhook-panel .sub .off { color: #b71c1c; font-weight: 400; }
+    #webhook-panel .sub .acts { margin-top: 2px; display: flex; gap: 6px; }
+    #webhook-panel .hist { padding: 3px 2px; border-bottom: 1px solid var(--border-color); }
+    #webhook-panel .hist .meta { color: var(--text-secondary); font-weight: 400; }
+    #webhook-panel .st { display: inline-block; padding: 0 5px; border-radius: 8px;
+      color: #fff; font-size: 10px; }
+    #webhook-panel .head2 { font-weight: 600; margin: 6px 0 2px; }
+    #webhook-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -445,6 +475,8 @@
       title="EM-087 durum raporu (SITREP) — tek sayfalık özeti derle, PDF/Yazdır ile dışa aktar">Durum Raporu</button>
     <button type="button" id="handover-open"
       title="EM-089 vardiya devri notları — olaya not ekle, notları zaman çizelgesinde gör, tek tıkla devir özeti oluştur">Vardiya Devri</button>
+    <button type="button" id="webhook-open"
+      title="EM-094 olay & uyarı webhook'ları — uç nokta ve olay tiplerini yapılandır, imzalı gönder ve teslim geçmişini izle">Webhook'lar</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -650,6 +682,34 @@
     <div id="handover-list"></div>
   </div>
 
+  <div id="webhook-panel" class="panel" aria-live="polite">
+    <h1>Olay &amp; Uyarı Webhook'ları <span id="webhook-count" class="count"></span></h1>
+    <div class="summary" id="webhook-summary"></div>
+    <div class="subform">
+      <label>Ad: <input type="text" id="webhook-name" size="18" placeholder="ör. SOC girdi hattı"></label>
+      <label>URL: <input type="text" id="webhook-url" size="30" placeholder="https://…/hook"></label>
+      <label>Gizli anahtar (opsiyonel): <input type="text" id="webhook-secret" size="18"
+        placeholder="boşsa otomatik üretilir"></label>
+      <div class="types" id="webhook-types">
+        <span>Olay tipleri:</span>
+        <label><input type="checkbox" value="fire_event"> Yangın</label>
+        <label><input type="checkbox" value="forecast"> Tahmin</label>
+        <label><input type="checkbox" value="alert"> Uyarı</label>
+      </div>
+      <div class="acts">
+        <button type="button" id="webhook-add">Abonelik Ekle</button>
+        <button type="button" id="webhook-dispatch" title="En son canlı akış olaylarını ilgili abonelere imzalı gönder">
+          Olayları Dağıt</button>
+        <button type="button" id="webhook-retry" title="Zamanlanmış yeniden denemeleri çalıştır">Yeniden Dene</button>
+        <button type="button" id="webhook-refresh">Yenile</button>
+      </div>
+    </div>
+    <div class="head2">Abonelikler</div>
+    <div id="webhook-subs"></div>
+    <div class="head2">Son Teslimler</div>
+    <div id="webhook-history"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -734,6 +794,8 @@
   let sitrepPanelOpen = false;
   // EM-089: vardiya devri notları + tek tık devir özeti paneli durumu.
   let handoverPanelOpen = false;
+  // EM-094: olay & uyarı webhook'ları paneli durumu.
+  let webhookPanelOpen = false;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2858,6 +2920,201 @@
     setStatus(`Vardiya devri özeti — ${data.attribution}`);
   }
 
+  // EM-094: olay & uyarı webhook'ları — abonelik + imzalı teslim geçmişi.
+  const WEBHOOK_API = "/api/v1/webhooks";
+  const WEBHOOK_STATUS_COLORS = {
+    delivered: "#2e7d32", failed: "#b71c1c", pending: "#f9a825",
+  };
+  const WEBHOOK_KIND_LABELS = {
+    fire_event: "Yangın", forecast: "Tahmin", alert: "Uyarı",
+  };
+  async function toggleWebhookPanel() {
+    const panel = document.getElementById("webhook-panel");
+    if (webhookPanelOpen) {
+      webhookPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    webhookPanelOpen = true;
+    panel.style.display = "block";
+    await loadWebhooks();
+  }
+  async function loadWebhooks() {
+    const subsBox = document.getElementById("webhook-subs");
+    panelLoading(subsBox, "webhooks");
+    try {
+      const res = await fetch(WEBHOOK_API);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderWebhooks(data);
+    } catch (err) {
+      if (subsBox) { subsBox.innerHTML = panelErrorHtml("webhooks", err.message); }
+      setStatus(`Webhook durumu alınamadı: ${err.message}`);
+    }
+  }
+  function renderWebhooks(data) {
+    const countEl = document.getElementById("webhook-count");
+    const sum = document.getElementById("webhook-summary");
+    const s = data.summary || {};
+    if (countEl) countEl.textContent = `(${data.count || 0} abone)`;
+    if (sum) {
+      sum.textContent = `Teslim: teslim edildi ${s.delivered || 0}`
+        + ` · başarısız ${s.failed || 0} · bekleyen ${s.pending || 0}`
+        + ` · imza: ${escapeHtml(data.signature_header || "")}`;
+    }
+    renderWebhookSubs(data.subscriptions || []);
+    renderWebhookHistory(data.recent_deliveries || []);
+    setStatus(`Webhook'lar — ${data.attribution}`);
+  }
+  function renderWebhookSubs(subs) {
+    const box = document.getElementById("webhook-subs");
+    box.innerHTML = "";
+    if (!subs.length) {
+      panelEmpty(box, "webhooks", "Kayıtlı webhook aboneliği yok.");
+      return;
+    }
+    for (const sub of subs) {
+      const row = document.createElement("div");
+      row.className = "sub";
+      const kinds = (sub.event_types || [])
+        .map(t => WEBHOOK_KIND_LABELS[t] || t).join(", ");
+      row.innerHTML =
+        `<strong>${escapeHtml(sub.name || sub.subscription_key)}</strong>`
+        + (sub.enabled ? "" : ` <span class="off">(duraklatıldı)</span>`)
+        + `<div class="url">${escapeHtml(sub.url || "")}</div>`
+        + `<div class="meta">${escapeHtml(kinds)} · ${sub.delivery_count || 0} teslim`
+        + ` · anahtar ${sub.has_secret ? "ayarlı" : "yok"}</div>`
+        + `<div class="acts"></div>`;
+      const acts = row.querySelector(".acts");
+      const tog = document.createElement("button");
+      tog.type = "button";
+      tog.textContent = sub.enabled ? "Duraklat" : "Sürdür";
+      tog.addEventListener("click", () => patchWebhookSub(sub.subscription_key, {
+        enabled: !sub.enabled,
+      }));
+      acts.appendChild(tog);
+      const del = document.createElement("button");
+      del.type = "button";
+      del.textContent = "Sil";
+      del.addEventListener("click", () => deleteWebhookSub(sub.subscription_key));
+      acts.appendChild(del);
+      box.appendChild(row);
+    }
+  }
+  function renderWebhookHistory(items) {
+    const box = document.getElementById("webhook-history");
+    box.innerHTML = "";
+    if (!items.length) {
+      panelEmpty(box, "webhooks", "Henüz teslim kaydı yok.");
+      return;
+    }
+    for (const d of items) {
+      const row = document.createElement("div");
+      row.className = "hist";
+      const color = WEBHOOK_STATUS_COLORS[d.status] || "#9e9e9e";
+      const kind = WEBHOOK_KIND_LABELS[d.event_type] || d.event_type;
+      row.innerHTML =
+        `<span class="st" style="background:${color}">${escapeHtml(d.status || "?")}</span> `
+        + `<strong>${escapeHtml(kind || "olay")}</strong>`
+        + `<div class="meta">${escapeHtml(d.subscription_key || "")}`
+        + ` · deneme ${d.attempt || 1}`
+        + ` · HTTP ${d.http_status == null ? "—" : d.http_status}`
+        + ` · ${escapeHtml(d.created_at || "")}</div>`
+        + (d.error ? `<div class="meta">hata: ${escapeHtml(d.error)}</div>` : "")
+        + (d.next_retry_at ? `<div class="meta">sonraki deneme: ${escapeHtml(d.next_retry_at)}</div>` : "");
+      box.appendChild(row);
+    }
+  }
+  function checkedWebhookTypes() {
+    const boxes = document.querySelectorAll('#webhook-types input:checked');
+    return Array.from(boxes).map(b => b.value);
+  }
+  async function addWebhookSubscription() {
+    const nameEl = document.getElementById("webhook-name");
+    const urlEl = document.getElementById("webhook-url");
+    const secretEl = document.getElementById("webhook-secret");
+    const event_types = checkedWebhookTypes();
+    if (!(nameEl && nameEl.value.trim())) { setStatus("Abone adı gerekli."); return; }
+    if (!(urlEl && urlEl.value.trim())) { setStatus("Webhook URL'si gerekli."); return; }
+    if (!event_types.length) { setStatus("En az bir olay tipi seçilmelidir."); return; }
+    try {
+      const res = await fetch(WEBHOOK_API + "/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameEl.value.trim(),
+          url: urlEl.value.trim(),
+          event_types,
+          secret: secretEl && secretEl.value.trim() ? secretEl.value.trim() : null,
+          enabled: true,
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e.detail && e.detail.error) || `HTTP ${res.status}`);
+      }
+      setStatus("Webhook aboneliği eklendi.");
+      nameEl.value = ""; urlEl.value = ""; if (secretEl) secretEl.value = "";
+      document.querySelectorAll('#webhook-types input').forEach(b => { b.checked = false; });
+      await loadWebhooks();
+    } catch (err) {
+      setStatus(`Abonelik eklenemedi: ${err.message}`);
+    }
+  }
+  async function patchWebhookSub(key, payload) {
+    try {
+      const res = await fetch(`${WEBHOOK_API}/subscriptions/${encodeURIComponent(key)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (e) { setStatus(`Abonelik güncellenemedi: ${e.message}`); }
+    await loadWebhooks();
+  }
+  async function deleteWebhookSub(key) {
+    try { await fetch(`${WEBHOOK_API}/subscriptions/${encodeURIComponent(key)}`, { method: "DELETE" }); }
+    catch (e) { setStatus(`Abonelik silinemedi: ${e.message}`); }
+    await loadWebhooks();
+  }
+  async function dispatchWebhooks() {
+    const types = checkedWebhookTypes();
+    const targets = types.length ? types : ["fire_event", "forecast", "alert"];
+    let created = 0;
+    try {
+      for (const event_type of targets) {
+        const res = await fetch(WEBHOOK_API + "/dispatch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event_type, dry_run: false }),
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error((e.detail && e.detail.error) || `HTTP ${res.status}`);
+        }
+        const d = await res.json();
+        created += d.created || 0;
+      }
+      setStatus(`Webhook olayları dağıtıldı — ${created} imzalı teslim kaydı.`);
+    } catch (err) {
+      setStatus(`Olaylar dağıtılamadı: ${err.message}`);
+    }
+    await loadWebhooks();
+  }
+  async function retryWebhooks() {
+    try {
+      const res = await fetch(WEBHOOK_API + "/retry", { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      const r = d.retried || [];
+      const x = d.exhausted || [];
+      setStatus(`Yeniden deneme — ${r.length} yeniden gönderildi, ${x.length} bütçe tükendi.`);
+    } catch (err) {
+      setStatus(`Yeniden deneme başarısız: ${err.message}`);
+    }
+    await loadWebhooks();
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -3057,6 +3314,18 @@
     if (handoverRefresh) handoverRefresh.addEventListener("click", loadHandoverNotes);
     const handoverSummaryBtn = document.getElementById("handover-summary-btn");
     if (handoverSummaryBtn) handoverSummaryBtn.addEventListener("click", buildHandoverSummary);
+
+    // EM-094: webhook düğmeleri + abonelik formu.
+    const webhookBtn = document.getElementById("webhook-open");
+    if (webhookBtn) webhookBtn.addEventListener("click", toggleWebhookPanel);
+    const webhookAdd = document.getElementById("webhook-add");
+    if (webhookAdd) webhookAdd.addEventListener("click", addWebhookSubscription);
+    const webhookDispatch = document.getElementById("webhook-dispatch");
+    if (webhookDispatch) webhookDispatch.addEventListener("click", dispatchWebhooks);
+    const webhookRetry = document.getElementById("webhook-retry");
+    if (webhookRetry) webhookRetry.addEventListener("click", retryWebhooks);
+    const webhookRefresh = document.getElementById("webhook-refresh");
+    if (webhookRefresh) webhookRefresh.addEventListener("click", loadWebhooks);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

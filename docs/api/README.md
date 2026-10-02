@@ -1069,6 +1069,38 @@ bölge, hava noktası, üs + envanter varlığı) ve aynı tohumda tekrar çalı
 idempotent'tir; `DELETE` ile etiket bazlı geri alınabilir. Demo:
 `python scripts/demo_api.py --seed 42 --preset firtina`.
 
+### Olay & Uyarı Webhook'ları (EM-094)
+```
+GET    /api/v1/webhooks/config                         # geçerli olay tipleri, imza şeması, sınırlar
+GET    /api/v1/webhooks                                # panel beslemesi: abonelikler + teslim özeti + son geçmiş
+GET    /api/v1/webhooks/subscriptions                  # abonelikler (teslim sayılarıyla)
+POST   /api/v1/webhooks/subscriptions                  # yeni uç nokta kaydet (URL + olay tipleri + gizli anahtar)
+PUT    /api/v1/webhooks/subscriptions/{key}            # kısmi düzenleme (duraklat/sürdür dahil)
+DELETE /api/v1/webhooks/subscriptions/{key}            # aboneliği sil (teslim geçmişi denetim izi olarak kalır)
+POST   /api/v1/webhooks/dispatch                       # en son canlı-akış olaylarını ilgili abonelere imzalı dağıt
+POST   /api/v1/webhooks/preview?key=&event_type=       # gönderilecek imzalı zarfı kayıtsız önizle
+POST   /api/v1/webhooks/deliveries/{key}/attempt       # bir denemenin taşıyıcı sonucunu kaydet
+POST   /api/v1/webhooks/retry                           # zamanlanmış başarısız teslimleri yeniden dene
+GET    /api/v1/webhooks/deliveries                     # teslim defteri (yeniden eskiye; abonelik/durum filtresi)
+```
+Bütünleştirici, olay ve uyarıları kuyruklamak yerine bunların bir alt sistem
+servisine anında **itilmesini** ister. Bir abonelik bir uç nokta (yalnızca
+`http(s)`), ilgilendiği canlı-akış türleri (`fire_event` / `forecast` / `alert`)
+ve her isteği HMAC-SHA256 ile imzalamak için kullanılan paylaşılan bir **gizli
+anahtar** tanımlar; imza GitHub/GitLab tarzı `X-EmberMind-Signature: t=<timestamp>,v1=<hex>`
+başlığıyla `"<timestamp>.<body>"` üzerinden hesaplanır. API yanıtı gizli anahtarı
+asla geri vermez (yalnızca `has_secret`). Başarısız bir deneme, sınırlı bir üstel
+geri çekilme bütçesiyle (`WEBHOOK_MAX_RETRIES` / `WEBHOOK_BACKOFF_SECONDS`) sonraki
+deneme anını planlar; `retry_due` bütçeyi tek kapı olarak uygular (bütçe dolan
+satır yeniden-deneme kuyruğundan düşer). Her deneme, imzalanan gövdeyi, imzayı,
+sonucu ve deneme sayısını **yalnızca-eklenen** `webhook_deliveries` defterine
+yazar; böylece "ne, kime gönderildi, tuttu mu, ne zaman yeniden denenecek"
+incelenebilir kalır. **Gerçek HTTPS taşıyıcısı bu katmanda bilinerek yapılmaz**
+(EM-069 emsali: canlı ağ gönderimi asla "teslim edildi" diye sahtelenmez);
+defter imzalı isteğin kalıcı kaydıdır ve `record_attempt` / `dispatch_event` `simulate_fail_for`
+/ `retry` uçları başarısızlık + yeniden-deneme yolunu belirlenimci biçimde çalıştırır.
+UI: `/ui` haritasındaki **Webhook'lar** paneli.
+
 ## Error Codes
 
 - `200`: Başarılı

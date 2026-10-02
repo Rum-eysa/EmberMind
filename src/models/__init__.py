@@ -30,6 +30,7 @@ from .spatial import (
 from .synthetic import ScenarioRun
 from .topography import TopographyDataPoint
 from .user_preferences import UserPreference
+from .webhook import WebhookDelivery, WebhookSubscription
 from .weather import WeatherDataPoint
 
 __all__ = [
@@ -69,4 +70,6 @@ __all__ = [
     "TopographyDataPoint",
     "UserPreference",
     "WeatherDataPoint",
+    "WebhookDelivery",
+    "WebhookSubscription",
 ]

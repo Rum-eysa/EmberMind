@@ -34,6 +34,7 @@ PANEL_KEYS = (
     "notification_center",
     "sitrep",
     "shift_handover",
+    "webhooks",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -141,6 +142,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Bu vardiyada not yok; devir özeti yalnızca otomatik olayları içerir.",
         "error": "Vardiya devri özeti oluşturulamadı.",
         "error_action": "Olay seçimini ve not metnini kontrol edip yeniden deneyin.",
+    },
+    "webhooks": {
+        "title": "Olay & Uyarı Webhook'ları",
+        "loading": "Webhook abonelikleri ve teslim geçmişi yükleniyor…",
+        "empty": "Kayıtlı webhook aboneliği yok; bir uç nokta ve olay tipleri ekleyin.",
+        "error": "Webhook durumu alınamadı.",
+        "error_action": "Abonelik URL'sini ve olay tiplerini kontrol edip yeniden deneyin.",
     },
 }
 
