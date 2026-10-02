@@ -33,6 +33,7 @@ PANEL_KEYS = (
     "municipality_view",
     "notification_center",
     "sitrep",
+    "shift_handover",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -133,6 +134,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Bildirilecek aktif yangın yok; rapor boş durumla üretilir.",
         "error": "Durum raporu oluşturulamadı.",
         "error_action": "Bağlantınızı kontrol edip yeniden deneyin; sürerse risk/öneri verisini kontrol edin.",
+    },
+    "shift_handover": {
+        "title": "Vardiya Devri",
+        "loading": "Olay notları ve devir özeti derleniyor…",
+        "empty": "Bu vardiyada not yok; devir özeti yalnızca otomatik olayları içerir.",
+        "error": "Vardiya devri özeti oluşturulamadı.",
+        "error_action": "Olay seçimini ve not metnini kontrol edip yeniden deneyin.",
     },
 }
 

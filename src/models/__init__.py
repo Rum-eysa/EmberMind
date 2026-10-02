@@ -1,6 +1,7 @@
 """Persisted wildfire models."""
 from .capacity import CapacityAssumption
 from .crossborder_notification import CrossborderNotification
+from .event_notes import EventNote
 from .exposure import ExposedAsset
 from .fire import FireCluster, FireObservation, FirmsSyncStatus
 from .fwi import FireWeatherIndex
@@ -34,6 +35,7 @@ __all__ = [
     "CapacityAssumption",
     "CrossborderNotification",
     "CrewBase",
+    "EventNote",
     "ExposedAsset",
     "FireCluster",
     "FireEvent",

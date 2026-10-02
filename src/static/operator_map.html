@@ -397,6 +397,20 @@
     #sitrep-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #sitrep-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #handover-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #handover-panel .noteform { margin-bottom: 6px; }
+    #handover-panel .noteform label { display: inline-block; margin: 2px 6px 2px 0; }
+    #handover-panel input { font-size: 12px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 4px; }
+    #handover-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #handover-panel .note { padding: 3px 2px; border-bottom: 1px solid var(--border-color); }
+    #handover-panel .fire { padding: 3px 2px; border-bottom: 1px solid var(--border-color); }
+    #handover-panel .note .meta, #handover-panel .fire .meta,
+    #handover-panel .rec .meta { color: var(--text-secondary); font-weight: 400; }
+    #handover-panel .rec .rechead { font-weight: 600; margin: 6px 0 2px; }
+    #handover-panel .rec .recrow { padding: 1px 0; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -429,6 +443,8 @@
       title="EM-086 bildirim merkezi — uyarıları okundu/onaylandı izleyin, sesli uyarıyı seviyeye göre ayarlayın">Bildirimler</button>
     <button type="button" id="sitrep-open"
       title="EM-087 durum raporu (SITREP) — tek sayfalık özeti derle, PDF/Yazdır ile dışa aktar">Durum Raporu</button>
+    <button type="button" id="handover-open"
+      title="EM-089 vardiya devri notları — olaya not ekle, notları zaman çizelgesinde gör, tek tıkla devir özeti oluştur">Vardiya Devri</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -615,6 +631,25 @@
     <div id="sitrep-body"></div>
   </div>
 
+  <div id="handover-panel" class="panel" aria-live="polite">
+    <h1>Vardiya Devri <span id="handover-count" class="count"></span></h1>
+    <div class="noteform">
+      <label>Olay anahtarı: <input type="text" id="handover-event" size="12"
+        placeholder="evt-..."></label>
+      <label>Not: <input type="text" id="handover-body" size="26"
+        placeholder="serbest metin not"></label>
+      <label>Yazan: <input type="text" id="handover-author" size="10"
+        placeholder="opsiyonel"></label>
+      <div class="acts">
+        <button type="button" id="handover-add">Not Ekle</button>
+        <button type="button" id="handover-listen">Notları Yenile</button>
+        <button type="button" id="handover-summary-btn">Devir Özetini Oluştur</button>
+      </div>
+    </div>
+    <div id="handover-summary"></div>
+    <div id="handover-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -697,6 +732,8 @@
   let bildirimPanelOpen = false;
   // EM-087: durum raporu (SITREP) paneli durumu.
   let sitrepPanelOpen = false;
+  // EM-089: vardiya devri notları + tek tık devir özeti paneli durumu.
+  let handoverPanelOpen = false;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2671,6 +2708,156 @@
     setTimeout(() => document.body.removeChild(iframe), 1000);
   }
 
+  // EM-089: vardiya devri notları + tek tık devir özeti.
+  const HANDOVER_API = "/api/v1/shift-handover";
+  async function toggleHandoverPanel() {
+    const panel = document.getElementById("handover-panel");
+    if (handoverPanelOpen) {
+      handoverPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    handoverPanelOpen = true;
+    panel.style.display = "block";
+    const evEl = document.getElementById("handover-event");
+    if (evEl && !evEl.value && exposureEventKey) { evEl.value = exposureEventKey; }
+    await loadHandoverNotes();
+  }
+  async function loadHandoverNotes() {
+    const box = document.getElementById("handover-list");
+    panelLoading(box, "shift_handover");
+    try {
+      const evEl = document.getElementById("handover-event");
+      const ek = evEl ? evEl.value.trim() : "";
+      const url = HANDOVER_API + "/notes" + (ek ? `?event_key=${encodeURIComponent(ek)}` : "");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderHandoverNotes(data);
+    } catch (err) {
+      if (box) { box.innerHTML = panelErrorHtml("shift_handover", err.message); }
+      setStatus(`Vardiya devri notları alınamadı: ${err.message}`);
+    }
+  }
+  function renderHandoverNotes(data) {
+    const box = document.getElementById("handover-list");
+    const countEl = document.getElementById("handover-count");
+    if (countEl) countEl.textContent = `(${data.total_matching || 0} not)`;
+    box.innerHTML = "";
+    const notes = data.notes || [];
+    if (!notes.length) {
+      panelEmpty(box, "shift_handover", "Bu vardiyada not yok.");
+      setStatus(`Vardiya devri — ${data.attribution}`);
+      return;
+    }
+    for (const n of notes) {
+      const row = document.createElement("div");
+      row.className = "note";
+      row.innerHTML =
+        `<div class="meta">${escapeHtml(n.event_key)}`
+        + ` · ${escapeHtml(n.author || "operatör")} · ${escapeHtml(n.created_at || "")}</div>`
+        + `<div>${escapeHtml(n.body || "")}</div>`
+        + `<div class="acts"></div>`;
+      const acts = row.querySelector(".acts");
+      const del = document.createElement("button");
+      del.type = "button";
+      del.textContent = "Sil";
+      del.addEventListener("click", () => deleteHandoverNote(n.id));
+      acts.appendChild(del);
+      box.appendChild(row);
+    }
+    setStatus(`Vardiya devri — ${data.attribution}`);
+  }
+  async function addHandoverNote() {
+    const evEl = document.getElementById("handover-event");
+    const bodyEl = document.getElementById("handover-body");
+    const authorEl = document.getElementById("handover-author");
+    const event_key = evEl ? evEl.value.trim() : "";
+    const body = bodyEl ? bodyEl.value.trim() : "";
+    if (!event_key) { setStatus("Not için olay anahtarı gerekli."); return; }
+    if (!body) { setStatus("Not metni boş olamaz."); return; }
+    try {
+      const res = await fetch(HANDOVER_API + "/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_key, body,
+          author: authorEl ? (authorEl.value.trim() || null) : null,
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e.detail && e.detail.error) || `HTTP ${res.status}`);
+      }
+      setStatus("Not eklendi.");
+      if (bodyEl) bodyEl.value = "";
+      await loadHandoverNotes();
+    } catch (err) {
+      setStatus(`Not eklenemedi: ${err.message}`);
+    }
+  }
+  async function deleteHandoverNote(id) {
+    try { await fetch(`${HANDOVER_API}/notes/${id}`, { method: "DELETE" }); }
+    catch (e) { setStatus(`Not silinemedi: ${e.message}`); }
+    await loadHandoverNotes();
+  }
+  async function buildHandoverSummary() {
+    const box = document.getElementById("handover-summary");
+    panelLoading(box, "shift_handover");
+    try {
+      const evEl = document.getElementById("handover-event");
+      const ek = evEl ? evEl.value.trim() : "";
+      const url = HANDOVER_API + (ek ? `?event_key=${encodeURIComponent(ek)}` : "");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderHandoverSummary(data);
+    } catch (err) {
+      if (box) { box.innerHTML = panelErrorHtml("shift_handover", err.message); }
+      setStatus(`Devir özeti oluşturulamadı: ${err.message}`);
+    }
+  }
+  function renderHandoverSummary(data) {
+    const box = document.getElementById("handover-summary");
+    box.innerHTML = "";
+    const c = data.conflicts || {};
+    const head = document.createElement("div");
+    head.className = "meta";
+    head.textContent = `Aktif olay: ${data.incident_count || 0}`
+      + ` · not: ${data.note_count || 0}`
+      + ` · çakışma: ${c.total || 0}`
+      + ` · ${escapeHtml(data.generated_at || "")}`;
+    box.appendChild(head);
+    const incs = data.incidents || [];
+    if (!incs.length) {
+      const p = document.createElement("div");
+      p.className = "meta";
+      p.textContent = "Aktif yangın yok.";
+      box.appendChild(p);
+    }
+    for (const inc of incs) {
+      const row = document.createElement("div");
+      row.className = "fire";
+      row.innerHTML =
+        `<strong>${escapeHtml(inc.name || inc.event_key)}</strong>`
+        + `<div class="meta">${escapeHtml(inc.severity || "")}`
+        + ` · konuşlu: ${inc.committed_count || 0}`
+        + ` · not: ${inc.note_count || 0}`
+        + (inc.latest_note ? ` · son: ${escapeHtml(inc.latest_note)}` : "")
+        + `</div>`;
+      box.appendChild(row);
+    }
+    const chrono = document.createElement("div");
+    chrono.className = "rec";
+    const entries = (data.chronology || []).slice(0, 15);
+    chrono.innerHTML = `<div class="rechead">Akış (olay + not)</div>`
+      + (entries.length ? entries.map(e =>
+        `<div class="recrow">${escapeHtml(e.label || e.category)} — ${escapeHtml(e.text || "")}</div>`
+      ).join("") : `<div class="meta">Akış boş.</div>`);
+    box.appendChild(chrono);
+    setStatus(`Vardiya devri özeti — ${data.attribution}`);
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -2860,6 +3047,16 @@
     // EM-087: durum raporu (SITREP) düğmesi.
     const sitrepBtn = document.getElementById("sitrep-open");
     if (sitrepBtn) sitrepBtn.addEventListener("click", toggleSitrepPanel);
+
+    // EM-089: vardiya devri düğmeleri + not formu.
+    const handoverBtn = document.getElementById("handover-open");
+    if (handoverBtn) handoverBtn.addEventListener("click", toggleHandoverPanel);
+    const handoverAdd = document.getElementById("handover-add");
+    if (handoverAdd) handoverAdd.addEventListener("click", addHandoverNote);
+    const handoverRefresh = document.getElementById("handover-listen");
+    if (handoverRefresh) handoverRefresh.addEventListener("click", loadHandoverNotes);
+    const handoverSummaryBtn = document.getElementById("handover-summary-btn");
+    if (handoverSummaryBtn) handoverSummaryBtn.addEventListener("click", buildHandoverSummary);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

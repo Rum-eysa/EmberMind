@@ -469,6 +469,27 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Vardiya Devri Notları / Devir Özeti (EM-089)
+
+Canlı akış (EM-090), kabul edilen öneriler (EM-047) ve olay zaman çizelgesi
+(EM-081) makine üretimidir; operatörün vardiyayı devrederken iletmek istediği
+serbest metin bilgiyi yazabileceği kalıcı bir yüzey yoktu. Bu uçlar olaya
+**serbest metin not** ekler, notları listeler/siler ve **tek tıkla vardiya devri
+özeti** üretir. Özet okuma zamanıdır: aktif olay kartlarını (EM-082 konuşlu
+kadro + çakışma sayımı) operatör notlarıyla EM-081'in kronolojik akışında
+birleştirir; notlar `operator_note` kategorisiyle akışa görünür şekilde katılır
+(EM-081'in kendi kategori kümesi değişmez). Yalnızca `event_notes` kalıcıdır.
+Boş not→400, tanınmayan olay→404.
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/shift-handover` | Tek tık devir özeti (olay kartları + olay/not akışı + çakışma sayımı); `event_key` ile tek olaya kapsamlanır |
+| `GET /api/v1/shift-handover/notes` | Notlar yeniden eskiye; `event_key` filtresi ve `limit` (`SHIFT_HANDOVER_MAX_NOTES`'a kırpık) |
+| `POST /api/v1/shift-handover/notes` | Olaya serbest metin not ekler (`event_key`/`body`/`author`); boş→400, tanınmayan olay→404 |
+| `GET /api/v1/shift-handover/notes/{id}` | Tek notu getirir (yoksa 404) |
+| `DELETE /api/v1/shift-handover/notes/{id}` | Notu siler (yoksa 404) |
+| `GET /api/v1/shift-handover/config` | Not kategorisi, kaynaklar ve sayfa sınırı |
+
 ### Kullanıcı Ayarları / Tercih Profili (EM-088)
 
 Operatörün **dil**, **tema**, **saat dilimi** ve **koordinat biçimi**

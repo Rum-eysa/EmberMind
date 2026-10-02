@@ -49,6 +49,7 @@ from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
 from src.routes.scenario_share import register_scenario_share_routes
 from src.routes.share_policy import register_share_policy_routes
+from src.routes.shift_handover import register_shift_handover_routes
 from src.routes.silent_zone_panel import register_silent_zone_panel_routes
 from src.routes.sitrep_report import register_sitrep_routes
 from src.routes.spread import register_spread_routes
@@ -433,6 +434,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_municipality_view_routes(api, database, settings)
     register_notification_center_routes(api, database, settings)
     register_sitrep_routes(api, database, settings)
+    register_shift_handover_routes(api, database, settings)
     register_localization_routes(api, database, settings)
     register_i18n_routes(api, database, settings)
     register_user_preference_routes(api, database, settings)

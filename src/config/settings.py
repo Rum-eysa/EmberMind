@@ -393,6 +393,12 @@ class Config:
     # burada belirlenir ve silinmemiş bir profil olmadığında panele yansır.
     UI_DEFAULT_THEME = os.getenv("UI_DEFAULT_THEME", "dark")
 
+    # EM-089: vardiya devri notları ve tek tık devir özeti (Epic E8)
+    # Operatör olaya serbest metin not ekler; notlar EM-081 zaman çizelgesiyle
+    # birleştirilip tek tık devir özetinde gösterilir. Özet ve not listesi
+    # okuma zamanıdır; yalnızca event_notes kalıcıdır. Penceredeki azami not.
+    SHIFT_HANDOVER_MAX_NOTES = int(os.getenv("SHIFT_HANDOVER_MAX_NOTES", "100"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

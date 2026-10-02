@@ -5,6 +5,37 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-089: Vardiya devri notları ve tek tık devir özeti (E8)
+  - Operatör, vardiyayı devrederken otomatik akışların yakalamadığı bilgiyi
+    (dar yol, kuruyan su noktası, arazi erişim anlaşması) olaya not olarak
+    ekleyip tek tıkla bir devir özeti görmek ister (kabul kriterleri: "olaya
+    serbest metin not eklenir; notlar zaman çizelgesinde görünür; vardiya devri
+    özeti tek tıkla oluşturulur") — canlı akış (EM-090), kabul edilen öneriler
+    (EM-047) ve zaman çizelgesi (EM-081) makine üretimidir; operatörün yazabileceği
+    kalıcı bir not yüzeyi ve insan yorumunu makine görünümüyle birleştiren bir devir
+    özeti hiç yoktu
+  - `src/models/event_notes.py` + `scripts/migration/V027__event_notes.sql`:
+    olay başına serbest metin satır (`event_key/body/author`); yalnızca insan
+    yorumunu saklar, salt-additive
+  - `src/services/shift_handover.py`: `add_note` (boş not / tanınmayan olay
+    yükseltir), `list_notes` (yeniden eskiye, olayla filtreli, `MAX_NOTES`'a
+    kırpık), `get_note`/`delete_note`, ve `handover_summary` — aktif olay
+    kartlarını (EM-082 konuşlu kadro + çakışma sayımı) ve notları EM-081 kronolojik
+    akışıyla **okuma zamanında** birleştirir; notlar `operator_note` kategorisiyle
+    akışa katılır (EM-081'in kendi kategori kümesi/testleri değişmeden)
+  - `src/routes/shift_handover.py` (`GET /api/v1/shift-handover` + `/notes`
+    GET/POST, `/notes/{id}` GET/DELETE, `/config`; tanınmayan olay→404, boş
+    not→400) + `src/fastapi_app.py` kaydı. `settings.py` + `.env.example`:
+    `SHIFT_HANDOVER_MAX_NOTES`. `ui_states.py`: `shift_handover` panel anahtarı.
+    `operator_map.html`: Vardiya Devri paneli — olay anahtarı/not/yazan formu,
+    Not Ekle / Yenile / Sil ve **Devir Özetini Oluştur** (olay + not akışını
+    kartlarla birlikte basar); seçili olay anahtarı haritadan önceden doldurulur
+  - `tests/unit/test_shift_handover.py`: 27 birim test (not ekleme/şekil,
+    gövde-yazan kırpma, boş not/tanınmayan olay/boş anahtar doğrulamaları,
+    yeniden-eskiye sıralama + olay filtresi + `MAX_NOTES` kırpma, get/delete,
+    devir özetinde yalnızca aktif olaylar, **notun kronolojide görünmesi**,
+    tek olaya kapsam, kart not sayısı/son not, çakışma bloğu, config, HTTP
+    uçları + 404/400)
 - EM-088: Kullanıcı ayarları (dil, birim, tema) — kalıcı profil (E8)
   - Operatör dil/tema/gösterim tercihlerinin sayfa yenilendiğinde ya da başka
     bir iş istasyonunda kaybolmamasını ister (kabul kriteri: "ayarlar profil
