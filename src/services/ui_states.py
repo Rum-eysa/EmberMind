@@ -37,6 +37,7 @@ PANEL_KEYS = (
     "webhooks",
     "audit_trail",
     "signal_baseline",
+    "silent_region_risk",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -165,6 +166,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Seçili filtrede izleme hücresi yok; ızgara aralığını gözden geçirin.",
         "error": "Sinyal baz çizgisi alınamadı.",
         "error_action": "Kaynak ve tarih seçimini kontrol edip yeniden deneyin.",
+    },
+    "silent_region_risk": {
+        "title": "Yüksek Öncelikli Sessiz Bölge",
+        "loading": "Sessiz bölgeler yayılım tahmin riskiyle derecelendiriliyor…",
+        "empty": "Yayılım tahmini ulaşan sessiz bölge yok; aktif yangın/tahmin var mı kontrol edin.",
+        "error": "Sessiz bölge risk kesişimi alınamadı.",
+        "error_action": "Eşik/filtre seçimini gözden geçirip yeniden deneyin.",
     },
 }
 

@@ -5,6 +5,29 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-037: Yüksek öncelikli sessiz bölge kesişimi — yayılım tahmini ulaşan ama SOS olmayan bölgeler (E4)
+  - "Riskli ama sessiz" senaryosu: bir bölgeye yayılım tahmin poligonu **ulaşıyor**
+    olmasına rağmen oradan hiçbir yardım/SOS sinyali **gelmiyor** olabilir (kabul
+    kriterleri: "yayılım tahmin poligonu ile sessiz bölge birleştirilir; kesişen
+    bölgeler 'yüksek öncelikli sessiz bölge' olarak işaretlenir; liste, risk ×
+    sessizlik derecesine göre sıralanır") — bugüne dek EM-078 paneli sessizlik
+    **güven bandını**, EM-015 ise yayılım **poligonlarını** ayrı ayrı üretiyordu;
+    ikisi hiçbir yerde birleştirilmemişti (gerçek eksik: `silent_region_risk` yok)
+  - `src/services/silent_region_risk.py`: EM-078 `silent_zone_report` **yeniden
+    kullanılarak** her aktif sessiz bölgenin sessizlik güveni alınır; aktif
+    `FireEvent`'lere bağlanmış `FireForecast` poligonları (Shapely) bölge kutusuyla
+    kesiştirilir, **kapsama oranı** = risk derecesi; `priority = risk × sessizlik`
+    ile sıralanır; `is_high_priority` hem risk hem sessizlik eşiklerini geçmeli
+    (bölge içinde canlı yangın → sessizlik çöker → öncelik dışı); yalnızca **aktif**
+    yangınların tahminleri tehdit sayılır, çözülemeyen geometri atlanır;
+    `persistence: none` — okuma zamanı hesaplanır, hiçbir şey yazılmaz
+  - `src/routes/silent_region_risk.py` `/api/v1/silent-region-risk` (rapor +
+    `flagged_only`/`limit` süzgeçleri, `limit<1` → 400/422) + `/config` +
+    `fastapi_app.py` kaydı; `settings.py` + `.env.example`
+    (`SILENT_REGION_RISK_MIN_COVERAGE`/`_MIN_CONFIDENCE`/`_MAX_FORECASTS`/`_MAX_LIMIT`);
+    `ui_states`'e `silent_region_risk`; `operator_map` Yüksek Öncelikli Sessiz Bölge
+    paneli (yalnız-öncelikli süzmesi istemci tarafında + harita senkron bölge
+    seçimi, risk/sessizlik/öncelik rozetleri); 20 test
 - EM-035: Bölge bazlı sinyal baz çizgisi — sessiz bölge anomalisi için "normal" öğrenimi (E4)
   - Sessiz bölge **anomalisi**nin anlam kazanması için önce bölgenin normalinin
     bilinmesi gerekir (kabul kriterleri: "yangın öncesi sinyal seviyesinin bölge

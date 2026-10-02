@@ -450,6 +450,26 @@ class Config:
     SIGNAL_PILOT_MIN_LON = float(os.getenv("SIGNAL_PILOT_MIN_LON", "26.0"))
     SIGNAL_PILOT_MAX_LON = float(os.getenv("SIGNAL_PILOT_MAX_LON", "30.0"))
 
+    # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
+    # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
+    # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:
+    # none). kapsama_alti: "kesişti" sayılmak için bölge alanının en az bu oranı
+    # yayılmalı; guven_alti: bölgenin "gerçekten sessiz" sayılma tabanı (altındaki
+    # çelişkili bölge öncelik dışı); taramada incelenecek azami tahmin satırı ve
+    # tek istekte dönecek azami bölge sayısı.
+    SILENT_REGION_RISK_MIN_COVERAGE = float(
+        os.getenv("SILENT_REGION_RISK_MIN_COVERAGE", "0.05")
+    )
+    SILENT_REGION_RISK_MIN_CONFIDENCE = float(
+        os.getenv("SILENT_REGION_RISK_MIN_CONFIDENCE", "0.5")
+    )
+    SILENT_REGION_RISK_MAX_FORECASTS = int(
+        os.getenv("SILENT_REGION_RISK_MAX_FORECASTS", "200")
+    )
+    SILENT_REGION_RISK_MAX_LIMIT = int(
+        os.getenv("SILENT_REGION_RISK_MAX_LIMIT", "200")
+    )
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

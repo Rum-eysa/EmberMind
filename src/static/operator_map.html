@@ -496,6 +496,33 @@
     #signal-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #signal-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-037: yüksek öncelikli sessiz bölge — yayılım tahmini × sessizlik güveni */
+    #srisk-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 300px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #srisk-panel h1 { margin-bottom: 4px; }
+    #srisk-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #srisk-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #srisk-panel .bar label { display: block; margin: 2px 0; }
+    #srisk-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #srisk-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #srisk-panel .item:hover { background: rgba(33,102,172,.10); }
+    #srisk-panel .item.sel { background: rgba(33,102,172,.18); }
+    #srisk-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #srisk-panel .nm { font-weight: 600; }
+    #srisk-panel .pri { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #srisk-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #srisk-panel .threat { color: #b71c1c; font-weight: 600; }
+    #srisk-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #srisk-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -537,6 +564,9 @@
     <button type="button" id="signal-open"
       title="EM-035 sinyal baz çizgisi — hücre bazında 30 günlük iletişim/rapor normali ve bugünkü sessizlik adayı">
       Sinyal Baz Çizgisi</button>
+    <button type="button" id="srisk-open"
+      title="EM-037 yüksek öncelikli sessiz bölge — yayılım tahmini ulaşan ama SOS olmayan bölgeler, risk × sessizlik sıralı">
+      Yüksek Öncelikli Sessiz Bölge</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -820,6 +850,16 @@
     <div id="signal-list"></div>
   </div>
 
+  <div id="srisk-panel" class="panel" aria-live="polite">
+    <h1>Yüksek Öncelikli Sessiz Bölge <span id="srisk-count" class="count"></span></h1>
+    <div class="bar">
+      <label><input type="checkbox" id="srisk-flagged" checked>
+        yalnızca yüksek öncelikliler</label>
+      <div class="acts"><button type="button" id="srisk-refresh">Yenile</button></div>
+    </div>
+    <div id="srisk-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -913,6 +953,9 @@
   let signalPanelOpen = false;
   let signalConfigLoaded = false;
   let signalHighlight = null;      // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
+  // EM-037: yüksek öncelikli sessiz bölge paneli durumu.
+  let sriskPanelOpen = false;
+  let sriskHighlight = null;       // seçili bölgenin vurgu dikdörtgeni (L.Rectangle)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -3479,6 +3522,107 @@
     signalHighlight.openPopup();
   }
 
+  // --- EM-037: yüksek öncelikli sessiz bölge (yayılım riski × sessizlik) ----
+  const SRISK_API = "/api/v1/silent-region-risk";
+  async function toggleSRiskPanel() {
+    const panel = document.getElementById("srisk-panel");
+    if (sriskPanelOpen) {
+      sriskPanelOpen = false;
+      panel.style.display = "none";
+      if (sriskHighlight) { map.removeLayer(sriskHighlight); sriskHighlight = null; }
+      return;
+    }
+    sriskPanelOpen = true;
+    panel.style.display = "block";
+    await loadSRisk();
+  }
+  async function loadSRisk() {
+    const box = document.getElementById("srisk-list");
+    panelLoading(box, "silent_region_risk");
+    try {
+      const res = await fetch(`${SRISK_API}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSRiskList(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("silent_region_risk", err.message);
+      setStatus(`Sessiz bölge risk kesişimi alınamadı: ${err.message}`);
+    }
+  }
+  function renderSRiskList(data) {
+    const box = document.getElementById("srisk-list");
+    const countEl = document.getElementById("srisk-count");
+    // Son yanıtı önbelleğe al: öncelik süzmesi sunucuya gitmeden yeniden işlenir.
+    box.dataset.sriskLast = JSON.stringify(data);
+    let rows = (data.regions || []).slice();
+    const onlyFlagged = document.getElementById("srisk-flagged").checked;
+    if (onlyFlagged) { rows = rows.filter(r => r.is_high_priority); }
+    const s = data.summary || {};
+    if (countEl) {
+      countEl.textContent = `(${s.high_priority_regions || 0}/${s.active_silent_regions || 0})`;
+    }
+    box.innerHTML = "";
+    if (!rows.length) {
+      panelEmpty(box, "silent_region_risk",
+        "Yayılım tahmini ulaşan yüksek öncelikli sessiz bölge yok.");
+      setStatus(`Yüksek öncelikli sessiz bölge — öncelik dışı — ${data.attribution}`);
+      return;
+    }
+    for (const region of rows) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const color = region.is_high_priority ? "#c62828" : "#9e9e9e";
+      const riskPct = Math.round((region.risk_degree || 0) * 100);
+      const silPct = Math.round((region.silence_degree || 0) * 100);
+      const threat = region.worst_threat
+        ? `<br><span class="threat">← ${escapeHtml(region.worst_threat.fire_name)}`
+          + ` (${escapeHtml(String(region.worst_threat.horizon_minutes))} dk)</span>`
+        : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${escapeHtml(region.region_name)}</b>`
+        + `<br><span class="meta">risk %${riskPct} · sessiz %${silPct}</span>${threat}</span>`
+        + `<span class="pri">${escapeHtml(String(region.priority_score))}</span>`;
+      const select = () => focusSRiskRegion(region, row);
+      row.addEventListener("click", select);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+      box.appendChild(row);
+    }
+    setStatus(
+      `Yüksek öncelikli sessiz bölge — kesişen ${s.intersecting_regions || 0}, `
+      + `öncelikli ${s.high_priority_regions || 0} — ${data.attribution}`);
+  }
+  function focusSRiskRegion(region, row) {
+    for (const el of document.querySelectorAll("#srisk-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    // Harita senkron seçim: bölge kutusuna odaklan ve vurgula.
+    const bounds = L.latLngBounds(
+      [[region.min_lat, region.min_lon], [region.max_lat, region.max_lon]]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+    if (sriskHighlight) { map.removeLayer(sriskHighlight); }
+    const stroke = region.is_high_priority ? "#c62828" : "#616161";
+    sriskHighlight = L.rectangle(bounds, {
+      color: stroke, weight: 3, dashArray: "6 4",
+      fillColor: stroke, fillOpacity: 0.14,
+    }).addTo(map);
+    const threat = region.worst_threat
+      ? `<br>tehdit: ${escapeHtml(region.worst_threat.fire_name)}`
+        + ` (${escapeHtml(region.worst_threat.severity)})`
+      : "";
+    sriskHighlight.bindPopup(
+      `<b>${escapeHtml(region.region_name)}</b><br>`
+      + `risk: ${escapeHtml(String(region.risk_degree))}`
+      + ` · sessizlik: ${escapeHtml(String(region.silence_degree))}`
+      + `<br>öncelik: ${escapeHtml(String(region.priority_score))}${threat}`);
+    sriskHighlight.openPopup();
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -3716,6 +3860,20 @@
       const box = document.getElementById("signal-list");
       if (box && box.dataset.signalLast) {
         renderSignalList(JSON.parse(box.dataset.signalLast));
+      }
+    });
+
+    // EM-037: yüksek öncelikli sessiz bölge düğmeleri + öncelik süzmesi.
+    const sriskBtn = document.getElementById("srisk-open");
+    if (sriskBtn) sriskBtn.addEventListener("click", toggleSRiskPanel);
+    const sriskRefresh = document.getElementById("srisk-refresh");
+    if (sriskRefresh) sriskRefresh.addEventListener("click", loadSRisk);
+    const sriskFlagged = document.getElementById("srisk-flagged");
+    if (sriskFlagged) sriskFlagged.addEventListener("change", () => {
+      // Ön yüz süzme: son yanıt yeniden işlenir, sunucuya gidilmez.
+      const box = document.getElementById("srisk-list");
+      if (box && box.dataset.sriskLast) {
+        renderSRiskList(JSON.parse(box.dataset.sriskLast));
       }
     });
   }

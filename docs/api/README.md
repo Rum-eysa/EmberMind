@@ -1149,6 +1149,30 @@ Bilinmeyen kaynak/geçersiz `as_of` → `400`; **hiçbir şey yazılmaz**
 **Sinyal Baz Çizgisi** paneli (kaynak seçici + referans tarih + yalnızca
 sessiz adayı süzmesi + harita senkron hücre seçimi).
 
+### Yüksek Öncelikli Sessiz Bölge Kesişimi (EM-037)
+```
+GET    /api/v1/silent-region-risk/config      # formül, eşikler, yüksek-öncelik kuralı, kalıcılık
+GET    /api/v1/silent-region-risk[?flagged_only=true&limit=N]  # risk × sessizlik sıralı kesişim raporu
+```
+"Riskli ama sessiz" senaryosu: EM-078 paneli sessizlik **güven bandını**, EM-015
+yayılım **poligonlarını** ayrı ayrı üretiyordu; bu servis ikisini **birleştirir**.
+Her aktif sessiz bölgenin sessizlik güveni `silent_zone_report` **yeniden
+kullanılarak** alınır; yalnızca **aktif** `FireEvent`'lere bağlanmış
+`FireForecast` poligonları Shapely ile bölge kutusuyla kesiştirilir ve
+**kapsama oranı** risk derecesini verir (`risk_degree = kesişim/alana`).
+`priority = risk_degree × silence_degree` ile azalan sıralanır;
+`is_high_priority` **hem** risk (`SILENT_REGION_RISK_MIN_COVERAGE`) **hem**
+sessizlik (`SILENT_REGION_RISK_MIN_CONFIDENCE`) eşiklerini geçmelidir — bölge
+içinde canlı yangın varsa sessizlik çöker ve bölge öncelik dışı kalır.
+Çözülemeyen/poligon olmayan tahmin geometrisi **atlanır**. Tehdit başına
+`worst_threat` ve `threatening_event_keys` listelenir. `flagged_only=true`
+yalnızca yüksek önceliklileri tutar; `limit` (<1 → `400`/`422`) listeyi kırparsa
+da `summary` **genel** kalır. Azami tahmin `SILENT_REGION_RISK_MAX_FORECASTS`.
+**Hiçbir şey yazılmaz** (`persistence: none`, okuma zamanı hesaplanır). UI:
+`/ui` haritasındaki **Yüksek Öncelikli Sessiz Bölge** paneli (yalnız-öncelikli
+süzmesi istemci tarafında + harita senkron bölge seçimi, risk/sessizlik/öncelik
+rozetleri).
+
 ## Error Codes
 
 - `200`: Başarılı
