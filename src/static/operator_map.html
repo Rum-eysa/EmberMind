@@ -372,6 +372,31 @@
     #bildirim-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                    border: 1px solid var(--border-color); border-radius: 6px;
                    background: none; }
+    /* EM-087: tek sayfalık durum raporu (SITREP) + PDF/Yazdır */
+    #sitrep-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 340px; max-height: 70vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #sitrep-panel h1 { margin-bottom: 4px; }
+    #sitrep-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #sitrep-panel .badge { display: none; padding: 4px 6px; margin-bottom: 6px;
+      border-radius: 6px; background: #fbe9e9; color: #b71c1c; font-weight: 700;
+      border: 1px solid #c62828; }
+    #sitrep-panel .headline { color: var(--text-secondary); margin: 0 0 6px; }
+    #sitrep-panel .fire { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #sitrep-panel .fire .lvl { display: inline-block; padding: 0 5px;
+      border-radius: 8px; color: #fff; font-size: 10px; }
+    #sitrep-panel .fire .meta { color: var(--text-secondary); font-weight: 400; }
+    #sitrep-panel .rec { margin-top: 8px; }
+    #sitrep-panel .rec .rechead { font-weight: 600; margin-bottom: 2px; }
+    #sitrep-panel .rec .recrow { padding: 2px 0; }
+    #sitrep-panel .print { margin-top: 8px; font-size: 12px; cursor: pointer;
+      padding: 4px 10px; border: 1px solid var(--border-color); border-radius: 6px;
+      background: var(--color-primary); color: #fff; }
+    #sitrep-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #sitrep-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -402,6 +427,8 @@
       title="EM-083 salt okunur belediye görünümü — bölgeniz için sadeleştirilmiş izleme ekranı">Belediye</button>
     <button type="button" id="bildirim-open"
       title="EM-086 bildirim merkezi — uyarıları okundu/onaylandı izleyin, sesli uyarıyı seviyeye göre ayarlayın">Bildirimler</button>
+    <button type="button" id="sitrep-open"
+      title="EM-087 durum raporu (SITREP) — tek sayfalık özeti derle, PDF/Yazdır ile dışa aktar">Durum Raporu</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -581,6 +608,13 @@
     <div id="bildirim-list"></div>
   </div>
 
+  <div id="sitrep-panel" class="panel" aria-live="polite">
+    <h1>Durum Raporu (SITREP) <span id="sitrep-count" class="count"></span></h1>
+    <div class="badge" id="sitrep-badge"></div>
+    <div class="headline" id="sitrep-headline"></div>
+    <div id="sitrep-body"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -661,6 +695,8 @@
   let belediyePanelOpen = false;
   // EM-086: bildirim merkezi paneli durumu.
   let bildirimPanelOpen = false;
+  // EM-087: durum raporu (SITREP) paneli durumu.
+  let sitrepPanelOpen = false;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2481,6 +2517,160 @@
     }
   }
 
+  // EM-087: durum raporu (SITREP) — tek sayfa özet + PDF/Yazdır dışa aktarımı.
+  const SITREP_API = "/api/v1/sitrep";
+  const SITREP_LEVEL_COLORS = {
+    "kritik": "#b71c1c", "kritik-yakin": "#e65100",
+    "dikkat": "#f9a825", "normal": "#2e7d32",
+  };
+  let sitrepData = null;
+  async function toggleSitrepPanel() {
+    const panel = document.getElementById("sitrep-panel");
+    if (sitrepPanelOpen) {
+      sitrepPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    sitrepPanelOpen = true;
+    panel.style.display = "block";
+    await loadSitrep();
+  }
+  async function loadSitrep() {
+    const box = document.getElementById("sitrep-body");
+    panelLoading(box, "sitrep");
+    try {
+      const res = await fetch(SITREP_API);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSitrep(data);
+    } catch (err) {
+      if (box) { box.innerHTML = panelErrorHtml("sitrep", err.message); }
+      setStatus(`Durum raporu alınamadı: ${err.message}`);
+    }
+  }
+  function renderSitrep(data) {
+    sitrepData = data;
+    const box = document.getElementById("sitrep-body");
+    const badge = document.getElementById("sitrep-badge");
+    const countEl = document.getElementById("sitrep-count");
+    const headEl = document.getElementById("sitrep-headline");
+    if (countEl) countEl.textContent = `(${data.fire_count || 0})`;
+    if (badge) {
+      if (data.synthetic && data.synthetic.is_synthetic) {
+        badge.textContent = data.synthetic.badge || "SENTETİK VERİ";
+        badge.style.display = "block";
+      } else {
+        badge.style.display = "none";
+      }
+    }
+    const h = data.headline || {};
+    if (headEl) {
+      headEl.textContent = `Aktif: ${h.active_fire_total || 0}`
+        + ` · En ağır: ${h.most_severe || "—"}`
+        + ` · En yüksek risk: ${h.max_risk_level || "—"}`
+        + ` · ${escapeHtml(data.generated_at || "")}`;
+    }
+    box.innerHTML = "";
+    const fires = data.fires || [];
+    if (!fires.length) {
+      panelEmpty(box, "sitrep", "Bildirilecek aktif yangın yok.");
+    } else {
+      for (const fr of fires) {
+        const row = document.createElement("div");
+        row.className = "fire";
+        const color = SITREP_LEVEL_COLORS[fr.peak_level] || "#9e9e9e";
+        row.innerHTML =
+          `<span class="lvl" style="background:${color}">`
+          + `${escapeHtml(fr.peak_level || "?")}</span> `
+          + `<strong>${escapeHtml(fr.name || fr.event_key)}</strong>`
+          + `<div class="meta">${escapeHtml(fr.severity || "")}`
+          + ` · risk ${fr.peak_risk_index == null ? "—" : fr.peak_risk_index}</div>`;
+        box.appendChild(row);
+      }
+    }
+    const rec = data.recommendations || {};
+    const recEl = document.createElement("div");
+    recEl.className = "rec";
+    if (rec.available && (rec.items || []).length) {
+      recEl.innerHTML = `<div class="rechead">Öneriler (${escapeHtml(rec.for_event || "")})</div>`
+        + rec.items.map(r => `<div class="recrow">${escapeHtml(r.name || r.resource_key || "")}`
+          + ` · ${escapeHtml(r.travel_mode || "")}`
+          + ` · ${r.eta_minutes == null ? "—" : ("ETA " + r.eta_minutes + " dk")}</div>`).join("");
+    } else {
+      recEl.innerHTML = `<div class="rechead">Öneriler</div>`
+        + `<div class="meta">${escapeHtml(rec.reason || "Öneri üretilemedi")}</div>`;
+    }
+    box.appendChild(recEl);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "print";
+    btn.textContent = "PDF / Yazdır";
+    btn.addEventListener("click", printSitrep);
+    box.appendChild(btn);
+    setStatus(`Durum raporu — ${data.attribution}`);
+  }
+  function sitrepPrintableHtml(data) {
+    const fires = data.fires || [];
+    const rec = data.recommendations || {};
+    const levelColor = lvl => SITREP_LEVEL_COLORS[lvl] || "#9e9e9e";
+    const fireRows = fires.map(f =>
+      `<tr><td>${escapeHtml(f.name || f.event_key)}</td>`
+      + `<td>${escapeHtml(f.severity || "—")}</td>`
+      + `<td><span style="color:${levelColor(f.peak_level)}">${escapeHtml(f.peak_level || "—")}</span></td>`
+      + `<td>${f.peak_risk_index == null ? "—" : f.peak_risk_index}</td>`
+      + `<td>${escapeHtml(f.started_at || "—")}</td></tr>`).join("");
+    const recItems = (rec.items || []).map(r =>
+      `<li>${escapeHtml(r.name || r.resource_key || "")} — ${escapeHtml(r.travel_mode || "")}`
+      + ` · ${r.eta_minutes == null ? "—" : ("ETA " + r.eta_minutes + " dk")}</li>`).join("");
+    const badge = (data.synthetic && data.synthetic.is_synthetic)
+      ? `<div class="badge">${escapeHtml(data.synthetic.badge || "SENTETİK VERİ")}</div>` : "";
+    const recBlock = (rec.available && recItems)
+      ? `<h2>Öneriler (${escapeHtml(rec.for_event || "")})</h2><ul>${recItems}</ul>`
+      : `<h2>Öneriler</h2><p class="muted">${escapeHtml(rec.reason || "Öneri yok")}</p>`;
+    return `<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">`
+      + `<title>Durum Raporu (SITREP)</title><style>`
+      + `body{font-family:Arial,Helvetica,sans-serif;margin:24px;color:#1a1a1a}`
+      + `h1{font-size:20px;margin:0 0 2px}h2{font-size:14px;margin:16px 0 4px`
+      + `;border-bottom:1px solid #ccc;padding-bottom:2px}`
+      + `.stamp{color:#666;font-size:12px;margin-bottom:8px}`
+      + `.badge{background:#fbe9e9;color:#b71c1c;border:1px solid #c62828;`
+      + `padding:6px 8px;border-radius:6px;font-weight:bold;margin:8px 0}`
+      + `table{border-collapse:collapse;width:100%;font-size:12px}`
+      + `th,td{border:1px solid #ddd;padding:4px 6px;text-align:left}`
+      + `th{background:#f5f5f5}.muted{color:#666}`
+      + `.foot{margin-top:18px;color:#888;font-size:11px}</style></head><body>`
+      + `<h1>${escapeHtml(data.title || "Durum Raporu (SITREP)")}</h1>`
+      + `<div class="stamp">Rapor zamanı: ${escapeHtml(data.generated_at || "—")}</div>`
+      + badge
+      + `<h2>Aktif Yangınlar</h2>`
+      + `<table><thead><tr><th>Olay</th><th>Şiddet</th><th>Risk bandı</th>`
+      + `<th>Risk indeksi</th><th>Başlangıç</th></tr></thead>`
+      + `<tbody>${fireRows || '<tr><td colspan="5">Aktif yangın yok</td></tr>'}</tbody></table>`
+      + recBlock
+      + `<div class="foot">${escapeHtml(data.attribution || "")}</div>`
+      + `</body></html>`;
+  }
+  function printSitrep() {
+    if (!sitrepData) { setStatus("Önce raporu yükleyin."); return; }
+    const html = sitrepPrintableHtml(sitrepData);
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -2666,6 +2856,10 @@
     // EM-086: bildirim merkezi düğmesi.
     const bildirimBtn = document.getElementById("bildirim-open");
     if (bildirimBtn) bildirimBtn.addEventListener("click", toggleBildirimPanel);
+
+    // EM-087: durum raporu (SITREP) düğmesi.
+    const sitrepBtn = document.getElementById("sitrep-open");
+    if (sitrepBtn) sitrepBtn.addEventListener("click", toggleSitrepPanel);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

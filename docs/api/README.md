@@ -469,6 +469,23 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Durum Raporu / SITREP (EM-087)
+
+Komutanın üst makama ve karşı ülkeye ileteceği **tek sayfalık** durum özeti.
+Aktif yangınları, EM-029 yayılım tahmini + risk indeksini, en sıcak olay için
+EM-052 konuşlanma önerilerini, rapor **zaman damgası**ını ve **sentetik veri
+rozetini** tek yüzeyde derler (okuma zamanı projeksiyonu; model/migration yok).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/sitrep[?event_key=]` | Tüm aktif yangınların (veya tek olayın) tek sayfalık raporu; `sections`, `fires`, `forecast`, `risk_index`, `recommendations`, `synthetic`, `generated_at` |
+| `GET /api/v1/sitrep/config` | Bölüm listesi, sözlükler, dışa aktarma biçimleri (`pdf`/`print`), rozet metni, limitler |
+
+Öneri bölümü yol ağı/müsait kaynak yoksa hata vermek yerine `available:false`
++ gerekçeyle **zarifçe düşer**; rapor her durumda üretilebilir. Operatör
+haritasındaki **Durum Raporu (EM-087)** paneli önizlemeyi gösterir ve **PDF /
+Yazdır** düğmesiyle tek sayfalık biçimli dökümü gizli iframe üzerinden yazar.
+
 ### Bildirim Merkezi ve Sesli Uyarı (EM-086)
 
 Operatör, canlı akışa (EM-032/EM-090) düşen risk uyarılarının hangilerini

@@ -380,6 +380,13 @@ class Config:
     ).lower() in ("1", "true", "yes")
     NOTIFICATION_SOUND_MIN_LEVEL = os.getenv("NOTIFICATION_SOUND_MIN_LEVEL", "dikkat")
 
+    # EM-087: tek sayfalık durum raporu (SITREP) dışa aktarımı (Epic E8)
+    # Rapor aktif yangın, yayılım tahmini, risk indeksi ve önerileri tek sayfada
+    # derler. Bildirime giren azami yangın sayısı ve en sıcak olay için listelenecek
+    # azami konuşlanma önerisi sayısı.
+    SITREP_MAX_FIRES = int(os.getenv("SITREP_MAX_FIRES", "20"))
+    SITREP_RECOMMENDATION_LIMIT = int(os.getenv("SITREP_RECOMMENDATION_LIMIT", "5"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

@@ -32,6 +32,7 @@ PANEL_KEYS = (
     "multi_fire",
     "municipality_view",
     "notification_center",
+    "sitrep",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -125,6 +126,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Bekleyen uyarı yok; canlı akış sakin.",
         "error": "Bildirim merkezi alınamadı.",
         "error_action": "Bağlantınızı kontrol edip yeniden deneyin; sürerse operatöre bildirin.",
+    },
+    "sitrep": {
+        "title": "Durum Raporu (SITREP)",
+        "loading": "Tek sayfalık durum raporu derleniyor…",
+        "empty": "Bildirilecek aktif yangın yok; rapor boş durumla üretilir.",
+        "error": "Durum raporu oluşturulamadı.",
+        "error_action": "Bağlantınızı kontrol edip yeniden deneyin; sürerse risk/öneri verisini kontrol edin.",
     },
 }
 

@@ -5,6 +5,31 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-087: Durum raporu (SITREP) PDF dışa aktarımı (E8)
+  - Komutan, güncel durumun **tek sayfalık** özetini üst makama ve karşı ülkeye
+    iletmek ister (kabul kriteri: "rapor yangın, tahmin haritası, risk indeksi,
+    öneriler ve zaman damgasını içerir; sentetik veri rozeti raporda da görünür;
+    PDF tek tıkla indirilir") — her parça ayrı panolarda dağınıktı; ne tek bir
+    yüzey bunları tek sayfada derliyor ne de rapor bir zaman damgası/sentetik
+    rozeti taşıyordu
+  - `src/services/sitrep_report.py`: **okuma zamanı projeksiyonu**; EM-029
+    `compute_risk_index` ile aktif yangınların yayılım tahmini (ufuk başına
+    alan) + risk bandını çeker, `fire_events`'ten şiddet/başlangıç/sentetik not
+    ile zenginleştirir, en sıcak olay için EM-052 `build_proposals` önerilerini
+    (yol ağı yoksa ** zarifçe** `available:false` + gerekçeyle) ekler; rapor
+    başına `generated_at` zaman damgası ve **sentetik veri rozeti** (EM-104);
+    `sitrep_config` tanıtıcı yükü
+  - `src/routes/sitrep_report.py` (`/api/v1/sitrep` + `/config`; bilinmeyen
+    olay→404) + `src/fastapi_app.py` kaydı. `settings.py` + `.env.example`:
+    `SITREP_MAX_FIRES/RECOMMENDATION_LIMIT`. `src/services/ui_states.py`:
+    `sitrep` panel anahtarı. `operator_map.html`: Durum Raporu düğmesi + önizleme
+    paneli + **PDF / Yazdır** (gizli iframe; tek sayfalık biçimli HTML dökümü)
+  - `tests/unit/test_sitrep_report.py`: 20 birim testi (bölüm listesi, zaman
+    damgası, yangın zenginleştirme, tahmin/risk projeksiyonu, şiddet-risk sırası,
+    `max_fires` kırpma + küresel toplam, sentetik rozet açık/kapalı, öneri
+    yok-ağı zarif düşüş, en-sıcak hedefleme (kurgu üretici ile), tek-olay kapsam,
+    bilinmeyen olay hatası, config, uçlar + 404)
+  - **Migration/model yok** — salt okuma zamanı projeksiyonu (persistence none)
 - EM-086: Bildirim merkezi ve sesli uyarı ayarları (E8)
   - Operatör, canlı akışa düşen risk uyarılarının **hangilerini gördüğünü/onayladığını**
     ayırt edemez, kritik bir uyarı ekrandan kaybolur ve sesli alarm **ya tamamen açık ya
