@@ -387,6 +387,12 @@ class Config:
     SITREP_MAX_FIRES = int(os.getenv("SITREP_MAX_FIRES", "20"))
     SITREP_RECOMMENDATION_LIMIT = int(os.getenv("SITREP_RECOMMENDATION_LIMIT", "5"))
 
+    # EM-088: kaydedilmiş operatör tercih profili (Epic E8)
+    # Dil (EM-068 I18N_DEFAULT_LANGUAGE), saat dilimi / koordinat biçimi (EM-063
+    # DISPLAY_*) ayarlarından miras alınır; yalnız arayüz temasının varsayılanı
+    # burada belirlenir ve silinmemiş bir profil olmadığında panele yansır.
+    UI_DEFAULT_THEME = os.getenv("UI_DEFAULT_THEME", "dark")
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

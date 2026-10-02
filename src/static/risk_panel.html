@@ -70,6 +70,12 @@
             aria-label="language"></select>
       · <button id="theme-toggle" class="em-btn em-btn--secondary em-btn--sm"
             type="button">🌓 <span data-i18n="btn.theme">Tema</span></button>
+      · <select id="tz-switch" class="assume-input" title="Saat dilimi / Time zone"
+            aria-label="time zone"></select>
+      · <select id="coord-switch" class="assume-input" title="Koordinat biçimi / Coordinate format"
+            aria-label="coordinate format"></select>
+      · <button id="pref-reset" class="em-btn em-btn--secondary em-btn--sm"
+            type="button" title="Varsayılana dön">↺ <span data-i18n="btn.pref_reset">Varsayılana dön</span></button>
     </div>
   </header>
   <main>
@@ -340,8 +346,11 @@
   // EM-068: interface text resolved from the i18n catalogue (TR/EN complete,
   // EL core screens, EN bridge fallback). The language lives only here/localStorage.
   const I18N_FEED = "/api/v1/i18n/messages";
+  // EM-088: the saved operator profile (language / theme / unit) lives server-side.
+  const PREFERENCES = "/api/v1/preferences";
   const LANGS = [["tr", "Türkçe"], ["en", "English"], ["el", "Ελληνικά"]];
   let LOCALE = localStorage.getItem("embermind-lang") || "tr";
+  let PREF = {};  // last-known persisted profile (empty until the server answers)
   let I18N = {};
   // Locale-driven enums (rebuilt from the catalogue on every language switch);
   // the Turkish literals below are the offline fallback before the feed loads.
@@ -1146,9 +1155,26 @@
       I18N = data.messages || {};
       LOCALE = data.language || lang;
       localStorage.setItem("embermind-lang", LOCALE);
+      savePreference({ language: LOCALE });
       applyLocale();
     } catch (err) {
       // Offline / unknown locale: the baked-in Turkish chrome stays readable.
+    }
+  }
+
+  // EM-088: persist any subset of the operator profile server-side (the fetch
+  // that changes the visible knob is the "apply immediately"; localStorage below
+  // is only the offline mirror). Errors are swallowed - the local view is intact.
+  async function savePreference(fields) {
+    Object.assign(PREF, fields);
+    try {
+      await fetch(PREFERENCES, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+    } catch (err) {
+      // Offline: the choice still applies to this session via localStorage.
     }
   }
 
@@ -1165,7 +1191,67 @@
     loadLocale(e.target.value).then(refresh);
   });
 
-  loadLocale(LOCALE).then(refresh);
+  // EM-088: build the timezone / coordinate-format switches from the server
+  // config and wire them (plus the reset action) to the persisted profile.
+  const tzSel = document.getElementById("tz-switch");
+  const coordSel = document.getElementById("coord-switch");
+  function fillSwitch(sel, values, current) {
+    sel.innerHTML = "";
+    for (const v of values) {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
+    }
+    if (current) sel.value = current;
+  }
+  tzSel.addEventListener("change", (e) => savePreference({ timezone: e.target.value }));
+  coordSel.addEventListener("change", (e) =>
+    savePreference({ coordinate_format: e.target.value }));
+  document.getElementById("pref-reset").addEventListener("click", async () => {
+    try {
+      const res = await fetch(PREFERENCES, { method: "DELETE" });
+      if (res.ok) PREF = await res.json();
+    } catch (err) {
+      // Offline: nothing to reset server-side; fall through to the defaults.
+    }
+    const d = PREF || {};
+    document.documentElement.dataset.theme = d.theme || "dark";
+    localStorage.setItem("embermind-theme", d.theme || "dark");
+    if (tzSel && d.timezone) tzSel.value = d.timezone;
+    if (coordSel && d.coordinate_format) coordSel.value = d.coordinate_format;
+    await loadLocale(d.language || "tr");
+    await refresh();
+  });
+
+  // EM-088: load the saved profile first (apply theme + units, honour the saved
+  // language), falling back to EM-068 localStorage / EM-063 settings defaults.
+  async function bootPreferences() {
+    try {
+      const [pRes, cRes] = await Promise.all([
+        fetch(PREFERENCES),
+        fetch(PREFERENCES + "/config"),
+      ]);
+      if (pRes.ok) PREF = await pRes.json();
+      const cfg = cRes.ok ? await cRes.json() : {};
+      const allowed = (cfg && cfg.allowed) || {};
+      const defaults = (cfg && cfg.defaults) || {};
+      fillSwitch(tzSel, allowed.timezone || [defaults.timezone || "Europe/Istanbul"],
+        PREF.timezone || defaults.timezone || "Europe/Istanbul");
+      fillSwitch(coordSel,
+        allowed.coordinate_format || [defaults.coordinate_format || "decimal"],
+        PREF.coordinate_format || defaults.coordinate_format || "decimal");
+      const theme = PREF.theme || localStorage.getItem("embermind-theme")
+        || defaults.theme || "dark";
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem("embermind-theme", theme);
+    } catch (err) {
+      // No server profile yet: keep the local theme / language choices.
+    }
+    await loadLocale(PREF.language || LOCALE);
+  }
+
+  bootPreferences().then(refresh);
   setInterval(refresh, 60000);
 
   // EM-066: paylaşım kapsamı kutuları değişince ortak görünümü yeniden çek.
@@ -1212,14 +1298,15 @@
     }
   });
 
-  // EM-075 tema anahtarı: panel koyu başlar, kullanıcı tercihi saklanır.
+  // EM-075 tema anahtarı + EM-088: tema tercihi sunucuda da saklanır.
   const themeBtn = document.getElementById("theme-toggle");
-  const storedTheme = localStorage.getItem("embermind-theme");
-  if (storedTheme) document.documentElement.dataset.theme = storedTheme;
+  const initTheme = PREF.theme || localStorage.getItem("embermind-theme");
+  if (initTheme) document.documentElement.dataset.theme = initTheme;
   themeBtn.addEventListener("click", () => {
     const root = document.documentElement;
     root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
     localStorage.setItem("embermind-theme", root.dataset.theme);
+    savePreference({ theme: root.dataset.theme });
   });
   </script>
 </body>

@@ -5,6 +5,36 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-088: Kullanıcı ayarları (dil, birim, tema) — kalıcı profil (E8)
+  - Operatör dil/tema/gösterim tercihlerinin sayfa yenilendiğinde ya da başka
+    bir iş istasyonunda kaybolmamasını ister (kabul kriteri: "ayarlar profil
+    altında saklanır; değişiklik anında uygulanır; varsayılana dönme vardır") —
+    EM-068 dili yalnızca tarayıcı `localStorage`'ında, EM-063 saat dilimi/
+    koordinat biçimi ise istek başına yeniden türetilir (ikisi de
+    `persistence=none`); tema da yerelde kalır, sunucu tarafında kayıtlı bir
+    tercih profili hiç yoktu
+  - `src/models/user_preferences.py` + `scripts/migration/V026__user_preferences.sql`:
+    tek operatör-wide satır (sabit anahtar `default`) `language/theme/timezone/
+    coordinate_format`; EM-086 `NotificationSoundSetting` tek-satır deseni
+  - `src/services/user_preferences.py`: `get_preferences` (satır yoksa ayarlardan
+    türetilen varsayılanı `settings_default` kaynağıyla **yazmadan** döner),
+    `update_preferences` (Kısmi güncelleme; her alan sistemin zaten tanıdığı
+    değer kümesine karşı doğrulanır — dil EM-068, saat/koordinat EM-063, tema
+    `THEMES`), `reset_preferences` (satırı siler; sonraki okuma tekrar
+    `settings_default`), `preference_config` (izin verilen kümeler + varsayılanlar)
+  - `src/routes/user_preferences.py` (`GET/PUT/DELETE /api/v1/preferences` +
+    `/config`; geçersiz değer→400) + `src/fastapi_app.py` kaydı. `settings.py` +
+    `.env.example`: `UI_DEFAULT_THEME` (dil/saat/koordinat EM-068/EM-063
+    ayarlarından miras). `i18n.py`: `btn.pref_reset` anahtarı (TR/EN/EL).
+    `risk_panel.html`: `bootPreferences` kayıtlı profili açılışta yükler (tema +
+    birim + dil anında uygulanır), dil/tema değişimi ve yeni saat dilimi /
+    koordinat biçimi açılır listeleri + **Varsayılana dön** düğmesi sunucuya
+    `PUT/DELETE` ile yazar; `localStorage` yalnızca çevrimdışı ayna olarak kalır
+  - `tests/unit/test_user_preferences.py`: 16 birim test (boş okuma
+    `settings_default` + yazmama, varsayılan türetme, kapsam dışı ayar güvenli
+    varsayılana düşer, kısmi/yığılan güncelleme, dört alan doğrulaması, reset
+    `settings_default`'a döner + boş store idempotent, config yükü, HTTP
+    GET/PUT/DELETE + geçersiz→400 + config)
 - EM-087: Durum raporu (SITREP) PDF dışa aktarımı (E8)
   - Komutan, güncel durumun **tek sayfalık** özetini üst makama ve karşı ülkeye
     iletmek ister (kabul kriteri: "rapor yangın, tahmin haritası, risk indeksi,

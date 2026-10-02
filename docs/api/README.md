@@ -469,6 +469,26 @@ Komuta panelindeki **Dış Destek Talebi Taslağı (EM-071)** kartı olay seçti
 güncel arayüz dilinde taslağı üretir, metin alanını düzenletir ve **Kopyala** /
 **PDF · Yazdır** düğmeleriyle talebi dışa aktarır.
 
+### Kullanıcı Ayarları / Tercih Profili (EM-088)
+
+Operatörün **dil**, **tema**, **saat dilimi** ve **koordinat biçimi**
+tercihlerini tarayıcıya hapseden dağınık durum (EM-068 dili yalnız
+`localStorage`'da, EM-063 gösterimi istek başına türetir; ikisi de
+`persistence: none`) yerine bu tercihler **tek bir operatör profilinde**
+sunucu tarafında saklanır. Sayfa yenilense ya da başka bir iş istasyonundan
+açılsa da seçim korunur; değişiklik **anında uygulanır** ve tek tıkla
+**varsayılana dönülür**. Kayıtlı satır yoksa okuma, ayarlardan türetilen
+varsayılanı `source: settings_default` ile **yazmadan** döner; ilk `PUT` satırı
+oluşturur. Her alan sistemin zaten tanıdığı değer kümesine karşı doğrulanır
+(dil EM-068 katalogu, saat dilimi/koordinat EM-063, tema `dark|light`).
+
+| Uç | Açıklama |
+| --- | --- |
+| `GET /api/v1/preferences` | Kayıtlı operatör profili; satır yoksa ayar varsayılanları (`source: settings_default`) |
+| `PUT /api/v1/preferences` | Profil alanlarının herhangi bir alt kümesini doğrula ve kalıcı yaz (kısmi güncelleme); geçersiz değer→400 |
+| `DELETE /api/v1/preferences` | Kayıtlı profili sil; sonraki okuma tekrar `settings_default` döner |
+| `GET /api/v1/preferences/config` | İzin verilen değer kümeleri, ayarlardan türetilen varsayılanlar ve sabit anahtar |
+
 ### Durum Raporu / SITREP (EM-087)
 
 Komutanın üst makama ve karşı ülkeye ileteceği **tek sayfalık** durum özeti.

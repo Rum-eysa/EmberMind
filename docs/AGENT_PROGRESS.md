@@ -67,6 +67,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 34 | EM-083 Salt okunur belediye görünümü (#83) | E8 | DONE | Ayarlanabilir bölge koordinat kutusuna (varsayılan: pilot bölge) kapsamlanan **salt okuma zamanı** projeksiyonu; kutu içi aktif `fire_events` acilden eskiye sıralı + yalnızca sade çekirdek alanlar (anahtar/ad/şiddet/başlangıç/konum); şiddet histogramı + tek `headline` durumu + **yerel vs havuz** `suppression_resources` kapasite ayrımı; sınır kapalı (dahil); yalnızca-operatör kontrolleri (öneri/karar/what-if/sevk) bilinçli **gizlenir** ve `omitted_operator_controls` ile adlandırılır; `?severity=` listeyi daraltır ama `headline`/sayılar bölge-geneli kalır, tanınmayan kod sessiz filtre edilmez; `/api/v1/municipality-view` + `/config`; UI Belediye paneli; `ui_states`'e `municipality_view` anahtarı; `MUNICIPALITY_VIEW_*`; model/migration yok (persistence none) |
 | 35 | EM-086 Bildirim merkezi ve sesli uyarı ayarları (#86) | E8 | DONE | Canlı akıştaki (`live_updates` kind=`alert`, EM-032/090) uyarıları en yeniden eskiye **okundu/onaylandı** durumuyla projekte eden bildirim merkezi; kritik bandlar (`kritik-yakin`/`kritik`) yalnızca **onaylanınca** düşer (okumak çözmez), diğerleri okununca düşer; tekil operatör-geneli **sesli alarm** (aç/kapa + en-düşük-bant) ilk okumada ayarlardan tohumlanır, güncellemede kalıcıdır (geçersiz bant→400); `should_sound` seviye kapısı; özet sayaçları (okunmamış/bekleyen-onay/sesli) her zaman tüm pencereyi anlatır; `mark_read`/`acknowledge`/`mark_all_read`; `notification_states` + `notification_sound_settings` (V025); `/api/v1/notifications` + `/config` + `/sound` GET/PUT + `/{id}/read` + `/{id}/acknowledge` + `/read-all` (bilinmeyen uyarı→404); UI Bildirimler paneli (satır eylemleri + sesli kontrol); `ui_states`'e `notification_center` anahtarı; `NOTIFICATION_MAX_ALERTS/SOUND_ENABLED/SOUND_MIN_LEVEL` |
 | 36 | EM-087 Durum raporu (SITREP) PDF dışa aktarımı (#87) | E8 | DONE | Komutanın üst makama/karşı ülkeye ileteceği **tek sayfalık** durum özetini **okuma zamanı** derleyen projeksiyon; EM-029 `compute_risk_index` ile aktif yangınların yayılım tahmini (ufuk başına alan) + risk bandını çeker, `fire_events`'ten şiddet/başlangıç/sentetik notla zenginleştirir, en sıcak olay için EM-052 `build_proposals` önerilerini ekler (yol ağı yoksa `available:false`+gerekçeyle **zarifçe düşer**); `generated_at` zaman damgası + **sentetik veri rozeti** (EM-104 not işaretinden); şiddet-sonra-en-sıcak sıra, `max_fires` kırpma ama küresel toplam kalır; `?event_key=` tek-olay kapsamı (bilinmeyen→404); `sections` sabit (yangın/tahmin/risk/öneri/zaman); `/api/v1/sitrep` + `/config`; UI Durum Raporu paneli + **PDF/Yazdır** (gizli iframe tek sayfa döküm); `ui_states`'e `sitrep` anahtarı; `SITREP_MAX_FIRES/RECOMMENDATION_LIMIT`; model/migration yok (persistence none) |
+| 37 | EM-088 Kullanıcı ayarları (dil, birim, tema) kalıcı profil (#88) | E8 | DONE | EM-068 dili yalnız tarayıcı `localStorage`'ında, EM-063 saat dilimi/koordinat biçimi istek başına türetilir (ikisi de `persistence=none`), tema da yerelde kalır — sunucu tarafında **kayıtlı tercih profili** hiç yoktu; **tek operatör-wide satır** (sabit anahtar `default`: `language/theme/timezone/coordinate_format`, EM-086 tek-satır deseni); satır yoksa okuma ayarlardan türetilen varsayılanı `settings_default` ile **yazmadan** döner, ilk `PUT` satırı oluşturur; **kısmi güncelleme** her alanı sistemin zaten tanıdığı kümesine karşı doğrular (dil EM-068, saat/koordinat EM-063, tema `dark|light`; geçersiz→400); `reset` satırı siler → sonraki okuma `settings_default`; `GET/PUT/DELETE /api/v1/preferences` + `/config`; UI `risk_panel`: açılışta kayıtlı profil yüklenir (tema+birim+dil **anında uygulanır**), saat/koordinat açılır listeleri + **Varsayılana dön** düğmesi eklenir, `localStorage` çevrimdışı aynaya iner; `UI_DEFAULT_THEME` (dil/saat/koordinat EM-068/063'ten miras); `i18n` `btn.pref_reset` (TR/EN/EL); `user_preferences` (V026) |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1155,11 +1156,41 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **1001** (981 + 20 yeni).
 - **Commit:** `feat(EM-087): ...` (bu dal).
 
+### EM-088 — Kullanıcı ayarları (dil, birim, tema) kalıcı profil (#88) — DONE
+- **Eksik analizi:** Operatör dil/tema/gösterim tercihlerinin profil altında
+  saklanmasını, anında uygulanmasını ve varsayılana dönmeyi ister. AMA EM-068 dili
+  yalnızca tarayıcı `localStorage`'ında tutar (`persistence=none`), EM-063 saat
+  dilimi/koordinat biçimini istek başına yeniden türetir (`persistence=none`), tema
+  da yerelde kalır — sunucu tarafında **kayıtlı bir tercih profili** hiç yoktu.
+  `git grep` preference/user_profile ile gerçek boşluk doğrulandı (yalnız
+  `notification_center` sesli-ayar satırı çakışıyor). E8 Should (sp2).
+- **Kapsam:** `src/models/user_preferences.py` + `scripts/migration/V026__user_preferences.sql`
+  (tek satır, sabit anahtar `default`), `src/services/user_preferences.py`
+  (`get_preferences`/`update_preferences`/`reset_preferences`/`preference_config`),
+  `src/routes/user_preferences.py` (GET/PUT/DELETE + `/config`, `fastapi_app`'e
+  kaydedildi), `settings.py` + `.env.example` (`UI_DEFAULT_THEME`), `i18n.py`
+  (`btn.pref_reset` TR/EN/EL), `risk_panel.html` (`bootPreferences` + dil/tema
+  kalıcılığı + saat/koordinat açılır listeleri + Varsayılana dön),
+  `tests/unit/test_user_preferences.py` (16 test), CHANGELOG + docs/api + models/__init__.
+- **Varsayımlar:** (1) EM-086 `NotificationSoundSetting` tek-satır deseni yeniden
+  kullanılır; satır yoksa okuma **yazmadan** `settings_default` döner, ilk `PUT`
+  oluşturur; (2) "birim" = sistem metrikte sabit (EM-063 `UNITS`), yüzden kayıtlı
+  gösterim knobs'ları saat dilimi + koordinat biçimi; (3) dil/saat/koordinat
+  EM-068/EM-063 değer kümeleriyle, tema `dark|light` ile doğrulanır; (4) UI
+  `localStorage`'ı korur ama artık çevrimdışı ayna; sunucu profili autorite.
+- **Kanıt:** boş okuma→`settings_default` + yazmama; `language=en`→`stored`
+  + diğerleri varsayılan; kısmi yığılan güncelleme; dört alan geçersiz→`UserPreferenceError`;
+  reset→satır siler→`settings_default`; config izin-kümeleri; uçlar GET/PUT/DELETE 200,
+  geçersiz tema→400, config 200.
+- **Kapılar:** black(temiz)/mypy(135)/pylint(10.00)/bandit(0) yeşil;
+  pytest **1017** (1001 + 16 yeni).
+- **Commit:** `feat(EM-088): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
