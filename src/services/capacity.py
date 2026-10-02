@@ -12,12 +12,18 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.models.capacity import CapacityAssumption
+from src.models.capacity_audit import CapacityAssumptionAudit
 from src.models.inventory import RESOURCE_TYPES, SuppressionResource
 from src.services.inventory import InventoryError, normalize_type
 from src.utils.timeutils import utc_now
 
 # The one unit every resource is normalised to, so capacity and risk match.
 CAPACITY_UNIT = "ha/saat"
+
+# Fixed attribution for the EM-034 assumption audit view (internal config store).
+CAPACITY_AUDIT_ATTRIBUTION = (
+    "Kapasite varsayımı denetim kaydı: EmberMind yönetici konfigürasyonu (EM-034)"
+)
 
 # Fallbacks used only when a settings object omits the keys entirely (tests may
 # pass a lightweight namespace). Real config always provides these values.
@@ -106,20 +112,73 @@ def update_assumptions(
     values: dict[str, Any],
     updated_by: str | None = None,
 ) -> dict[str, Any]:
-    """Apply admin edits (resource_type -> ha/hour) and return the new view."""
+    """Apply admin edits (resource_type -> ha/hour), audit each change.
+
+    EM-034: every value that actually differs from the stored one is recorded
+    in the append-only ``capacity_assumption_audit`` table (old -> new, editor,
+    timestamp) before the live row is overwritten. Re-saving the same value is
+    not a change and is not audited.
+    """
     if not values:
         raise CapacityError("no capacity assumptions supplied to update")
     ensure_defaults(session, settings)
+    applied = 0
     for resource_type, raw in values.items():
         canonical, ha_per_hour = _validate_value(resource_type, raw)
         row = _get_row(session, canonical)
         if row is None:  # ensure_defaults covers known types; defensive anyway
             row = CapacityAssumption(resource_type=canonical, ha_per_hour=ha_per_hour)
             session.add(row)
+        old_value = float(row.ha_per_hour)
+        if old_value != ha_per_hour:
+            session.add(
+                CapacityAssumptionAudit(
+                    resource_type=canonical,
+                    old_value=old_value,
+                    new_value=ha_per_hour,
+                    updated_by=updated_by,
+                )
+            )
+            applied += 1
         row.ha_per_hour = ha_per_hour  # type: ignore[assignment]
         row.updated_by = updated_by  # type: ignore[assignment]
     session.flush()
-    return list_assumptions(session, settings)
+    return {**list_assumptions(session, settings), "applied_count": applied}
+
+
+def list_audit(
+    session: Session,
+    settings: Any,
+    *,
+    resource_type: str | None = None,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    """Read the append-only capacity-assumption audit history (EM-034).
+
+    Newest first, optionally scoped to one resource type and clamped to a page
+    size. The audit table is never seeded, so reading it does not write any
+    change rows; only a real value edit adds one.
+    """
+    max_limit = int(getattr(settings, "CAPACITY_AUDIT_MAX_LIMIT", 200))
+    default_limit = int(getattr(settings, "CAPACITY_AUDIT_DEFAULT_LIMIT", 50))
+    page_limit = default_limit if limit is None else max(1, min(int(limit), max_limit))
+    stmt = select(CapacityAssumptionAudit).order_by(CapacityAssumptionAudit.id.desc())
+    count_stmt = select(func.count()).select_from(CapacityAssumptionAudit)
+    if resource_type:
+        stmt = stmt.where(CapacityAssumptionAudit.resource_type == resource_type)
+        count_stmt = count_stmt.where(
+            CapacityAssumptionAudit.resource_type == resource_type
+        )
+    total = int(session.scalar(count_stmt) or 0)
+    rows = session.scalars(stmt.limit(page_limit)).all()
+    return {
+        "unit": CAPACITY_UNIT,
+        "resource_type": resource_type,
+        "limit": page_limit,
+        "total_matching": total,
+        "entries": [row.as_dict for row in rows],
+        "attribution": CAPACITY_AUDIT_ATTRIBUTION,
+    }
 
 
 def available_counts_by_type(session: Session) -> dict[str, int]:

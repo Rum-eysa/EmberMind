@@ -5,6 +5,32 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-034: Kapasite varsayımları yönetim ekranı — denetim kaydı (E3)
+  - Yönetici, kaynak tipi başına ha/saat kapasite değerini arayüzden
+    değiştirmek ister ve "değişiklik denetim kaydına yazılır" kabul kriterini
+    ister — EM-028 düzenleme yüzeyini (tipler arası `ha/saat` + doğrulama +
+    panel) zaten sağlıyordu; fakat yalnızca **tek bir `updated_by` kolonu**
+    tutuluyordu, eski değer / kim / ne zaman geçmişi hiç yoktu (gerçek eksik:
+    kalıcı **denetim izi**)
+  - `src/models/capacity_audit.py` + `scripts/migration/
+    V028__capacity_assumption_audit.sql`: her **gerçek** değişim için satır
+    (`resource_type/old_value/new_value/updated_by` + zaman damgası);
+    salt-additive, kapasite/risk matematiğini beslemez, yalnızca geçmişi tutar
+  - `src/services/capacity.py`: `update_assumptions` artık değer gerçekten
+    değiştiğinde denetim satırı yazar (aynı değeri tekrar kaydetme kayıt
+    üretmez) ve `applied_count` döner; yeni `list_audit` — yeniden eskiye,
+    `resource_type` filtresi ve `[1, MAX]` kırpık sayfa
+  - `src/routes/capacity.py`: `PUT /api/v1/capacity/assumptions` gövdesine
+    `updated_by` eklendi (yanıt artık `audit` + `applied_count` taşır); yeni
+    `GET /api/v1/capacity/assumptions/audit` (`resource_type`/`limit`).
+    `settings.py` + `.env.example`: `CAPACITY_AUDIT_DEFAULT/MAX_LIMIT`.
+    `risk_panel.html`: Varsayım kartına **Düzenleyen** alanı + Değişiklik
+    geçmişi (denetim) tablosu — açılışta ve kaydetme sonrası yenilenir;
+    doğrulama (negatif/son-numeric→400) EM-028'den korunur
+  - `tests/unit/test_capacity_audit.py`: 17 birim test (ilk düzenleme tek
+    denetim satırı, aynı değer→kayıt yok, çoklu tip, kısmi değişim,
+    yeniden-eskiye sıralama, tip filtresi, `MAX` kırpma, birim/atıf, menfi /
+    sayısal-olmayan/boş doğrulamaları, HTTP PUT/GET + boş geçmiş + 400)
 - EM-089: Vardiya devri notları ve tek tık devir özeti (E8)
   - Operatör, vardiyayı devrederken otomatik akışların yakalamadığı bilgiyi
     (dar yol, kuruyan su noktası, arazi erişim anlaşması) olaya not olarak

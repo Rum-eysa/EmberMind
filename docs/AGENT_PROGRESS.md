@@ -69,6 +69,7 @@ listesi issue başlığına değil, **kod boşluğuna** göre süzüldü:
 | 36 | EM-087 Durum raporu (SITREP) PDF dışa aktarımı (#87) | E8 | DONE | Komutanın üst makama/karşı ülkeye ileteceği **tek sayfalık** durum özetini **okuma zamanı** derleyen projeksiyon; EM-029 `compute_risk_index` ile aktif yangınların yayılım tahmini (ufuk başına alan) + risk bandını çeker, `fire_events`'ten şiddet/başlangıç/sentetik notla zenginleştirir, en sıcak olay için EM-052 `build_proposals` önerilerini ekler (yol ağı yoksa `available:false`+gerekçeyle **zarifçe düşer**); `generated_at` zaman damgası + **sentetik veri rozeti** (EM-104 not işaretinden); şiddet-sonra-en-sıcak sıra, `max_fires` kırpma ama küresel toplam kalır; `?event_key=` tek-olay kapsamı (bilinmeyen→404); `sections` sabit (yangın/tahmin/risk/öneri/zaman); `/api/v1/sitrep` + `/config`; UI Durum Raporu paneli + **PDF/Yazdır** (gizli iframe tek sayfa döküm); `ui_states`'e `sitrep` anahtarı; `SITREP_MAX_FIRES/RECOMMENDATION_LIMIT`; model/migration yok (persistence none) |
 | 37 | EM-088 Kullanıcı ayarları (dil, birim, tema) kalıcı profil (#88) | E8 | DONE | EM-068 dili yalnız tarayıcı `localStorage`'ında, EM-063 saat dilimi/koordinat biçimi istek başına türetilir (ikisi de `persistence=none`), tema da yerelde kalır — sunucu tarafında **kayıtlı tercih profili** hiç yoktu; **tek operatör-wide satır** (sabit anahtar `default`: `language/theme/timezone/coordinate_format`, EM-086 tek-satır deseni); satır yoksa okuma ayarlardan türetilen varsayılanı `settings_default` ile **yazmadan** döner, ilk `PUT` satırı oluşturur; **kısmi güncelleme** her alanı sistemin zaten tanıdığı kümesine karşı doğrular (dil EM-068, saat/koordinat EM-063, tema `dark|light`; geçersiz→400); `reset` satırı siler → sonraki okuma `settings_default`; `GET/PUT/DELETE /api/v1/preferences` + `/config`; UI `risk_panel`: açılışta kayıtlı profil yüklenir (tema+birim+dil **anında uygulanır**), saat/koordinat açılır listeleri + **Varsayılana dön** düğmesi eklenir, `localStorage` çevrimdışı aynaya iner; `UI_DEFAULT_THEME` (dil/saat/koordinat EM-068/063'ten miras); `i18n` `btn.pref_reset` (TR/EN/EL); `user_preferences` (V026) |
 | 38 | EM-089 Vardiya devri notları ve olay notu ekleme (#89) | E8 | DONE | Canlı akış (EM-090), kabul edilen öneriler (EM-047) ve zaman çizelgesi (EM-081) makine üretimidir — operatörün serbest metin yazabileceği **kalıcı bir not yüzeyi** ve insan yorumunu makine görünümüyle birleştiren **devir özeti** hiç yoktu; `event_notes` modeli + **V027** (olay başına `event_key/body/author`, salt-additive); `shift_handover.py`: `add_note` (boş not/tanınmayan olay yükseltir), `list_notes` (yeniden eskiye + olay filtresi + `MAX_NOTES` kırpma), `get/delete_note`, `handover_summary` — aktif olay kartları (EM-082 kadro+çakışma) ile notları EM-081 kronolojik akışında **okuma zamanında** birleştirir, notlar `operator_note` kategorisiyle akışa katılır (**EM-081'in 4-kategori kümesi/testlerine dokunulmadı** — bu yüzden ayrı servis); `GET /api/v1/shift-handover` + `/notes` GET/POST, `/notes/{id}` GET/DELETE, `/config` (tanınmayan olay→404, boş→400); `ui_states`'e `shift_handover` anahtarı; UI Vardiya Devri paneli (form + Ekle/Yenile/Sil + Devir Özetini Oluştur, haritadan olay önceden doldurulur); `SHIFT_HANDOVER_MAX_NOTES`; 27 test |
+| 39 | EM-034 Kapasite varsayımları yönetim ekranı — denetim kaydı (#34) | E3 | DONE | EM-028 düzenleme yüzeyini (tip başına `ha/saat` + doğrulama + panel) zaten vermişti; ama yalnızca **tek `updated_by` kolonu** tutulur, eski değer/kim/ne zaman geçmişi hiç olmaz — "değişiklik denetim kaydına yazılır" (kabul #2) gerçek boşluk; `capacity_assumption_audit` modeli + **V028** (her gerçek değişim için `resource_type/old/new/updated_by` + damga, salt-additive, kapasite matematiğini beslemez); `update_assumptions` değer gerçekten değişince denetim yazar (aynı değeri tekrar kaydetme üretmez) + `applied_count` döner, yeni `list_audit` (yeniden eskiye + tip filtresi + `[1,MAX]` kırpma); `PUT` gövdesine `updated_by`, `GET /api/v1/capacity/assumptions/audit`; `risk_panel` kartına **Düzenleyen** + Değişiklik geçmişi tablosu (açılışta + kayıt sonrası yenilenir); `CAPACITY_AUDIT_DEFAULT/MAX_LIMIT`; 17 test |
 | — | EM-058 Yol kapalılığı (#58) | E6 | ATLANDI | **zaten mevcut**: closure endpoint + kapama-farklı yönlendirme + `build_proposals` — gerçek boşluk değil |
 
 ## Varsayımlar ve kararlar
@@ -1219,11 +1220,42 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   pytest **1044** (1017 + 27 yeni).
 - **Commit:** `feat(EM-089): ...` (bu dal).
 
+### EM-034 — Kapasite varsayımları yönetim ekranı / denetim kaydı (#34) — DONE
+- **Eksik analizi:** Yönetici ekip/helikopter/İHA ha/saat değerlerini arayüzden
+  düzenlemek ve her değişikliğin denetim kaydının tutulmasını ister. AMA EM-028'in
+  düzenleme yüzeyini (uçlar + `capacity_assumptions` tablosu + doğrulama +
+  `risk_panel` kartı) **zaten** sağlamıştı; issue'nun üç kabul kriterinden ikisi
+  (#1 düzenleme, #3 doğrulama) mevcuttu. `git grep` ile gerçek boşluk doğrulandı:
+  modelde yalnızca **tek `updated_by` kolonu** var — eski değer / kim / ne zaman
+  geçmişi tutulmuyor, yani **#2 "değişiklik denetim kaydına yazılır"** eksik.
+  E3 Should (sp3).
+- **Kapsam:** `src/models/capacity_audit.py` + `scripts/migration/
+  V028__capacity_assumption_audit.sql`, `src/services/capacity.py`
+  (`update_assumptions` denetim yazar + `applied_count`; yeni `list_audit`),
+  `src/routes/capacity.py` (`PUT` gövdesine `updated_by`; yeni
+  `GET /api/v1/capacity/assumptions/audit`), `settings.py` + `.env.example`
+  (`CAPACITY_AUDIT_DEFAULT/MAX_LIMIT`), `risk_panel.html` (**Düzenleyen** alanı +
+  Değişiklik geçmişi tablosu + `loadAssumeAudit`),
+  `tests/unit/test_capacity_audit.py` (17 test), CHANGELOG + docs/api + models/__init__.
+- **Varsayımlar:** (1) salt **gerçek** değişimler denetlenir (aynı değeri tekrar
+  kaydetme satır üretmez); (2) denetim tablosu tohumlanmaz — okuma hiçbir şey
+  yazmaz; (3) kapasite/risk matematiği `capacity_assumptions`'dan okumaya devam
+  eder, denetim salt-geçmiş (fork yok); (4) `fastapi_app` değişmedi (kapasite
+  uçları EM-028'de zaten kayıtlı); (5) `updated_by` opsiyonel, auth yok (E10).
+- **Kanıt:** ilk düzenleme tek satır (eski 2.0→yeni 3.0, düzenleyen, `Z` damgası);
+  aynı değer→`applied_count==0`+satır yok; çoklu tip ayrı satır; kısmi değişim
+  yalnız değişeni denetler; yeniden-eskiye sıralama; tip filtresi; `MAX` kırpma;
+  menfi/sayısal-olmayan/boş→`CapacityError` ve denetim yazmaz; uçlar PUT/GET 200 +
+  boş geçmiş + geçersiz→400.
+- **Kapılar:** black(temiz)/mypy(139)/pylint(10.00)/bandit(0) yeşil;
+  pytest **1061** (1044 + 17 yeni).
+- **Commit:** `feat(EM-034): ...` (bu dal).
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1236,8 +1268,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 198 değişmez · mypy Success (130) · pylint 10.00/10 ·
-  bandit 0 · pytest **981 passed**.
+- **Final kapılar:** black 211 değişmez · mypy Success (139) · pylint 10.00/10 ·
+  bandit 0 · pytest **1061 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

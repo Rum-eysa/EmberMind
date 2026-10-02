@@ -1,5 +1,6 @@
 """Persisted wildfire models."""
 from .capacity import CapacityAssumption
+from .capacity_audit import CapacityAssumptionAudit
 from .crossborder_notification import CrossborderNotification
 from .event_notes import EventNote
 from .exposure import ExposedAsset
@@ -33,6 +34,7 @@ from .weather import WeatherDataPoint
 
 __all__ = [
     "CapacityAssumption",
+    "CapacityAssumptionAudit",
     "CrossborderNotification",
     "CrewBase",
     "EventNote",

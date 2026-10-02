@@ -49,6 +49,13 @@
     .muted-note { font-size: var(--font-size-xs); color: var(--text-secondary);
                   margin-bottom: 8px; }
     .assume-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .assume-editor { font-size: var(--font-size-xs); color: var(--text-secondary);
+                     display: flex; align-items: center; gap: 6px; }
+    .assume-editor input { width: 120px; background: var(--bg-inset);
+                           color: var(--text-primary); border: 1px solid var(--border-color);
+                           border-radius: var(--radius-sm); padding: 3px 6px; }
+    .assume-audit-title { font-size: var(--font-size-sm); margin: 12px 0 4px;
+                          color: var(--text-secondary); }
     #assume-status { font-size: var(--font-size-xs); color: var(--text-secondary); }
     /* EM-030 capacity-gap timeline (inline SVG, no external chart lib). */
     #gap-chart svg { width: 100%; height: 168px; display: block; }
@@ -157,10 +164,19 @@
           <tbody></tbody>
         </table>
         <div class="assume-actions">
+          <label class="assume-editor">Düzenleyen
+            <input id="assume-editor" type="text" placeholder="operatör" maxlength="64">
+          </label>
           <button id="save-assumptions" class="em-btn em-btn--primary em-btn--sm"
                   type="button"><span data-i18n="btn.save">Kaydet</span></button>
           <span id="assume-status"></span>
         </div>
+        <h3 class="assume-audit-title">Değişiklik geçmişi (denetim)</h3>
+        <table id="assume-audit">
+          <thead><tr><th>Zaman</th><th>Tür</th><th class="num">Eski</th>
+            <th class="num">Yeni</th><th>Düzenleyen</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
       <div class="card">
         <h2 data-i18n="card.breakdown">Kapasite Kırılımı (ekip türü)</h2>
@@ -1251,7 +1267,7 @@
     await loadLocale(PREF.language || LOCALE);
   }
 
-  bootPreferences().then(refresh);
+  bootPreferences().then(() => refresh().then(loadAssumeAudit));
   setInterval(refresh, 60000);
 
   // EM-066: paylaşım kapsamı kutuları değişince ortak görünümü yeniden çek.
@@ -1272,12 +1288,44 @@
   document.getElementById("sd-copy").addEventListener("click", copySupportDraft);
   document.getElementById("sd-print").addEventListener("click", printSupportDraft);
 
-  // EM-028 yönetici düzenlemesi: ha/saat varsayımlarını kaydet ve paneli tazele.
+  // EM-034: kapasite varsayımı değişiklik geçmişi (denetim) — yeniden eskiye.
+  async function loadAssumeAudit() {
+    const body = document.querySelector("#assume-audit tbody");
+    if (!body) return;
+    try {
+      const res = await fetch("/api/v1/capacity/assumptions/audit");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      body.innerHTML = "";
+      const entries = data.entries || [];
+      if (!entries.length) {
+        body.innerHTML = '<tr><td colspan="5">henüz değişiklik kaydı yok</td></tr>';
+        return;
+      }
+      for (const e of entries) {
+        const tr = document.createElement("tr");
+        const when = (e.changed_at || "").replace("T", " ").slice(0, 16);
+        tr.innerHTML = `<td>${escapeHtml(when)}</td`
+          + `><td>${escapeHtml(RESOURCE_LABELS[e.resource_type] || e.resource_type)}</td`
+          + `><td class="num">${Number(e.old_value).toFixed(1)}</td`
+          + `><td class="num">${Number(e.new_value).toFixed(1)}</td`
+          + `><td>${escapeHtml(e.updated_by || "—")}</td>`;
+        body.appendChild(tr);
+      }
+    } catch (auditErr) {
+      body.innerHTML = '<tr><td colspan="5">geçmiş yüklenemedi</td></tr>';
+    }
+  }
+
+  // EM-028 yönetici düzenlemesi + EM-034: ha/saat varsayımlarını düzenleyeni
+  // taşıyarak kaydet, paneli ve denetim geçmişini tazele.
   document.getElementById("save-assumptions").addEventListener("click", async () => {
     const body = {};
     document.querySelectorAll("#assumptions .assume-input").forEach((inp) => {
       body[inp.dataset.type] = parseFloat(inp.value);
     });
+    const editor = (document.getElementById("assume-editor").value || "").trim();
+    if (editor) body.updated_by = editor;
     const status = document.getElementById("assume-status");
     status.textContent = "kaydediliyor…";
     try {
@@ -1290,9 +1338,12 @@
         const err = await res.json().catch(() => ({}));
         throw new Error((err.detail && err.detail.error) || ("HTTP " + res.status));
       }
-      status.textContent = "kaydedildi";
+      const applied = await res.json();
+      status.textContent = (applied.applied_count || 0) > 0
+        ? "kaydedildi (" + applied.applied_count + " değişiklik)"
+        : "değişiklik yok";
       await refresh();
-      status.textContent = "kaydedildi";
+      await loadAssumeAudit();
     } catch (err) {
       status.textContent = "hata: " + err.message;
     }

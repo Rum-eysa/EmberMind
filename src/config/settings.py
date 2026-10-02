@@ -291,6 +291,12 @@ class Config:
     )
     CAPACITY_HA_PER_HOUR_UAV = float(os.getenv("CAPACITY_HA_PER_HOUR_UAV", "4.0"))
 
+    # EM-034: capacity-assumption audit trail (Epic E3). Every applied ha/hour
+    # edit is recorded (old -> new, editor, timestamp). These bound how many
+    # history rows the management view reads back per request.
+    CAPACITY_AUDIT_DEFAULT_LIMIT = int(os.getenv("CAPACITY_AUDIT_DEFAULT_LIMIT", "50"))
+    CAPACITY_AUDIT_MAX_LIMIT = int(os.getenv("CAPACITY_AUDIT_MAX_LIMIT", "200"))
+
     # EM-033: time-dependent capacity (Epic E3). When on, the capacity-gap
     # timeline prices each horizon against the capacity actually on station at
     # that minute (available now + en-route units whose arrival ETA has passed)

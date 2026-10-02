@@ -755,7 +755,8 @@ Operatör haritasındaki lejanttan `/panel`'e geçilir.
 ### Kapasite Birimi Tanımı ve Normalizasyonu (EM-028)
 ```
 GET /api/v1/capacity/assumptions  # kaynak tipi başına etkin müdahale kapasitesi (ha/saat)
-PUT /api/v1/capacity/assumptions  # yönetici düzenlemesi: {"crew":..,"helicopter":..,"uav":..}
+PUT /api/v1/capacity/assumptions  # yönetici düzenlemesi: {"crew":..,"helicopter":..,"uav":..,"updated_by":..}
+GET /api/v1/capacity/assumptions/audit[?resource_type=crew&limit=50]  # değişiklik denetim geçmişi (EM-034)
 GET /api/v1/capacity/effective    # müsait envanterin tek birime (ha/saat) normalize hali
 GET /api/v1/capacity/by-country   # ülke bazlı ayrış kapasite hesabı (EM-064)
 GET /api/v1/capacity/schedule[?minutes=30&minutes=60]  # zamana bağlı kapasite (EM-033)
@@ -769,6 +770,19 @@ düzenlenebilir. `effective_capacity` = Σ (müsait kaynak sayısı × tip
 varsayımı) ile envanter ha/saat cinsinden tek bir rakama indirgenir; panel
 beslemesi `capacity.assumptions` ve `capacity.effective` alanlarını taşır.
 Geçersiz/negatif tip düzenlemesi **400** döner.
+
+### Kapasite Varsayımı Denetim Kaydı (EM-034)
+EM-028 varsayımları düzenlenebilir yaptı ama yalnızca **son düzenleyeni** tek
+bir `updated_by` kolonunda tuttu — eski değer, kim ve ne zaman geçmişi yoktu.
+EM-034 bunu **kalıcı, salt-additive bir denetim iziyle** kapatır: `PUT` her
+**gerçek** değişimde (değer gerçekten farklıysa; aynı değeri tekrar kaydetme
+üretmez) `capacity_assumption_audit` tablosuna bir satır yazar — `resource_type
+/ old_value / new_value / updated_by` + zaman damgası. Denetim tablosu
+asla **tohumlanmaz**; okuma (`GET .../assumptions/audit`) hiçbir şey
+yazmaz. Yanıt yeniden eskiye sıralıdır, `resource_type` ile filtrelenir ve
+`limit` `CAPACITY_AUDIT_MAX_LIMIT`'e kırpılır. `PUT` yanıtı artık
+`applied_count` ve güncel `audit` satırlarını da taşır; panel kartı **Düzenleyen**
+alanı ve **Değişiklik geçmişi (denetim)** tablosuyla bunu gösterir.
 
 ### Ülke Bazında Ayrış Kapasite (EM-064)
 ```
