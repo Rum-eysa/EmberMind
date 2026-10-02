@@ -580,6 +580,34 @@
     #sdp-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #sdp-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-040: sessiz bölge uyarıları — yüksek öncelikli bölge uyarı beslemesi */
+    #sra-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 320px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #sra-panel h1 { margin-bottom: 4px; }
+    #sra-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #sra-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #sra-panel .bar label { display: block; margin: 2px 0; }
+    #sra-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #sra-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+    #sra-panel .item:hover { background: rgba(33,102,172,.10); }
+    #sra-panel .item.sel { background: rgba(33,102,172,.18); }
+    #sra-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #sra-panel .nm { font-weight: 600; }
+    #sra-panel .lvl { margin-left: auto; font-weight: 700; white-space: nowrap;
+      padding: 1px 6px; border-radius: 10px; color: #fff; font-size: 10px; }
+    #sra-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #sra-panel .threat { color: #b71c1c; font-weight: 600; }
+    #sra-panel .supp { color: var(--text-secondary); font-style: italic; }
+    #sra-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #sra-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -630,6 +658,9 @@
     <button type="button" id="sdp-open"
       title="EM-042 sessiz bölge performans ölçümü — sentetik senaryoda TPR/FPR ve uyarı gecikmesi">
       Sessiz Bölge Performans</button>
+    <button type="button" id="sra-open"
+      title="EM-040 sessiz bölge uyarıları — yayılım tehdidi ulaşan yüksek öncelikli sessiz bölgeler için bölge/süre/risk seviyeli uyarı; aynı bölgenin tekrar uyarıları bastırılır">
+      Sessiz Bölge Uyarıları</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -952,6 +983,21 @@
     <div id="sdp-list"></div>
   </div>
 
+  <div id="sra-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölge Uyarıları <span id="sra-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Risk seviyesi: <select id="sra-level">
+        <option value="all" selected>Tümü</option>
+        <option value="kritik">Kritik</option>
+        <option value="yuksek">Yüksek</option>
+        <option value="orta">Orta</option>
+        <option value="dusuk">Düşük</option>
+      </select></label>
+      <div class="acts"><button type="button" id="sra-refresh">Yenile</button></div>
+    </div>
+    <div id="sra-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -1053,6 +1099,9 @@
   let szcHighlight = null;         // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
   // EM-042: sessiz bölge performans ölçümü paneli durumu.
   let sdpPanelOpen = false;
+  // EM-040: sessiz bölge uyarıları paneli durumu.
+  let sraPanelOpen = false;
+  let sraHighlight = null;       // seçili uyarı bölgesinin vurgu dikdörtgeni (L.Rectangle)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -3888,6 +3937,103 @@
       + `gecikme ort. ${delay.mean_days ?? "—"} gün — ${data.scenario_label}`);
   }
 
+  // --- EM-040: sessiz bölge uyarıları — yüksek öncelikli bölge uyarı beslemesi
+  const SRA_API = "/api/v1/silent-region-alerts";
+  const SRA_COLORS = { kritik: "#b71c1c", yuksek: "#e65100", orta: "#f9a825", dusuk: "#9e9e9e" };
+  async function toggleSRAPanel() {
+    const panel = document.getElementById("sra-panel");
+    if (sraPanelOpen) {
+      sraPanelOpen = false;
+      panel.style.display = "none";
+      if (sraHighlight) { map.removeLayer(sraHighlight); sraHighlight = null; }
+      return;
+    }
+    sraPanelOpen = true;
+    panel.style.display = "block";
+    await loadSRA();
+  }
+  async function loadSRA() {
+    const box = document.getElementById("sra-list");
+    panelLoading(box, "silent_region_alert");
+    try {
+      const res = await fetch(`${SRA_API}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSRA(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("silent_region_alert", err.message);
+      setStatus(`Sessiz bölge uyarıları alınamadı: ${err.message}`);
+    }
+  }
+  function renderSRA(data) {
+    const box = document.getElementById("sra-list");
+    const countEl = document.getElementById("sra-count");
+    // Son yanıtı önbelleğe al: risk seviyesi süzmesi sunucuya gitmeden yeniden işlenir.
+    box.dataset.sraLast = JSON.stringify(data);
+    let rows = (data.alerts || []).slice();
+    const pick = document.getElementById("sra-level").value;
+    if (pick && pick !== "all") { rows = rows.filter(a => a.risk_level_code === pick); }
+    const s = data.summary || {};
+    if (countEl) {
+      countEl.textContent = `(${rows.length}/${s.high_priority_regions || 0})`;
+    }
+    box.innerHTML = "";
+    if (!rows.length) {
+      panelEmpty(box, "silent_region_alert",
+        "Yayılım tehdidi ulaşan yüksek öncelikli sessiz bölge yok.");
+      return;
+    }
+    for (const alert of rows) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const color = SRA_COLORS[alert.risk_level_code] || "#9e9e9e";
+      const supp = alert.suppressed_duplicate_alerts > 0
+        ? `<br><span class="supp">+${alert.suppressed_duplicate_alerts} tekrar uyarı bastırıldı</span>` : "";
+      const threat = alert.threatening_fire_count > 0
+        ? `<span class="threat">← ${alert.threatening_fire_count} aktif yangın</span>` : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${escapeHtml(alert.region_name)}</b>`
+        + `<br><span class="meta">${escapeHtml(String(alert.silence_duration_hours))} saattir sessiz`
+        + ` · ${escapeHtml(String(alert.silence_duration_days))} gün</span>`
+        + `<br>${threat}${supp}</span>`
+        + `<span class="lvl" style="background:${color}">${escapeHtml(alert.risk_level_label)}</span>`;
+      const select = () => focusSRARegion(alert, row);
+      row.addEventListener("click", select);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+      box.appendChild(row);
+    }
+    setStatus(
+      `Sessiz bölge uyarıları — ${s.emitted_alerts || 0} uyarı, `
+      + `${s.suppressed_duplicate_alerts || 0} tekrar bastırıldı — ${data.attribution}`);
+  }
+  function focusSRARegion(alert, row) {
+    for (const el of document.querySelectorAll("#sra-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    // Harita senkron seçim: uyarı bölgesinin kutusuna odaklan ve vurgula.
+    const bb = alert.bounding_box || {};
+    const bounds = L.latLngBounds([[bb.min_lat, bb.min_lon], [bb.max_lat, bb.max_lon]]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+    if (sraHighlight) { map.removeLayer(sraHighlight); }
+    const stroke = SRA_COLORS[alert.risk_level_code] || "#616161";
+    sraHighlight = L.rectangle(bounds, {
+      color: stroke, weight: 3, dashArray: "6 4",
+      fillColor: stroke, fillOpacity: 0.14,
+    }).addTo(map);
+    sraHighlight.bindPopup(
+      `<b>${escapeHtml(alert.region_name)}</b><br>`
+      + `risk: ${escapeHtml(alert.risk_level_label)} · öncelik ${escapeHtml(String(alert.priority_score))}<br>`
+      + `${escapeHtml(String(alert.silence_duration_hours))} saattir sessiz<br>`
+      + `${escapeHtml(String(alert.threatening_fire_count))} aktif yangın tehdidi`);
+    sraHighlight.openPopup();
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -4163,6 +4309,19 @@
     if (sdpRefresh) sdpRefresh.addEventListener("click", loadSDP);
     const sdpHorizon = document.getElementById("sdp-horizon");
     if (sdpHorizon) sdpHorizon.addEventListener("change", loadSDP);
+
+    // EM-040: sessiz bölge uyarıları paneli düğmeleri + risk seviyesi süzmesi.
+    const sraBtn = document.getElementById("sra-open");
+    if (sraBtn) sraBtn.addEventListener("click", toggleSRAPanel);
+    const sraRefresh = document.getElementById("sra-refresh");
+    if (sraRefresh) sraRefresh.addEventListener("click", loadSRA);
+    const sraLevel = document.getElementById("sra-level");
+    if (sraLevel) sraLevel.addEventListener("change", () => {
+      const box = document.getElementById("sra-list");
+      if (box.dataset.sraLast) {
+        renderSRA(JSON.parse(box.dataset.sraLast));
+      }
+    });
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));

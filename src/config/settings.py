@@ -509,6 +509,17 @@ class Config:
         os.getenv("SILENT_DETECTION_MAX_LATENCY_DAYS", "5")
     )
 
+    # EM-040: yüksek öncelikli sessiz bölge uyarıları - risk seviyesi bantları (Epic E4)
+    # EM-037 priority skoru (risk x sessizlik) üzerinden uyarı risk seviyesi eşikleri.
+    SILENT_ALERT_CRITICAL_PRIORITY = float(
+        os.getenv("SILENT_ALERT_CRITICAL_PRIORITY", "0.6")
+    )
+    SILENT_ALERT_HIGH_PRIORITY = float(os.getenv("SILENT_ALERT_HIGH_PRIORITY", "0.4"))
+    SILENT_ALERT_MEDIUM_PRIORITY = float(
+        os.getenv("SILENT_ALERT_MEDIUM_PRIORITY", "0.2")
+    )
+    SILENT_ALERT_MAX_LIMIT = int(os.getenv("SILENT_ALERT_MAX_LIMIT", "200"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

@@ -40,6 +40,7 @@ PANEL_KEYS = (
     "silent_region_risk",
     "silent_zone_confidence",
     "silent_detection_performance",
+    "silent_region_alert",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -189,6 +190,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Enjekte edilmiş sessiz epizot yok; enjekte oranını/ufku artırıp yeniden deneyin.",
         "error": "Sessiz bölge performans ölçümü alınamadı.",
         "error_action": "Ufk/pencere/enjekte oranı seçimlerini gözden geçirip yeniden deneyin.",
+    },
+    "silent_region_alert": {
+        "title": "Sessiz Bölge Uyarıları",
+        "loading": "Yüksek öncelikli sessiz bölgeler için uyarılar üretiliyor…",
+        "empty": "Yayılım tehdidiyle kesişen yüksek öncelikli sessiz bölge yok.",
+        "error": "Sessiz bölge uyarıları alınamadı.",
+        "error_action": "Sessiz bölge/yayılım verisini ve risk eşiği seçimlerini gözden geçirip yeniden deneyin.",
     },
 }
 

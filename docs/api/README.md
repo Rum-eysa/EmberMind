@@ -1215,6 +1215,27 @@ Geçersiz `as_of` → `400`; doğrulama hatası → `400`; **hiçbir şey yazıl
 (`persistence: none`). UI: `/ui` haritasındaki **Sessiz Bölge Performans** paneli
 (ana metrikler + bölüm satırları + SENTETİK etiketi).
 
+### Sessiz Bölge Uyarıları (EM-040)
+```
+GET    /api/v1/silent-region-alerts/config                    # risk merdiveni, bantlar, bastırma kuralı, kalıcılık
+GET    /api/v1/silent-region-alerts[?level=kritik&limit=N]    # yüksek öncelikli bölge uyarı beslemesi
+```
+Operatör, riskli bir bölge sessizliğe düştüğü anda haberdar olur. Bu servis EM-037
+`silent_region_risk_report(flagged_only=True)` **yeniden kullanılarak** her yüksek
+öncelikli bölge için **tek uyarı** üretir. Sessizlik süresi sessiz bölge kaydının
+`created_at`'ından şimdiye kadar **saat** olarak ölçülür (`silence_duration_hours`).
+Öncelik skoru Türkçe **risk merdivenine** eşlenir: `SILENT_ALERT_CRITICAL_PRIORITY`
+(0.6) → **kritik**, `_HIGH_PRIORITY` (0.4) → **yüksek**, `_MEDIUM_PRIORITY` (0.2) →
+**orta**, altı → **düşük**. Aynı bölgeyi tehdit eden fazla aktif yangın
+`suppressed_duplicate_alerts` ile tek uyarıya **katlanır** (kabul: "aynı bölge için
+tekrar uyarı bastırılır"); `summary` `by_level` + ham aday/bastırılan sayılarını taşır.
+Uyarı `bölge/süre/risk seviyesi` taşır. `level` yalnız o bandı tutar (bilinmeyen →
+`400`); `limit` (<1 → `422`) listeyi kırparsa da `summary` **genel** kalır. Azami
+uyarı `SILENT_ALERT_MAX_LIMIT`. Sıralama `(öncelik azalan, bölge artan)`.
+**Hiçbir şey yazılmaz** (`persistence: none`, okuma zamanı hesaplanır). UI:
+`/ui` haritasındaki **Sessiz Bölge Uyarıları** paneli (risk seviyesi rozetleri,
+bölge/süre/tehdit eden yangın sayısı, bastırılan tekrar sayısı, harita senkron seçim).
+
 ## Error Codes
 
 - `200`: Başarılı

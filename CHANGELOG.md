@@ -5,6 +5,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Added
+- EM-040: Sessiz bölge uyarıları — yüksek öncelikli bölge için uyarı beslemesi (E4)
+  - Operatör, riskli bir bölge sessizliğe düştüğü anda haberdar olmak istiyor
+    (kabul kriterleri: "riskli bir bölge sessizliğe düştüğünde uyarı üretilir; uyarı
+    bölgeyi, süreyi ve risk seviyesini taşır; aynı bölge için tekrar uyarı
+    bastırılır") — bugüne dek EM-037 yüksek öncelikli sessiz bölgeleri risk × sessizlik
+    ile sıralıyor; ancak bu işaretli bölgelerden operatöre **bölge/süre/risk seviyesi**
+    taşıyan, tekrarları **bastırılmış** tek bir uyarı beslemesi üreten bir katman
+    **yoktu** (gerçek eksik: `silent_region_alert` yok)
+  - `src/services/silent_region_alert.py`: EM-037 `silent_region_risk_report(flagged_only=True)`
+    **yeniden kullanılarak** her yüksek öncelikli bölge için tek uyarı üretilir;
+    sessizlik süresi sessiz bölge kaydının `created_at`'ından şimdiye kadar saat
+    olarak ölçülür; öncelik skoru Türkçe risk merdivenine (kritik/yüksek/orta/düşük,
+    `SILENT_ALERT_*_PRIORITY` bantları) eşlenir; aynı bölgeyi tehdit eden fazla
+    aktif yangınlar `suppressed_duplicate_alerts` ile tek uyarıya katlanır; özet
+    `by_level`/`raw_candidate_alerts`/`suppressed_duplicate_alerts` taşır; `level`
+    süzmesi ve `limit` kırpması desteklenir; `persistence: none` — her istekte
+    yeniden hesaplanır, hiçbir şey yazılmaz
+  - `src/routes/silent_region_alert.py` `/api/v1/silent-region-alerts` (rapor +
+    `level`/`limit` düğmeleri, geçersiz `level` → 400, doğrulama hatası → 400) +
+    `/config`; operatör haritasına "Sessiz Bölge Uyarıları" paneli (risk seviyesi
+    rozetleri, bölge/süre/tehdit eden yangın sayısı, bastırılan tekrar sayısı, harita
+    senkron seçim) eklendi
 - EM-042: Sessiz bölge performans ölçümü — sentetik senaryoda tespit doğruluğu (E4)
   - Veri bilimcisi, sessiz bölge tespitinin gerçek doğruluğunu kanıtlamak için
     ölçmek istiyor (kabul kriterleri: "sentetik senaryo kümesi üzerinde TPR, FPR ve
