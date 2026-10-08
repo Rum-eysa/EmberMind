@@ -37,6 +37,7 @@ PANEL_KEYS = (
     "webhooks",
     "audit_trail",
     "signal_baseline",
+    "signal_baseline_seasonal",
     "silent_region_risk",
     "silent_zone_confidence",
     "silent_detection_performance",
@@ -170,6 +171,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Seçili filtrede izleme hücresi yok; ızgara aralığını gözden geçirin.",
         "error": "Sinyal baz çizgisi alınamadı.",
         "error_action": "Kaynak ve tarih seçimini kontrol edip yeniden deneyin.",
+    },
+    "signal_baseline_seasonal": {
+        "title": "Mevsimsel Sinyal Baz Çizgisi",
+        "loading": "Saat ve hafta günü mevsimselliği öğreniliyor…",
+        "empty": "Seçili filtrede izleme hücresi yok; kaynak/saat seçimini gözden geçirin.",
+        "error": "Mevsimsel baz çizgisi alınamadı.",
+        "error_action": "Kaynak, saat ve tarih seçimini kontrol edip yeniden deneyin.",
     },
     "silent_region_risk": {
         "title": "Yüksek Öncelikli Sessiz Bölge",

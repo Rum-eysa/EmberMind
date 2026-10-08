@@ -1495,12 +1495,43 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1258** (1235 + 23 yeni).
 - **Commit:** `feat(EM-041): ...` (bu dal).
 
+### EM-043 — Mevsimsel sinyal baz çizgisi (#43) — DONE
+- **Eksik analizi:** EM-035 **düz** 30 günlük normal öğreniyor; yapısal olarak
+  sessiz bir bölge (gecenin kör saati, hafta sonu) düz ortalamanın çok altında
+  kalıp **yanlış** sessiz adayı oluyor (kabul: "saat ve haftanın günü etkisi modele
+  eklenir; baz çizgisi günlük yeniden hesaplanır; yanlış alarm oranı yenileme
+  öncesi/sonrası karşılaştırılır"). Mevsimselliği öğrenip arındıran, günlük
+  yeniden hesaplayan ve önce/sonra yanlış-alarmı karşılaştıran katman **yoktu**
+  (`signal_baseline_seasonal` kod tabanında yok). E4 Should (sp5).
+- **Kapsam kararları:** EM-035 üzerine **okuma-zamanlı** bileşim
+  (`persistence: none`); öğrenilen anomali sınıflandırıcısı EM-036 **değil** —
+  çarpan-temelli iki-yönlü mevsimsel ayrıştırma (yinelemeli normalizasyon), bilinçli
+  olarak istatistiksel bir düzeltme. Saat boyutunu gerçek/sınanabilir kılmak için
+  deterministik **saatlik** `SyntheticDiurnalSource`; günlük-only kaynak dürüstçe
+  yalnızca-hafta-günü mevsimselliğine düşer.
+- **Uygulama:** Servis `signal_baseline_seasonal.py`:
+  `learn_seasonal_factors` (hour/weekday çarpanları + artık/düz düzey+yayılım),
+  `seasonal_cell` (`z_flat`/`z_seasonal`, `candidate_flat`/`candidate_seasonal`,
+  `false_alarm_removed`), `seasonal_report` (düz→mevsimsel aday + elenen
+  yanlış-alarm özeti), `refresh_daily_baselines` (günlük yeniden hesaplama),
+  `seasonal_baseline_config`. `src/services/signal_baseline.py` taban
+  `SignalSource`'a `has_hourly` + varsayılan `hourly_signal` eklendi (geriye
+  dönük). `/api/v1/signal-baseline-seasonal` (+`/config`, `/refresh`; geçersiz
+  kaynak/as_of→400, saat 0-23 dışı→422); `settings.py` + `.env.example`
+  (`SIGNAL_SEASONAL_*`); `fastapi_app` kaydı, `ui_states`
+  `signal_baseline_seasonal`; `operator_map` **Mevsimsel Baz Çizgisi** paneli
+  (kaynak/kontrol-saati/referans-tarih + düz→mevsimsel özet + yalnızca-mevsimsel-aday
+  süzmesi + harita senkron + Günlük Yenile); 29 test.
+- **Kapılar:** black(temiz, 240)/mypy(Success, 160 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1287** (1258 + 29 yeni).
+- **Commit:** `feat(EM-043): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).

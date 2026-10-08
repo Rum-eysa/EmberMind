@@ -83,10 +83,19 @@ class SignalSource(ABC):
     kind: str = "signal_source"
     label: str = "Sinyal kaynağı"
     synthetic: bool = False
+    has_hourly: bool = False
 
     @abstractmethod
     def daily_signal(self, region_key: str, day: date) -> float:
         """Return the observed signal strength for one cell on one day."""
+
+    def hourly_signal(self, region_key: str, day: date, hour: int) -> float:
+        """Hour-resolution signal, defined only when ``has_hourly`` is True.
+
+        Day-granularity sources leave this unimplemented; an hourly consumer must
+        check ``has_hourly`` before calling. EM-043's seasonal source overrides it.
+        """
+        raise NotImplementedError(f"{self.kind} saatlik sinyal üretmez")
 
 
 class SyntheticCommunicationSource(SignalSource):

@@ -18,6 +18,35 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-043: Mevsimsel sinyal baz çizgisi — saat-in-günü + haftanın-günü etkisi ve günlük
+  yeniden hesaplama (E4)
+  - EM-035 düz 30 günlük normal öğreniyor; bu yüzden yapısal olarak sessiz bir bölge
+    (gecenin kör saati, hafta sonu) düz ortalamanın çok altında kalıp yanlış "sessiz"
+    adayı oluyor (kabul kriterleri: "saat ve haftanın günü etkisi modele eklenir; baz
+    çizgisi günlük yeniden hesaplanır; yanlış alarm oranı yenileme öncesi/sonrası
+    karşılaştırılır") — bugüne dek mevsimselliği öğrenip arındıran bir katman **yoktu**
+  - `src/services/signal_baseline_seasonal.py`: `SyntheticDiurnalSource` gerçek
+    **saatlik** bir akış üretir (sessiz gece, yoğun gündüz, hafif hafta sonu) ki saat
+    boyutu öğrenilebilir/sınanabilir olsun; `learn_seasonal_factors` iki-yönlü
+    çarpan-temelli mevsimsel ayrıştırmayı yinelemeli-normalizasyonla uydurur (öğrenilen
+    anomali sınıflandırıcısı EM-036 **değil**, istatistiksel bir düzeltme); günlük-only
+    bir kaynak dürüstçe yalnızca-hafta-günü mevsimselliğine düşer (saat çarpanları 1.0)
+  - `seasonal_cell` okumayı **hem düz hem mevsimsel** puanlar: mevsimsellikten
+    arındırılmış artık, mevsimsel z ile düz z yan yana; `candidate_flat`/
+    `candidate_seasonal`/`false_alarm_removed` ile önce/sonra yanlış-alarm karşılaştırması
+    doğrudan hücre bazında okunur
+  - `seasonal_report` mevsimsel adayları öne alıp sıralar ve `flat_candidate_count` →
+    `seasonal_candidate_count` ile `false_alarms_removed` özetini verir;
+    `refresh_daily_baselines` istenen tarih için her hücrenin mevsimsel bazını yeniden
+    hesaplar ("günlük yeniden hesaplama" — okuma-zamanlı, `persistence: none`)
+  - `src/routes/signal_baseline_seasonal.py`: salt-okunur `GET /api/v1/signal-baseline-seasonal`
+    (+`/config`, `/refresh`); `src/config/settings.py` + `.env.example`:
+    `SIGNAL_SEASONAL_NIGHT_CHECK_HOUR`, `SIGNAL_SEASONAL_NORMALIZATION_ITERATIONS`,
+    `SIGNAL_SEASONAL_DEFAULT_SOURCE`, `SIGNAL_SEASONAL_MAX_CELLS`
+  - Operatör haritasına "Mevsimsel Baz Çizgisi" paneli: kaynak/kontrol-saati/referans-tarih
+    seçimi, düz→mevsimsel aday geçişini ve elenen yanlış-alarm sayısını gösteren özet
+    çubuğu, "yalnızca mevsimsel aday" süzmesi, hücreye harita-kilitli seçim ve tek tık
+    "Günlük Yenile" yeniden hesaplaması
 - EM-041: Sessiz bölge doğrulama akışı — operatör hükmünün kalıcı geri bildirimi (E4)
   - Operatör, sessiz bölge uyarısını **doğrulandı / yanlış alarm / inceleniyor** olarak
     işaretlemek istiyor ki sistem zamanla daha az yanlışa düşsün (kabul kriterleri:

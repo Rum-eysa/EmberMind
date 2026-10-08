@@ -62,6 +62,9 @@ from src.routes.silent_zone_verification import (
     register_silent_zone_verification_routes,
 )
 from src.routes.signal_baseline import register_signal_baseline_routes
+from src.routes.signal_baseline_seasonal import (
+    register_signal_baseline_seasonal_routes,
+)
 from src.routes.sitrep_report import register_sitrep_routes
 from src.routes.spread import register_spread_routes
 from src.routes.support_request_draft import (
@@ -455,6 +458,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_share_policy_routes(api, database, settings)
     register_silent_zone_panel_routes(api, database, settings)
     register_signal_baseline_routes(api, database, settings)
+    register_signal_baseline_seasonal_routes(api, database, settings)
     register_silent_region_risk_routes(api, database, settings)
     register_silent_zone_confidence_routes(api, database, settings)
     register_silent_detection_performance_routes(api, database, settings)

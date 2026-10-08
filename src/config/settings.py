@@ -450,6 +450,24 @@ class Config:
     SIGNAL_PILOT_MIN_LON = float(os.getenv("SIGNAL_PILOT_MIN_LON", "26.0"))
     SIGNAL_PILOT_MAX_LON = float(os.getenv("SIGNAL_PILOT_MAX_LON", "30.0"))
 
+    # EM-043: baz çizgisi mevsimsellik + günlük yenileme (Epic E4)
+    # EM-035 düz (yatay) baz çizgisi hafta sonu/gece gibi yapısal durgunlukları
+    # anomali sayabilir; burada saat-in-günü ve haftanın-günü mevsimsel kat sayıları
+    # öğrenilip baz çizgisi mevsimsellikten arındırılır, böylece "gece sessizliği"
+    # yanlış alarm olmaz. Kat sayılar iteratif normalize ile türleştirilir; gece
+    # kontrol saati ve pilot varsayılan (gündüz/gece) kaynak ayarlanabilir; azami
+    # hücre EM-035 ızgarası ile aynı. Kalıcılık: none — istek zamanı yeniden hesaplanır.
+    SIGNAL_SEASONAL_NIGHT_CHECK_HOUR = int(
+        os.getenv("SIGNAL_SEASONAL_NIGHT_CHECK_HOUR", "3")
+    )
+    SIGNAL_SEASONAL_NORMALIZATION_ITERATIONS = int(
+        os.getenv("SIGNAL_SEASONAL_NORMALIZATION_ITERATIONS", "3")
+    )
+    SIGNAL_SEASONAL_DEFAULT_SOURCE = os.getenv(
+        "SIGNAL_SEASONAL_DEFAULT_SOURCE", "synthetic_diurnal"
+    )
+    SIGNAL_SEASONAL_MAX_CELLS = int(os.getenv("SIGNAL_SEASONAL_MAX_CELLS", "60"))
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:

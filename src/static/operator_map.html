@@ -496,6 +496,41 @@
     #signal-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #signal-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-043: mevsimsel sinyal baz çizgisi — saat/hafta günü mevsimselliği + önce/sonra */
+    #seas-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 300px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #seas-panel h1 { margin-bottom: 4px; }
+    #seas-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #seas-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #seas-panel .bar label { display: block; margin: 2px 0; }
+    #seas-panel input[type=text], #seas-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #seas-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #seas-panel .summary { margin-bottom: 6px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #seas-panel .summary b { color: var(--text-primary); }
+    #seas-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #seas-panel .item:hover { background: rgba(33,102,172,.10); }
+    #seas-panel .item.sel { background: rgba(33,102,172,.18); }
+    #seas-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #seas-panel .nm { font-weight: 600; }
+    #seas-panel .z { margin-left: auto; font-weight: 700; white-space: nowrap;
+      text-align: right; }
+    #seas-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #seas-panel .syn { color: #e65100; font-weight: 600; }
+    #seas-panel .removed { color: #1b5e20; font-weight: 600; }
+    #seas-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #seas-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     /* EM-037: yüksek öncelikli sessiz bölge — yayılım tahmini × sessizlik güveni */
     #srisk-panel {
       position: absolute; top: 70px; left: 300px; z-index: 1000;
@@ -662,6 +697,9 @@
     <button type="button" id="signal-open"
       title="EM-035 sinyal baz çizgisi — hücre bazında 30 günlük iletişim/rapor normali ve bugünkü sessizlik adayı">
       Sinyal Baz Çizgisi</button>
+    <button type="button" id="seas-open"
+      title="EM-043 mevsimsel sinyal baz çizgisi — saat-in-günü + haftanın-günü mevsimselliği öğrenilir; gece/hafta sonu sessizliği yanlış alarm olmaz; düz önceki vs mevsimsel sonraki karşılaştırılır">
+      Mevsimsel Baz Çizgisi</button>
     <button type="button" id="srisk-open"
       title="EM-037 yüksek öncelikli sessiz bölge — yayılım tahmini ulaşan ama SOS olmayan bölgeler, risk × sessizlik sıralı">
       Yüksek Öncelikli Sessiz Bölge</button>
@@ -957,6 +995,32 @@
     <div id="signal-list"></div>
   </div>
 
+  <div id="seas-panel" class="panel" aria-live="polite">
+    <h1>Mevsimsel Baz Çizgisi <span id="seas-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Kaynak:
+        <select id="seas-source" aria-label="Mevsimsel sinyal kaynağı seçimi"></select>
+      </label>
+      <label>Kontrol saati: <select id="seas-hour" aria-label="Saat aralığı">
+        <option value="3" selected>03:00 (gece)</option>
+        <option value="0">00:00</option>
+        <option value="6">06:00</option>
+        <option value="12">12:00 (gündüz)</option>
+        <option value="18">18:00</option>
+        <option value="22">22:00</option>
+      </select></label>
+      <label>Referans tarih: <input type="text" id="seas-asof" size="10"
+        placeholder="boş = bugün"></label>
+      <label><input type="checkbox" id="seas-candidate"> yalnızca mevsimsel aday</label>
+      <div class="acts">
+        <button type="button" id="seas-refresh">Yenile</button>
+        <button type="button" id="seas-recompute" title="EM-043 günlük yeniden hesaplama">Günlük Yenile</button>
+      </div>
+    </div>
+    <div id="seas-summary" class="summary" style="display:none"></div>
+    <div id="seas-list"></div>
+  </div>
+
   <div id="srisk-panel" class="panel" aria-live="polite">
     <h1>Yüksek Öncelikli Sessiz Bölge <span id="srisk-count" class="count"></span></h1>
     <div class="bar">
@@ -1107,6 +1171,10 @@
   let signalPanelOpen = false;
   let signalConfigLoaded = false;
   let signalHighlight = null;      // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
+  // EM-043: mevsimsel sinyal baz çizgisi paneli durumu.
+  let seasPanelOpen = false;
+  let seasConfigLoaded = false;
+  let seasHighlight = null;        // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
   // EM-037: yüksek öncelikli sessiz bölge paneli durumu.
   let sriskPanelOpen = false;
   let sriskHighlight = null;       // seçili bölgenin vurgu dikdörtgeni (L.Rectangle)
@@ -3687,6 +3755,164 @@
     signalHighlight.openPopup();
   }
 
+  // --- EM-043: mevsimsel sinyal baz çizgisi (saat/hafta günü + önce/sonra) ----
+  const SEAS_API = "/api/v1/signal-baseline-seasonal";
+  async function toggleSeasPanel() {
+    const panel = document.getElementById("seas-panel");
+    if (seasPanelOpen) {
+      seasPanelOpen = false;
+      panel.style.display = "none";
+      if (seasHighlight) { map.removeLayer(seasHighlight); seasHighlight = null; }
+      return;
+    }
+    seasPanelOpen = true;
+    panel.style.display = "block";
+    await loadSeas();
+  }
+  async function loadSeas() {
+    const box = document.getElementById("seas-list");
+    panelLoading(box, "signal_baseline_seasonal");
+    try {
+      if (!seasConfigLoaded) { await loadSeasConfig(); }
+      const params = new URLSearchParams();
+      const src = document.getElementById("seas-source").value;
+      if (src) params.set("source", src);
+      const hour = document.getElementById("seas-hour").value;
+      if (hour) params.set("hour", hour);
+      const asof = document.getElementById("seas-asof").value.trim();
+      if (asof) params.set("as_of", asof);
+      const res = await fetch(`${SEAS_API}?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSeas(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("signal_baseline_seasonal", err.message);
+      setStatus(`Mevsimsel baz çizgisi alınamadı: ${err.message}`);
+    }
+  }
+  async function loadSeasConfig() {
+    const res = await fetch(`${SEAS_API}/config`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const cfg = await res.json();
+    const sel = document.getElementById("seas-source");
+    if (sel && !sel.options.length) {
+      for (const kind of (cfg.sources.available || [])) {
+        const op = document.createElement("option");
+        op.value = kind;
+        op.textContent = kind;
+        sel.appendChild(op);
+      }
+    }
+    seasConfigLoaded = true;
+  }
+  function renderSeas(data) {
+    const box = document.getElementById("seas-list");
+    const countEl = document.getElementById("seas-count");
+    // Son yanıtı önbelleğe al: aday süzmesi sunucuya gitmeden yeniden işlenir.
+    box.dataset.seasLast = JSON.stringify(data);
+    let cells = (data.cells || []).slice();
+    const onlyCandidate = document.getElementById("seas-candidate").checked;
+    if (onlyCandidate) { cells = cells.filter(c => c.candidate_seasonal); }
+    if (countEl) {
+      countEl.textContent =
+        `(${data.seasonal_candidate_count}/${data.cell_count})`;
+    }
+    const sum = document.getElementById("seas-summary");
+    if (sum) {
+      sum.style.display = "block";
+      const dim = data.hourly_available
+        ? "saat + hafta günü" : "yalnızca hafta günü";
+      sum.innerHTML =
+        `düz aday <b>${escapeHtml(String(data.flat_candidate_count))}</b>`
+        + ` → mevsimsel aday <b>${escapeHtml(String(data.seasonal_candidate_count))}</b>`
+        + ` · yanlış alarm elenen <b>${escapeHtml(String(data.false_alarms_removed))}</b>`
+        + `<br><span class="meta">boyutlar: ${escapeHtml(dim)}`
+        + ` · kontrol saati ${escapeHtml(String(data.night_check_hour))}:00`
+        + ` · ${escapeHtml(String(data.window_days))} gün</span>`;
+    }
+    box.innerHTML = "";
+    if (!cells.length) {
+      panelEmpty(box, "signal_baseline_seasonal",
+        data.synthetic ? "Mevsimsel aday yok — akış SENTETİK, gerçek uyarı değil." : null);
+      setStatus(`Mevsimsel baz çizgisi — ${data.as_of}: mevsimsel aday yok — ${data.attribution}`);
+      return;
+    }
+    for (const cell of cells) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const color = cell.candidate_seasonal ? "#c62828" : "#2e7d32";
+      const syn = cell.synthetic ? ' <span class="syn">SENTETİK</span>' : "";
+      const removed = cell.false_alarm_removed
+        ? ' <span class="removed">↩ yanlış alarm elendi</span>' : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${escapeHtml(cell.name || cell.region_key)}</b>${syn}${removed}`
+        + `<br><span class="meta">beklenen ${escapeHtml(String(cell.seasonal_expected))}`
+        + ` · son ${escapeHtml(String(cell.latest_value))}`
+        + ` · ${escapeHtml(cell.weekday_label || "")}</span></span>`
+        + `<span class="z">düz z=${escapeHtml(String(cell.z_flat))}`
+        + ` → mevs. z=${escapeHtml(String(cell.z_seasonal))}</span>`;
+      const select = () => focusSeasCell(cell, row);
+      row.addEventListener("click", select);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+      box.appendChild(row);
+    }
+    setStatus(
+      `Mevsimsel baz çizgisi — ${data.as_of} ${data.night_check_hour}:00, `
+      + `${data.window_days} gün, mevsimsel aday ${data.seasonal_candidate_count} `
+      + `(düz ${data.flat_candidate_count}), elenen ${data.false_alarms_removed} — ${data.attribution}`);
+  }
+  function focusSeasCell(cell, row) {
+    for (const el of document.querySelectorAll("#seas-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    // Harita senkron seçim: hücre sınırlarına odaklan ve vurgula.
+    const bounds = L.latLngBounds(
+      [[cell.min_lat, cell.min_lon], [cell.max_lat, cell.max_lon]]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+    if (seasHighlight) { map.removeLayer(seasHighlight); }
+    seasHighlight = L.rectangle(bounds, {
+      color: "#2166ac", weight: 3, dashArray: "6 4",
+      fillColor: "#2166ac", fillOpacity: 0.12,
+    }).addTo(map);
+    seasHighlight.bindPopup(
+      `<b>${escapeHtml(cell.name || cell.region_key)}</b><br>`
+      + `mevsimsel beklenen: ${escapeHtml(String(cell.seasonal_expected))}<br>`
+      + `saat faktörü ${escapeHtml(String(cell.hour_factor))} · `
+      + `gün faktörü ${escapeHtml(String(cell.weekday_factor))}<br>`
+      + `son okuma: ${escapeHtml(String(cell.latest_value))} `
+      + `(düz z=${escapeHtml(String(cell.z_flat))} → mevs. z=${escapeHtml(String(cell.z_seasonal))})`);
+    seasHighlight.openPopup();
+  }
+  async function recomputeSeas() {
+    const box = document.getElementById("seas-list");
+    panelLoading(box, "signal_baseline_seasonal");
+    try {
+      const params = new URLSearchParams();
+      const src = document.getElementById("seas-source").value;
+      if (src) params.set("source", src);
+      const hour = document.getElementById("seas-hour").value;
+      if (hour) params.set("hour", hour);
+      const asof = document.getElementById("seas-asof").value.trim();
+      if (asof) params.set("as_of", asof);
+      const res = await fetch(`${SEAS_API}/refresh?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setStatus(
+        `Mevsimsel baz çizgisi günlük yenilendi — ${data.refreshed_for}, `
+        + `${data.recomputed_cells} hücre yeniden hesaplandı (${data.refresh_interval_days} gün aralık) — ${data.attribution}`);
+      await loadSeas();
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("signal_baseline_seasonal", err.message);
+      setStatus(`Mevsimsel baz yeniden hesaplanamadı: ${err.message}`);
+    }
+  }
+
   // --- EM-037: yüksek öncelikli sessiz bölge (yayılım riski × sessizlik) ----
   const SRISK_API = "/api/v1/silent-region-risk";
   async function toggleSRiskPanel() {
@@ -4388,6 +4614,28 @@
       const box = document.getElementById("signal-list");
       if (box && box.dataset.signalLast) {
         renderSignalList(JSON.parse(box.dataset.signalLast));
+      }
+    });
+
+    // EM-043: mevsimsel baz çizgisi düğmeleri + kaynak/saat/tarih/filtre seçimleri.
+    const seasBtn = document.getElementById("seas-open");
+    if (seasBtn) seasBtn.addEventListener("click", toggleSeasPanel);
+    const seasRefresh = document.getElementById("seas-refresh");
+    if (seasRefresh) seasRefresh.addEventListener("click", loadSeas);
+    const seasRecompute = document.getElementById("seas-recompute");
+    if (seasRecompute) seasRecompute.addEventListener("click", recomputeSeas);
+    const seasSource = document.getElementById("seas-source");
+    if (seasSource) seasSource.addEventListener("change", loadSeas);
+    const seasHour = document.getElementById("seas-hour");
+    if (seasHour) seasHour.addEventListener("change", loadSeas);
+    const seasAsof = document.getElementById("seas-asof");
+    if (seasAsof) seasAsof.addEventListener("change", loadSeas);
+    const seasCandidate = document.getElementById("seas-candidate");
+    if (seasCandidate) seasCandidate.addEventListener("change", () => {
+      // Ön yüz süzme: son yanıt yeniden işlenir, sunucuya gidilmez.
+      const box = document.getElementById("seas-list");
+      if (box && box.dataset.seasLast) {
+        renderSeas(JSON.parse(box.dataset.seasLast));
       }
     });
 

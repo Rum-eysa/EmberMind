@@ -1149,6 +1149,36 @@ Bilinmeyen kaynak/geçersiz `as_of` → `400`; **hiçbir şey yazılmaz**
 **Sinyal Baz Çizgisi** paneli (kaynak seçici + referans tarih + yalnızca
 sessiz adayı süzmesi + harita senkron hücre seçimi).
 
+### Mevsimsel Sinyal Baz Çizgisi (EM-043)
+```
+GET    /api/v1/signal-baseline-seasonal/config     # kaynaklar, mevsimsellik boyutları, saat/hafta kataloğu, sınırlar, yenileme
+GET    /api/v1/signal-baseline-seasonal            # hücre bazında düz(önce) vs mevsimsel(sonra) puan + yanlış-alarm özeti
+                 ?source&as_of&window_days&hour(0-23)&region_key&limit
+GET    /api/v1/signal-baseline-seasonal/refresh    # istenen tarih için her hücrenin mevsimsel bazını yeniden hesapla (günlük)
+```
+EM-035 **düz** bir normal öğrendiği için yapısal olarak sessiz bir bölge (gecenin
+kör saati, hafta sonu) düz ortalamanın çok altında kalıp **yanlış** sessiz adayı
+olur. Bu servis **saat-in-günü** ve **haftanın-günü** çarpan-temelli mevsimsel
+kat sayılarını yinelemeli iki-yönlü normalizasyonla öğrenir, sinyali
+mevsimsellikten arındırır ve **artığı** mevsimsel normale göre puanlar — gece/hafta
+sonu sessizliği artık anomali değil, beklenen. `hour` kontrol saati,
+`window_days` penceresi (7–120) ve `source` seçilir. `seasonal_cell` her hücrede
+`z_flat`/`z_seasonal`, `candidate_flat`/`candidate_seasonal` ve
+`false_alarm_removed` üretir; rapor `flat_candidate_count → seasonal_candidate_count`
+ve `false_alarms_removed` ile yenileme **öncesi/sonrası** yanlış-alarm
+karşılaştırmasını özetler. `SyntheticDiurnalSource` gerçek **saatlik** bir sentetik
+akıştır (sessiz gece/yoğun gündüz/hafif hafta sonu, `synthetic: true` + SENTETİK);
+günlük-only bir kaynak dürüstçe yalnızca-hafta-günü mevsimselliğine düşer (saat
+çarpanları 1.0). Öğrenilen anomali sınıflandırıcısı EM-036 **değildir** — bu
+istatistiksel bir düzeltmedir. `refresh` "günlük yeniden hesaplama"yı modeller ama
+okuma-zamanlıdır: **hiçbir şey yazılmaz** (`persistence: none`). Bilinmeyen
+kaynak/`as_of`/saat → `400`/`422`. Ayarlar:
+`SIGNAL_SEASONAL_NIGHT_CHECK_HOUR`, `_NORMALIZATION_ITERATIONS`,
+`_DEFAULT_SOURCE`, `_MAX_CELLS`. UI: `/ui` haritasındaki **Mevsimsel Baz Çizgisi**
+paneli (kaynak/kontrol-saati/referans-tarih + yalnızca-mevsimsel-aday süzmesi +
+düz→mevsimsel aday geçişini gösteren özet + tek tık Günlük Yenile + harita
+senkron hücre seçimi).
+
 ### Yüksek Öncelikli Sessiz Bölge Kesişimi (EM-037)
 ```
 GET    /api/v1/silent-region-risk/config      # formül, eşikler, yüksek-öncelik kuralı, kalıcılık
