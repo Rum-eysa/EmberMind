@@ -608,6 +608,19 @@
     #sra-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #sra-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-041: sessiz bölge doğrulama — hüküm rozeti + satır içi işaretleme + geri bildirim özeti */
+    #sra-panel .verdict { font-weight: 700; white-space: nowrap;
+      padding: 1px 6px; border-radius: 10px; color: #fff; font-size: 10px; }
+    #sra-panel .markrow { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+    #sra-panel .markrow button { font-size: 10px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #sra-panel .markrow button:disabled { opacity: .5; cursor: default; }
+    #sra-panel .opbar { display: flex; align-items: center; gap: 4px; margin: 2px 0; }
+    #sra-panel .opbar input { flex: 1; font-size: 11px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 5px; min-width: 0; }
+    #sra-panel .feedback { margin-top: 4px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #sra-panel .feedback b { color: var(--text-primary); }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -993,8 +1006,11 @@
         <option value="orta">Orta</option>
         <option value="dusuk">Düşük</option>
       </select></label>
+      <div class="opbar"><label>Operatör: <input id="sra-operator" type="text"
+        placeholder="kim işaretliyor" autocomplete="off" size="12"></label></div>
       <div class="acts"><button type="button" id="sra-refresh">Yenile</button></div>
     </div>
+    <div id="szv-feedback" class="feedback" style="display:none"></div>
     <div id="sra-list"></div>
   </div>
 
@@ -1102,6 +1118,9 @@
   // EM-040: sessiz bölge uyarıları paneli durumu.
   let sraPanelOpen = false;
   let sraHighlight = null;       // seçili uyarı bölgesinin vurgu dikdörtgeni (L.Rectangle)
+  // EM-041: sessiz bölge doğrulama — güncel hükümler (bölge_id → hüküm) + geri bildirim özeti.
+  let szvVerdicts = {};
+  let szvFeedback = null;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -3940,6 +3959,13 @@
   // --- EM-040: sessiz bölge uyarıları — yüksek öncelikli bölge uyarı beslemesi
   const SRA_API = "/api/v1/silent-region-alerts";
   const SRA_COLORS = { kritik: "#b71c1c", yuksek: "#e65100", orta: "#f9a825", dusuk: "#9e9e9e" };
+  // --- EM-041: sessiz bölge doğrulama — operatör hükmü (doğrulandı/yanlış alarm/inceleniyor)
+  const SZV_API = "/api/v1/silent-zone-verifications";
+  const SZV_STATUS = [
+    { code: "verified", label: "Doğrulandı", color: "#1b5e20" },
+    { code: "false_alarm", label: "Yanlış alarm", color: "#b71c1c" },
+    { code: "under_review", label: "İnceleniyor", color: "#f9a825" },
+  ];
   async function toggleSRAPanel() {
     const panel = document.getElementById("sra-panel");
     if (sraPanelOpen) {
@@ -3960,9 +3986,79 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       renderSRA(data);
+      // EM-041: hükümler + geri bildirim özetini paralel çek, satırları zenginleştir.
+      await Promise.all([loadSZVVerdicts(), loadSZVFeedback()]);
+      const cached = box.dataset.sraLast;
+      if (cached) renderSRA(JSON.parse(cached));
     } catch (err) {
       box.innerHTML = panelErrorHtml("silent_region_alert", err.message);
       setStatus(`Sessiz bölge uyarıları alınamadı: ${err.message}`);
+    }
+  }
+  async function loadSZVVerdicts() {
+    try {
+      const res = await fetch(`${SZV_API}/current`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      szvVerdicts = {};
+      for (const v of (data.verdicts || [])) { szvVerdicts[v.region_id] = v; }
+    } catch (err) {
+      setStatus(`Doğrulama hükümleri alınamadı: ${err.message}`);
+    }
+  }
+  async function loadSZVFeedback() {
+    const el = document.getElementById("szv-feedback");
+    try {
+      const res = await fetch(`${SZV_API}/feedback`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      szvFeedback = await res.json();
+      renderSZVFeedback();
+    } catch (err) {
+      szvFeedback = null;
+      if (el) el.style.display = "none";
+    }
+  }
+  function renderSZVFeedback() {
+    const el = document.getElementById("szv-feedback");
+    if (!el) return;
+    const f = szvFeedback;
+    if (!f || !f.total_verifications) { el.style.display = "none"; return; }
+    const by = f.by_status || {};
+    const rate = (f.false_alarm_rate === null || f.false_alarm_rate === undefined)
+      ? "—" : `${Math.round(f.false_alarm_rate * 100)}%`;
+    el.style.display = "block";
+    el.innerHTML =
+      `Doğrulama geri bildirimi — `
+      + `<b>${by.verified || 0}</b> doğrulandı · `
+      + `<b>${by.false_alarm || 0}</b> yanlış alarm · `
+      + `<b>${by.under_review || 0}</b> inceleniyor<br>`
+      + `Yanlış alarm oranı: <b>${escapeHtml(rate)}</b> `
+      + `(${f.adjudicated_region_count || 0} bölge karara bağlandı)`;
+  }
+  async function markSRA(regionId, status, regionName) {
+    const opEl = document.getElementById("sra-operator");
+    const verifiedBy = opEl ? opEl.value.trim() : "";
+    setStatus(`İşleniyor: ${regionName} → ${status}…`);
+    try {
+      const res = await fetch(`${SZV_API}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          region_id: regionId, status, region_name: regionName,
+          verified_by: verifiedBy || null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      await loadSZVVerdicts();
+      await loadSZVFeedback();
+      const box = document.getElementById("sra-list");
+      if (box.dataset.sraLast) renderSRA(JSON.parse(box.dataset.sraLast));
+      setStatus(`${regionName} hükmi kaydedildi — ${status}`);
+    } catch (err) {
+      setStatus(`Doğrulama kaydedilemedi: ${err.message}`);
     }
   }
   function renderSRA(data) {
@@ -3993,13 +4089,34 @@
         ? `<br><span class="supp">+${alert.suppressed_duplicate_alerts} tekrar uyarı bastırıldı</span>` : "";
       const threat = alert.threatening_fire_count > 0
         ? `<span class="threat">← ${alert.threatening_fire_count} aktif yangın</span>` : "";
+      // EM-041: bu bölgenin güncel operatör hükmü (yoksa boş).
+      const verdict = szvVerdicts[alert.region_id];
+      const vMeta = SZV_STATUS.find(s => s.code === (verdict && verdict.status));
+      const vBadge = verdict
+        ? ` <span class="verdict" style="background:${vMeta ? vMeta.color : "#616161"}">`
+          + `${escapeHtml(verdict.status_label || verdict.status)}</span>`
+        : "";
       row.innerHTML =
         `<span class="dot" style="background:${color}"></span>`
-        + `<span><b class="nm">${escapeHtml(alert.region_name)}</b>`
+        + `<span style="flex:1"><b class="nm">${escapeHtml(alert.region_name)}</b>${vBadge}`
         + `<br><span class="meta">${escapeHtml(String(alert.silence_duration_hours))} saattir sessiz`
         + ` · ${escapeHtml(String(alert.silence_duration_days))} gün</span>`
-        + `<br>${threat}${supp}</span>`
+        + `<br>${threat}${supp}`
+        + `<div class="markrow"></div></span>`
         + `<span class="lvl" style="background:${color}">${escapeHtml(alert.risk_level_label)}</span>`;
+      // Satır içi işaretleme düğmeleri: mevcut hükümde ilgili düğme pasif.
+      const markHost = row.querySelector(".markrow");
+      for (const s of SZV_STATUS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = s.label;
+        if (verdict && verdict.status === s.code) { btn.disabled = true; }
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          markSRA(alert.region_id, s.code, alert.region_name);
+        });
+        markHost.appendChild(btn);
+      }
       const select = () => focusSRARegion(alert, row);
       row.addEventListener("click", select);
       row.addEventListener("keydown", e => {

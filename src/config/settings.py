@@ -520,6 +520,11 @@ class Config:
     )
     SILENT_ALERT_MAX_LIMIT = int(os.getenv("SILENT_ALERT_MAX_LIMIT", "200"))
 
+    # EM-041: sessiz bölge doğrulama akışı - operatör hüküm listesi üst sınırı (Epic E4)
+    SILENT_VERIFICATION_MAX_LIMIT = int(
+        os.getenv("SILENT_VERIFICATION_MAX_LIMIT", "200")
+    )
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

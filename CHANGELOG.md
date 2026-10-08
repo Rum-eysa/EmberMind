@@ -18,6 +18,36 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-041: Sessiz bölge doğrulama akışı — operatör hükmünün kalıcı geri bildirimi (E4)
+  - Operatör, sessiz bölge uyarısını **doğrulandı / yanlış alarm / inceleniyor** olarak
+    işaretlemek istiyor ki sistem zamanla daha az yanlışa düşsün (kabul kriterleri:
+    "operatör bir sessiz bölgeyi doğrulandı/yanlış alarm/inceleniyor olarak
+    işaretleyebilir; bu geri bildirim modelin iyileştirilmesi için kaydedilir") —
+    bugüne dek EM-040 uyarıyı üretiyor; ancak operatörün hükmünü **kalıcı** tutan,
+    önceki hükmü ezmeden bir denetim zinciri build eden ve bunu bir **yanlış-alarm
+    oranına** dönüştüren bir katman **yoktu** (gerçek eksik: `silent_zone_verification`
+    yok)
+  - `src/models/silent_zone_verification.py` + `V031__silent_zone_verifications.sql`:
+    her hüküm **eklenen-değişmez** (append-only) bir denetim satırıdır; önceki hüküm
+    üzerine yazılmaz, güncel hüküm en yeni satırdır; bölge adı satıra anlık görüntü
+    olarak yazılır (bölge sonra yeniden adlandırılsa da kayıt öz-açıklayıcı kalır)
+  - `src/services/silent_zone_verification.py`: `record_verification` (durum
+    doğrulama + bölge çözümleme + anlık görüntü), `get_current_verification`,
+    `current_verdicts` (tek geçişte geçmiş→güncel hüküm), `list_verifications`
+    (durum/bölge süzme + `SILENT_VERIFICATION_MAX_LIMIT` kırpması),
+    `feedback_summary` (durum bazında sayım + yalnızca **kesin** hükümler üzerinden
+    `false_alarm / (verified + false_alarm)` yanlış-alarm oranı; `under_review`
+    sayılır ama kesin sayılmaz) ve `verification_config`; bu panel okuma-zamanlı
+    E4 panellerinden farklı olarak **yazar** (`persistence: silent_zone_verifications`)
+  - `src/routes/silent_zone_verification.py` `/api/v1/silent-zone-verifications`
+    (POST hüküm + GET liste + `/current` + `/feedback` + `/config`; geçersiz durum
+    → 400, bulunamayan bölge → 404, geçersiz `limit` → 422); `fastapi_app` kaydı,
+    `ui_states` "silent_zone_verification" panel anahtarı
+  - operatör haritasındaki "Sessiz Bölge Uyarıları" paneline hüküm rozeti + satır içi
+    **Doğrulandı/Yanlış alarm/İnceleniyor** düğmeleri, operatör adı girişi ve
+    yanlış-alarm oranını gösteren geri bildirim şeridi eklendi (koşum sonrası panel
+    önbellekten yeniden işlenir)
+
 - EM-040: Sessiz bölge uyarıları — yüksek öncelikli bölge için uyarı beslemesi (E4)
   - Operatör, riskli bir bölge sessizliğe düştüğü anda haberdar olmak istiyor
     (kabul kriterleri: "riskli bir bölge sessizliğe düştüğünde uyarı üretilir; uyarı

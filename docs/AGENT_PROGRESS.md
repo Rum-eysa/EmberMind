@@ -1466,11 +1466,41 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1232** (1213 + 19 yeni).
 - **Commit:** `feat(EM-040): ...` (bu dal).
 
+### EM-041 — Sessiz bölge doğrulama akışı (#41) — DONE
+- **Eksik analizi:** Operatör, sessiz bölge uyarısını **doğrulandı/yanlış alarm/
+  inceleniyor** olarak işaretlemek istiyor ki sistem zamanla daha az yanlış yapsın
+  (kabul: "operatör bir sessiz bölgeyi doğrulandı/yanlış alarm/inceleniyor olarak
+  işaretleyebilir; bu geri bildirim modelin iyileştirilmesi için kaydedilir"). EM-040
+  uyarıyı üretiyor; ama operatör hükmünü **kalıcı** tutan, önceki hükmü ezmeden
+  eklenen-değişmez bir denetim zinciri kuran ve bunu yanlış-alarm oranına çeviren
+  katman **yoktu** (`silent_zone_verification` kod tabanında yok). E4 Should (sp3).
+- **Kapsam kararları:** Bu panel okuma-zamanlı E4 panellerinden farklı olarak
+  **yazar** — EM-047 `recommendation_decisions` append-only desenini izler
+  (model + V031 migration). Güncel hüküm = en yeni satır (üzerine yazılmaz);
+  bölge adı anlık görüntülenir. Ağır ML/değil; geri bildirim **türetilmiş** bir
+  sinyaldir (canlı model eğitimi yok).
+- **Uygulama:** `silent_zone_verification.py` modeli (`VERIFICATION_STATUSES`/
+  `VERIFICATION_LABELS`, `verification_key` unique, `detail_json`). Servis:
+  `record_verification` (durum doğrulama + `_resolve_region` + anlık görüntü +
+  `prior_verifications`), `get_current_verification`, `current_verdicts` (tek
+  geçiş), `list_verifications` (durum/bölge süzme + limit kırpma),
+  `feedback_summary` (by_status + kesin-only `false_alarm_rate`), `verification_config`.
+  `/api/v1/silent-zone-verifications` (POST + liste + `/current` + `/feedback` +
+  `/config`; geçersiz durum→400, bölge yok→404, `limit`→422); `settings.py` +
+  `.env.example` (`SILENT_VERIFICATION_MAX_LIMIT`); `models/__init__`, `fastapi_app`
+  kaydı, `ui_states` `silent_zone_verification`; `operator_map` Sessiz Bölge
+  Uyarıları paneline hüküm rozeti + satır içi düğmeler + operatör girişi + geri
+  bildirim şeridi; 23 test.
+- **Kapılar:** black(temiz, 238)/mypy(Success, 158 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1258** (1235 + 23 yeni).
+- **Commit:** `feat(EM-041): ...` (bu dal).
+
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).

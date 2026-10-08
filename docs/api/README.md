@@ -1236,6 +1236,27 @@ uyarı `SILENT_ALERT_MAX_LIMIT`. Sıralama `(öncelik azalan, bölge artan)`.
 `/ui` haritasındaki **Sessiz Bölge Uyarıları** paneli (risk seviyesi rozetleri,
 bölge/süre/tehdit eden yangın sayısı, bastırılan tekrar sayısı, harita senkron seçim).
 
+### Sessiz Bölge Doğrulama (EM-041)
+```
+GET   /api/v1/silent-zone-verifications/config                    # hüküm kataloğu, eklenen-değişmez kural, geri bildirim sinyali
+POST  /api/v1/silent-zone-verifications                           # bir bölgeye operatör hükmü ekle (beden: region_id, status[, region_name, reason, verified_by, detail])
+GET   /api/v1/silent-zone-verifications[?status=verified&region_id=N&limit=N]   # kaydedilen hükümler (yeniden eskiye)
+GET   /api/v1/silent-zone-verifications/current[?region_id=N]     # tek bölgenin güncel hükmü ya da tüm bölgelerin
+GET   /api/v1/silent-zone-verifications/feedback                  # durum bazında sayım + yanlış-alarm oranı
+```
+EM-040 uyarısını operatörün yargısıyla kapatır: bir bölge **doğrulandı** /
+**yanlış alarm** / **inceleniyor** olarak işaretlenir. Her işaretleme **eklenen-değişmez**
+(append-only) bir denetim satırıdır — önceki hüküm **üzerine yazılmaz**, güncel hüküm
+**en yeni satırdır**. Bölge adı satıra anlık görüntü olarak yazılır. Geçersiz `status`
+→ `400`; bulunamayan `region_id` → `404`; `limit` (<1 ya da >200 → `422`, üstte
+`SILENT_VERIFICATION_MAX_LIMIT`'e kırpılır). **Geri bildirim sinyali** yalnızca
+**kesin** hükümler üzerinden `yanlış-alarm oranı = false_alarm / (verified + false_alarm)`
+verir; `under_review` sayılır ama **kesin sayılmaz** (karara bağlanmış bölge sayısına
+dahil edilmez). Bu panel okuma-zamanlı E4 panellerinden farklı olarak **yazar**
+(`persistence: silent_zone_verifications`). UI: **Sessiz Bölge Uyarıları** panelinde
+hüküm rozeti + satır içi Doğrulandı/Yanlış alarm/İnceleniyor düğmeleri, operatör adı
+girişi ve yanlış-alarm oranı şeridi.
+
 ## Error Codes
 
 - `200`: Başarılı

@@ -41,6 +41,7 @@ PANEL_KEYS = (
     "silent_zone_confidence",
     "silent_detection_performance",
     "silent_region_alert",
+    "silent_zone_verification",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -197,6 +198,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Yayılım tehdidiyle kesişen yüksek öncelikli sessiz bölge yok.",
         "error": "Sessiz bölge uyarıları alınamadı.",
         "error_action": "Sessiz bölge/yayılım verisini ve risk eşiği seçimlerini gözden geçirip yeniden deneyin.",
+    },
+    "silent_zone_verification": {
+        "title": "Sessiz Bölge Doğrulama",
+        "loading": "Operatör hükümleri (doğrulandı/yanlış alarm/inceleniyor) yükleniyor…",
+        "empty": "Henüz işaretlenmiş sessiz bölge uyarısı yok; uyarı beslemesinden bir bölgeyi işaretleyin.",
+        "error": "Sessiz bölge doğrulama kayıtları alınamadı.",
+        "error_action": "Bölge kimliğini/hükmü gözden geçirip yeniden deneyin.",
     },
 }
 
