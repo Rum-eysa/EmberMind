@@ -114,10 +114,24 @@ class SyntheticDiurnalSource(SignalSource):
     synthetic = True
     has_hourly = True
 
+    def __init__(self) -> None:
+        # The per-cell base level is constant across every (day, hour) of a
+        # region, so cache it by region key rather than re-deriving the same
+        # ``dbase:`` hash on all ``window_days * 24`` sample reads.
+        self._base_cache: dict[str, float] = {}
+
+    def _base_for(self, region_key: str) -> float:
+        """Cached constant base signal for one region cell."""
+        cached = self._base_cache.get(region_key)
+        if cached is None:
+            cached = 60.0 + _hash01(f"dbase:{region_key}") * 140.0
+            self._base_cache[region_key] = cached
+        return cached
+
     def hourly_signal(self, region_key: str, day: date, hour: int) -> float:
         """Signal strength for one cell at one hour of one day."""
         bounded = hour % HOURS_IN_DAY
-        base = 60.0 + _hash01(f"dbase:{region_key}") * 140.0
+        base = self._base_for(region_key)
         diurnal = DIURNAL_PROFILE[bounded]
         weekend = 0.72 if day.weekday() >= 5 else 1.0
         jitter = 0.85 + _hash01(f"dn:{region_key}:{day.isoformat()}:{bounded}") * 0.30
@@ -280,6 +294,16 @@ def learn_seasonal_factors(
     weekday_factors = [1.0] * DAYS_IN_WEEK
     is_hourly = bool(getattr(source, "has_hourly", False))
 
+    # Bucket the samples once by hour and by weekday. Each normalisation pass then
+    # walks only the relevant bucket instead of re-scanning the whole sample list
+    # 24 + 7 times per pass; the per-bucket order is preserved, so every mean is
+    # bit-for-bit identical to the naive full-scan version.
+    by_hour: list[list[tuple[int, float]]] = [[] for _ in range(HOURS_IN_DAY)]
+    by_weekday: list[list[tuple[int, float]]] = [[] for _ in range(DAYS_IN_WEEK)]
+    for weekday_idx, hour_idx, value in samples:
+        by_hour[hour_idx].append((weekday_idx, value))
+        by_weekday[weekday_idx].append((hour_idx, value))
+
     for _ in range(max(1, iterations)):
         # A daily-only source carries no hour information, so the hour dimension
         # stays neutral (all 1.0) and only the weekday rhythm is learned - an
@@ -289,16 +313,16 @@ def learn_seasonal_factors(
             for h in range(HOURS_IN_DAY):
                 adjusted = [
                     value / weekday_factors[w]
-                    for (w, hh, value) in samples
-                    if hh == h and weekday_factors[w] > 0
+                    for (w, value) in by_hour[h]
+                    if weekday_factors[w] > 0
                 ]
                 hour_factors[h] = _mean(adjusted) if adjusted else 1.0
             hour_factors = _normalize(hour_factors)
         for w in range(DAYS_IN_WEEK):
             adjusted = [
                 value / hour_factors[h]
-                for (ww, h, value) in samples
-                if ww == w and hour_factors[h] > 0
+                for (h, value) in by_weekday[w]
+                if hour_factors[h] > 0
             ]
             weekday_factors[w] = _mean(adjusted) if adjusted else 1.0
         weekday_factors = _normalize(weekday_factors)
