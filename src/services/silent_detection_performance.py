@@ -158,6 +158,34 @@ class OutageInjectedSource(SignalSource):
         return value
 
 
+class _CachingSignalSource(SignalSource):
+    """Memoise ``daily_signal`` over the sliding windows of a replay.
+
+    The day-by-day replay re-reads the same ``(cell, day)`` point again and
+    again because each day's baseline window overlaps the next one almost
+    entirely. The underlying source is deterministic and hash-heavy, so a
+    plain result cache collapses that repeated work into a single computation
+    per point without changing any value. The cache lives only for the request
+    that builds it, so nothing is retained between reads.
+    """
+
+    def __init__(self, base: SignalSource) -> None:
+        self._base = base
+        self._cache: dict[tuple[str, str], float] = {}
+        self.kind = base.kind
+        self.label = base.label
+        self.synthetic = base.synthetic
+
+    def daily_signal(self, region_key: str, day: date) -> float:
+        """Return the (cached) signal for one cell on one day."""
+        cache_key = (region_key, day.isoformat())
+        value = self._cache.get(cache_key)
+        if value is None:
+            value = self._base.daily_signal(region_key, day)
+            self._cache[cache_key] = value
+        return value
+
+
 def _horizon_days(settings: Any, override: Optional[int] = None) -> int:
     raw = (
         override
@@ -349,7 +377,9 @@ def evaluate_detection(
         onset_rate=rate,
         outage_days=o_days,
     )
-    scored_source = OutageInjectedSource(base, scenario.episodes, depth)
+    scored_source = _CachingSignalSource(
+        OutageInjectedSource(base, scenario.episodes, depth)
+    )
 
     # Score every cell-day with the actual detector, tallying the confusion
     # matrix against the injected truth.

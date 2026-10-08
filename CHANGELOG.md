@@ -4,6 +4,19 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 
 ## [Unreleased]
 
+### Performance
+- EM-042 sessiz bölge performans değerlendirmesi — sentetik senaryo tekrar-okuması
+  için istek-kapsamlı sinyal ara belleği
+  - `evaluate_detection`/`/api/v1/silent-detection-performance` her okumada hücre
+    bazında gün gün yeniden hesaplıyor; ardışık günlerin baz pencereleri neredeyse
+    tümüyle örtüştüğü hâlde aynı `(hücre, gün)` noktası defalarca okunuyor ve her
+    okuma iki `sha256` hash'i gerektiriyordu (en kötü durumda hücre × ufuk × pencere
+    mertebesinde hash)
+  - `_CachingSignalSource` sarıcısı taban kaynağın değerlerini bozmadan `(bölge, gün)`
+    başına tek hesapla sonuçları önbelleğe alır; önbellek yalnızca ilgili istek
+    boyunca yaşar, istekler arasında hiçbir şey tutulmaz — çıktı bit-bit aynıdır
+    (deterministik), yalnızca yinelenen iş kaldırılır
+
 ### Added
 - EM-040: Sessiz bölge uyarıları — yüksek öncelikli bölge için uyarı beslemesi (E4)
   - Operatör, riskli bir bölge sessizliğe düştüğü anda haberdar olmak istiyor

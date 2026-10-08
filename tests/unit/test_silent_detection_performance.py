@@ -14,13 +14,14 @@ from datetime import date
 
 import pytest
 
-from src.services.signal_baseline import monitoring_cells
+from src.services.signal_baseline import SignalSource, monitoring_cells
 from src.services.silent_detection_performance import (
     PERFORMANCE_ATTRIBUTION,
     PERFORMANCE_PERSISTENCE,
     SCENARIO_LABEL,
     SilentDetectionPerformanceError,
     SilentEpisode,
+    _CachingSignalSource,
     build_scenario,
     confusion_metrics,
     evaluate_detection,
@@ -313,3 +314,47 @@ def test_endpoint_config(client):
     resp = client.get("/api/v1/silent-detection-performance/config")
     assert resp.status_code == 200
     assert resp.json()["persistence"] == PERFORMANCE_PERSISTENCE
+
+
+class _CountingSource(SignalSource):
+    """A deterministic source that tallies how often each point is read."""
+
+    kind = "counting"
+    label = "Sayan kaynak"
+    synthetic = True
+
+    def __init__(self) -> None:
+        self.calls: dict[tuple[str, str], int] = {}
+
+    def daily_signal(self, region_key: str, day: date) -> float:
+        """Return a stable value while counting the read for this point."""
+        key = (region_key, day.isoformat())
+        self.calls[key] = self.calls.get(key, 0) + 1
+        return float(len(region_key) + day.day)
+
+
+def test_caching_source_returns_identical_values():
+    base = _CountingSource()
+    cached = _CachingSignalSource(base)
+    day = date(2026, 9, 1)
+    assert cached.daily_signal("SB-R1C1", day) == base.daily_signal("SB-R1C1", day)
+    assert cached.daily_signal("SB-R2C3", day) == base.daily_signal("SB-R2C3", day)
+
+
+def test_caching_source_collapses_repeated_point_reads():
+    base = _CountingSource()
+    cached = _CachingSignalSource(base)
+    day = date(2026, 9, 1)
+    for _ in range(5):
+        cached.daily_signal("SB-R1C1", day)
+    assert base.calls[("SB-R1C1", day.isoformat())] == 1
+
+
+def test_caching_source_mirrors_base_identity():
+    base = _CountingSource()
+    cached = _CachingSignalSource(base)
+    assert (cached.kind, cached.label, cached.synthetic) == (
+        base.kind,
+        base.label,
+        base.synthetic,
+    )
