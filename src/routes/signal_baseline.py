@@ -43,6 +43,7 @@ def register_signal_baseline_routes(
     api: FastAPI, database: Database, settings: Any
 ) -> None:
     """Attach the EM-035 signal-baseline feed."""
+    del database  # EM-035 recomputes every baseline read-time; nothing is written.
 
     @api.get("/api/v1/signal-baseline/config", tags=["panel"])
     def signal_baseline_config() -> dict[str, Any]:
