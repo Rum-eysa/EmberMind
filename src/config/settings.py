@@ -574,6 +574,13 @@ class Config:
         os.getenv("PLAYBACK_FRAME_INTERVAL_SECONDS", "2.0")
     )
 
+    # EM-108: arayüzden yazılan özel senaryolar (Epic E11)
+    # Demo sunucusu kod yazmadan yeni bir senaryo tanımlamak ve bunu kütüphaneye
+    # eklemek ister. Tanım ``custom_scenarios`` tablosunda saklanır; doğrulama
+    # EM-104 normalize_config üzerinden yapılır (bbox/rüzgâr/kesinti sınırları).
+    # Burada yalnızca kurulum başına azami özel senaryo sayısı ayarlanır.
+    SCENARIO_EDITOR_MAX_ITEMS = int(os.getenv("SCENARIO_EDITOR_MAX_ITEMS", "50"))
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:
@@ -890,6 +897,8 @@ class TestingConfig(Config):
     # deterministic regardless of the ambient environment.
     FIELD_VIEW_RADIUS_KM = 25.0
     FIELD_VIEW_MAX_ITEMS = 5
+    # EM-108: fixed authored-scenario cap so editor tests are deterministic.
+    SCENARIO_EDITOR_MAX_ITEMS = 50
 
 
 class ProductionConfig(Config):

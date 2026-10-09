@@ -18,6 +18,27 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-108: senaryo düzenleyici — arayüzden yeni demo senaryosu yazma + kütüphaneye kaydetme (E11)
+  - EM-105 kütüphanesi arketipleri **kod sabiti** olarak sabitler; operatörün
+    arayüzden kendi senaryosunu yazıp kütüphaneye ekleyeceği bir yüzey **yoktu**
+    (kabul: "yangın konumu, rüzgâr geçmişi ve kesinti bölgeleri arayüzden girilir;
+    senaryo kaydedilir ve kütüphaneye eklenir; girdi doğrulaması vardır")
+  - `src/models/scenario_editor.py` + `V033__custom_scenarios.sql`: tek yazarlık
+    senaryo **tanımı** satırda saklanır (slug anahtar + başlık + seed +
+    **normalize edilmiş** EM-104 config JSON'ı); kalıcı satırlar üretime değil
+    yalnızca tanıma aittir
+  - `src/services/scenario_editor.py`: `create`/`update`/`delete`/`list_scenarios`/
+    `detail`/`preview`/`activate`/`editor_config` — doğrulama **yeniden icat
+    edilmez**, EM-104 `normalize_config`'e delege edilir (aralık dışı değer →
+    `ScenarioEditorError`); `activate` EM-104 build/persist/`record_run`
+    (`preset=custom:<key>`) yolunu kullanır, config normalize-halinde saklandığı
+    için başlatma bit-bit yeniden üretilebilir; ayrık anahtar alanı `custom:` ve
+    kod-kütüphanesi anahtarlarıyla çakışma reddedilir; üst sınır `SCENARIO_EDITOR_MAX_ITEMS`
+  - Uçlar: `GET /api/v1/scenarios/custom/config`, `GET/POST /api/v1/scenarios/custom`,
+    `GET/PATCH/DELETE /api/v1/scenarios/custom/{key}`, `GET /{key}/preview`,
+    `POST /{key}/activate`
+  - UI: `inventory.html` "Senaryo Düzenleyici" kartı (konum + rüzgâr + kesinti
+    alanları → kaydet → kütüphane listesiyle birleşir; tek tıkla başlat/sil)
 - EM-080: harita etkileşimi — altlık seçimi + yer/koordinat araması + mesafe/alan ölçümü (E8)
   - Operatör haritası tek sabit OSM kutu katmanına kilitliydi; altlık geçişi, arama
     ve ölçüm yoktu (kabul: sokak/uydu/arazi altlıkları; yer adı **ve** koordinat

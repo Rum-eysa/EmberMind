@@ -1834,12 +1834,44 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1526** (1507 + 19 yeni).
 - **Commit:** `feat(EM-084): ...` (bu dal).
 
+### EM-108 — Senaryo düzenleyici (arayüzden yeni senaryo) (#197) — DONE
+- **Boşluk analizi:** EM-105 hazır senaryo kütüphanesi arketipleri **kod sabiti**
+  olarak sabitler (`scenario_library.LIBRARY`); operatörün arayüzden kendi senaryosunu
+  yazıp kütüphaneye ekleyeceği bir yüzey **yoktu** (kabul #197: "Yangın konumu, rüzgâr
+  geçmişi ve kesinti bölgeleri arayüzden girilir; Senaryo kaydedilir ve kütüphaneye
+  eklenir; Girdi doğrulaması vardır"). E11 Could (sp5). Not: EM-103 CRUD, EM-104 üreteç,
+  EM-105 kütüphane, EM-106 reset, EM-107 oynatma tamam → EM-108 gerçek boşluk.
+- **Kapsam kararları:** Kalıcı **tanım** tablosu `custom_scenarios` (migration `V033`)
+  yalnızca yazarlık senaryo **tanımını** saklar (slug anahtar + başlık + seed +
+  **normalize edilmiş** EM-104 config JSON'ı); üretilen operasyonel satırlar EM-104
+  tablolarında yaşamaya devam eder. Doğrulama **yeniden icat edilmez** — EM-104
+  `normalize_config`'e delege edilir (aralık dışı → `ScenarioEditorError`). Config
+  normalize-halinde saklandığı için `activate` bit-bit yeniden üretilebilir
+  (`build_dataset` + `persist_dataset` + `record_run(preset=custom:<key>)`). Anahtar
+  `custom:` ayrığı; kod-kütüphanesi anahtarıyla çakışma reddedilir. Koordinatör
+  yüzeyi (`inventory.html`, EM-105/EM-107 gibi) → `ui_states` anahtarı **yok**.
+- **Uygulama:** `src/models/scenario_editor.py` (`CustomScenario`) + `V033` +
+  `models/__init__` kaydı. `src/services/scenario_editor.py`: `create`/`update`/
+  `delete`/`list_scenarios`/`detail`/`preview`/`activate`/`editor_config` +
+  `_normalize_key`/`_validate_title`/`_validate_seed`/`_validated_config` +
+  `ScenarioEditorError`. Rota `src/routes/field_view` kalıbıyla
+  `src/routes/scenario_editor.py` (`config` `/{key}`'den ÖNCE kayıtlı; `_raise`
+  "not found"→404 değilse 400) + `fastapi_app` kaydı. `settings.py`
+  `SCENARIO_EDITOR_MAX_ITEMS` (Config + TestingConfig) + `.env.example`. UI:
+  `inventory.html` **Senaryo Düzenleyici** kartı (`edBuildConfig`/`edSave`/`edLoad`
+  + başlat/sil; kaydedince EM-105 kütüphane listesiyle birleşir). 26 test
+  (`test_scenario_editor.py`).
+- **Kapılar:** black(temiz, 277)/mypy(Success, 184 dosya)/pylint(10.00)/bandit(-ll 0)
+  yeşil; pytest **1552** (1526 + 26 yeni). Not: migration testinin `;`-bölme
+  kuralı nedeniyle V033 yorumunda noktalı-virgül bırakılmadı.
+- **Commit:** `feat(EM-108): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1852,8 +1884,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 273 değişmez · mypy Success (181 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1526 passed**.
+- **Final kapılar:** black 277 değişmez · mypy Success (184 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1552 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

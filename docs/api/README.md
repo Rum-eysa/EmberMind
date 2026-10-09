@@ -1142,6 +1142,29 @@ hızlı-duvar çizelgesini, `cursor` geçen süreden `(current_index, finished, 
 çözümünü döndürür. Hız çarpanı `(0, PLAYBACK_MAX_SPEED_FACTOR]` penceresine sıkıştırılır.
 Tüm çıktı `SENTETİK VERİ` etiketi ve atıf şeridiyle işaretlidir.
 
+### Senaryo Düzenleyici (EM-108)
+```
+GET    /api/v1/scenarios/custom/config          # anahtar kalıbı, seed aralığı, ayrık anahtarlar, sınırlar
+GET    /api/v1/scenarios/custom                 # arayüzden yazılmış senaryo tanımları (yeni önce)
+POST   /api/v1/scenarios/custom                 # yeni senaryo tanımı oluştur (doğrulama EM-104'ten)
+GET    /api/v1/scenarios/custom/{key}           # tek tanım + normalize edilmiş config
+PATCH  /api/v1/scenarios/custom/{key}           # başlık/açıklama/seed/config kısmi düzenleme
+DELETE /api/v1/scenarios/custom/{key}           # tanımı sil (yalnız tanım; üretime dokunmaz)
+GET    /api/v1/scenarios/custom/{key}/preview   # dataset kurulur, yazılmaz (hızlı geri-bildirim)
+POST   /api/v1/scenarios/custom/{key}/activate  # tek tıkla başlat (EM-104 satırları + ScenarioRun)
+```
+EM-105 kütüphanesi arketipleri **kod sabiti** olarak sabitler; EM-108 ise operatörün
+arayüzden **kendi** senaryosunu yazıp kalıcı olarak sakladığı yüzeydir (tablo
+`custom_scenarios`, `V033`). Yangın konumu, rüzgâr geçmişi ve kesinti bölgeleri girdisi
+**yeniden icat edilen** bir doğrulamayla değil, EM-104 `normalize_config`'e **delege
+edilerek** doğrulanır — aralık dışı değer `ScenarioEditorError` (HTTP 400) üretir.
+`config` **normalize-halinde** saklandığı için `activate` bit-bit yeniden üretilebilir
+(`build_dataset` + `persist_dataset` + `record_run(preset=custom:<key>)`). Anahtar
+alanı `custom:` ayrığıdır; kod-kütüphanesi anahtarıyla çakışma reddedilir ve toplam
+tanım `SCENARIO_EDITOR_MAX_ITEMS` ile sınırlıdır. UI (`inventory.html`) kaydedilen
+tanımı EM-105 kütüphane listesiyle birleştirip gösterir. Tüm çıktı `SENTETİK VERİ`
+etiketi ve atıf şeridiyle işaretlidir.
+
 ### Olay & Uyarı Webhook'ları (EM-094)
 ```
 GET    /api/v1/webhooks/config                         # geçerli olay tipleri, imza şeması, sınırlar

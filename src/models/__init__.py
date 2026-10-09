@@ -17,6 +17,7 @@ from .pipeline import PipelineJobHistory
 from .recommendation import RecommendationDecision
 from .road_network import CrewBase, RoadClosure, RoadSegment
 from .scenario import WhatIfHistory, WhatIfScenario
+from .scenario_editor import CustomScenario
 from .share_policy import CountrySharePolicy
 from .silent_zone_tuning import SilentZoneTuning
 from .silent_zone_verification import SilentZoneVerification
@@ -42,6 +43,7 @@ __all__ = [
     "CapacityAssumptionAudit",
     "CrossborderNotification",
     "CrewBase",
+    "CustomScenario",
     "EventNote",
     "ExposedAsset",
     "FireCluster",

@@ -125,6 +125,54 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
         <div id="pb-frame" class="kv" style="display:grid;gap:var(--space-1);margin-top:var(--space-2)"></div>
         <p class="em-muted" id="pb-result"></p>
       </div>
+
+      <div class="em-card">
+        <h2 class="em-card__title">Senaryo Düzenleyici
+          <span class="em-badge">EM-108</span></h2>
+        <p class="em-muted">Arayüzden yeni demo senaryosu yaz: yangın konumu +
+          rüzgâr geçmişi + kesinti bölgeleri. Girdiler EM-104 doğrulamasından
+          geçer; kaydedilince kütüphaneye eklenir ve tek tıkla başlatılır.
+          Tümü <b>sentetik</b>.</p>
+        <div class="em-stack" style="gap:var(--space-2)">
+          <div class="em-row" style="gap:var(--space-2);flex-wrap:wrap">
+            <label class="em-muted" for="ed-key">Anahtar</label>
+            <input id="ed-key" class="em-input" placeholder="koyu-ortasu" />
+            <label class="em-muted" for="ed-title">Başlık</label>
+            <input id="ed-title" class="em-input" placeholder="Kıyı Ortasu Yangını" />
+          </div>
+          <div class="em-row" style="gap:var(--space-2);flex-wrap:wrap">
+            <label class="em-muted" for="ed-seed">Seed</label>
+            <input id="ed-seed" class="em-input" type="number" value="404" min="0" />
+            <label class="em-muted" for="ed-severity">Şiddet</label>
+            <select id="ed-severity" class="em-input">
+              <option value="low">low</option>
+              <option value="medium" selected>medium</option>
+              <option value="high">high</option>
+              <option value="very_high">very_high</option>
+            </select>
+          </div>
+          <div class="em-row" style="gap:var(--space-2);flex-wrap:wrap">
+            <label class="em-muted" for="ed-lat">Enlem</label>
+            <input id="ed-lat" class="em-input" type="number" step="0.000001" placeholder="37.9" />
+            <label class="em-muted" for="ed-lon">Boylam</label>
+            <input id="ed-lon" class="em-input" type="number" step="0.000001" placeholder="27.3" />
+          </div>
+          <div class="em-row" style="gap:var(--space-2);flex-wrap:wrap">
+            <label class="em-muted" for="ed-wind-speed">Rüzgâr km/sa</label>
+            <input id="ed-wind-speed" class="em-input" type="number" value="24" min="0" />
+            <label class="em-muted" for="ed-wind-dir">Rüzgâr yönü °</label>
+            <input id="ed-wind-dir" class="em-input" type="number" value="225" min="0" max="359" />
+            <label class="em-muted" for="ed-outage">Kesinti bölge sayısı</label>
+            <input id="ed-outage" class="em-input" type="number" value="2" min="0" max="20" />
+          </div>
+          <input id="ed-desc" class="em-input" placeholder="Açıklama (opsiyonel)" />
+          <div class="em-row" style="gap:var(--space-2)">
+            <button id="ed-save" class="em-btn" type="button">Kaydet</button>
+            <span class="em-muted" id="ed-result"></span>
+          </div>
+        </div>
+        <div id="ed-list" class="em-stack" style="margin-top:var(--space-3)"></div>
+      </div>
     </section>
 
     <section class="em-stack">
@@ -589,6 +637,99 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
   pbInit().catch(err => {
     $("pb-result").textContent = `Oynatma başlatılamadı: ${err.message}`;
   });
+
+  // EM-108: arayüzden özel senaryo yaz + kütüphaneye ekle + başlat/sil.
+  const ED = "/api/v1/scenarios/custom";
+
+  function edBuildConfig() {
+    const cfg = {
+      fire_location: { severity: $("ed-severity").value },
+      wind_history: {
+        base_speed_kmh: parseFloat($("ed-wind-speed").value) || 0,
+        base_from_deg: parseFloat($("ed-wind-dir").value) || 0,
+      },
+      outage_zones: { count: parseInt($("ed-outage").value, 10) || 0 },
+    };
+    const lat = parseFloat($("ed-lat").value);
+    const lon = parseFloat($("ed-lon").value);
+    if (!Number.isNaN(lat)) cfg.fire_location.latitude = lat;
+    if (!Number.isNaN(lon)) cfg.fire_location.longitude = lon;
+    return cfg;
+  }
+
+  function edRowHtml(s) {
+    return `<div class="em-card">
+      <div class="em-row" style="justify-content:space-between">
+        <b>${s.title}</b>
+        <span class="em-badge">${s.archetype}</span>
+      </div>
+      <div class="em-row">
+        <button class="em-btn em-btn--sm" type="button"
+                data-ed-activate="${s.key}">Başlat</button>
+        <button class="em-btn em-btn--secondary em-btn--sm" type="button"
+                data-ed-delete="${s.key}">Sil</button>
+        <span class="em-muted">${s.key} · seed ${s.seed}</span>
+      </div></div>`;
+  }
+
+  async function edLoad() {
+    const res = await fetch(ED);
+    const body = await res.json();
+    if (!res.ok) {
+      $("ed-result").textContent = `Özel senaryolar açılamadı: ${res.status}`;
+      return;
+    }
+    document.getElementById("ed-list").innerHTML =
+      body.scenarios.map(edRowHtml).join("")
+      || `<p class="em-muted">Henüz özel senaryo yok.</p>`;
+  }
+
+  async function edSave() {
+    const payload = {
+      key: $("ed-key").value.trim(),
+      title: $("ed-title").value.trim(),
+      seed: parseInt($("ed-seed").value, 10) || 0,
+      description: $("ed-desc").value.trim() || null,
+      config: edBuildConfig(),
+    };
+    $("ed-result").textContent = "Kaydediliyor…";
+    const res = await fetch(ED, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      $("ed-result").textContent =
+        `Doğrulama hatası: ${(body.detail && body.detail.error) || res.status}`;
+      return;
+    }
+    $("ed-result").textContent = `${body.scenario.title} kütüphaneye eklendi.`;
+    await edLoad();
+    await loadLibrary();
+  }
+
+  async function onEdClick(event) {
+    const act = event.target.dataset.edActivate;
+    const del = event.target.dataset.edDelete;
+    if (act) {
+      const res = await fetch(`${ED}/${act}/activate`, { method: "POST" });
+      const body = await res.json();
+      $("ed-result").textContent = res.ok
+        ? `${act} → ${body.scenario.scenario_tag} · satır ${JSON.stringify(body.scenario.persisted_counts)}`
+        : `başlatılamadı: ${(body.detail && body.detail.error) || res.status}`;
+      await refreshList();
+    } else if (del) {
+      const res = await fetch(`${ED}/${del}`, { method: "DELETE" });
+      $("ed-result").textContent = res.ok ? `${del} silindi.` : `silinemedi: ${res.status}`;
+      await edLoad();
+      await loadLibrary();
+    }
+  }
+
+  $("ed-save").addEventListener("click", edSave);
+  document.getElementById("ed-list").addEventListener("click", onEdClick);
+  edLoad().catch(() => {});
 
   // EM-075 tema anahtarı (operatör tercihini panelle paylaşırlar).
   const storedTheme = localStorage.getItem("embermind-theme");
