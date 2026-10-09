@@ -18,6 +18,7 @@ from .recommendation import RecommendationDecision
 from .road_network import CrewBase, RoadClosure, RoadSegment
 from .scenario import WhatIfHistory, WhatIfScenario
 from .share_policy import CountrySharePolicy
+from .silent_zone_tuning import SilentZoneTuning
 from .silent_zone_verification import SilentZoneVerification
 from .spread_metrics import SpreadEvaluationMetric
 from .spread_perf import SpreadPerformanceRun
@@ -62,6 +63,7 @@ __all__ = [
     "RoadSegment",
     "ScenarioRun",
     "SilentRegion",
+    "SilentZoneTuning",
     "SilentZoneVerification",
     "SimulationScenario",
     "CountrySharePolicy",

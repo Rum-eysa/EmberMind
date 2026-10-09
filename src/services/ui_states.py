@@ -43,6 +43,7 @@ PANEL_KEYS = (
     "silent_detection_performance",
     "silent_region_alert",
     "silent_zone_verification",
+    "silent_zone_tuning",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -213,6 +214,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Henüz işaretlenmiş sessiz bölge uyarısı yok; uyarı beslemesinden bir bölgeyi işaretleyin.",
         "error": "Sessiz bölge doğrulama kayıtları alınamadı.",
         "error_action": "Bölge kimliğini/hükmü gözden geçirip yeniden deneyin.",
+    },
+    "silent_zone_tuning": {
+        "title": "Sessiz Bölge Hassasiyet ve Eşik Ayarı",
+        "loading": "Bölge bazlı eşik ve minimum sessizlik süresi yükleniyor…",
+        "empty": "Etkin sessiz bölge yok; ayarlanacak bölge önce sessiz bölge olarak kaydedilmeli.",
+        "error": "Sessiz bölge ayarları alınamadı.",
+        "error_action": "Bölge seçimini ve eşik/değer sınırlarını gözden geçirip yeniden deneyin.",
     },
 }
 

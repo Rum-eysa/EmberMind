@@ -1526,12 +1526,40 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1287** (1258 + 29 yeni).
 - **Commit:** `feat(EM-043): ...` (bu dal).
 
+### EM-044 — Sessiz bölge hassasiyet ve eşik ayarı (#44) — DONE
+- **Eksik analizi:** EM-035 tek bir **küresel** sessizlik z-eşiği, EM-040 tek bir
+  **küresel** minimum sessizlik süresi kullanıyor; oysa "ne kadar sessiz = sessiz"
+  ve "ne kadar bekleyelim" bölgeden bölgeye değişen bir yanlış-alarm/kaçırma
+  takasıdır ve operatöre aittir (kabul: "eşik ve minimum sessizlik süresi arayüzden
+  ayarlanır; değişiklik denetim kaydına yazılır; varsayılana dönme seçeneği
+  vardır"). Bölge bazında bu düğmeleri ayarlayıp denetleyen katman **yoktu**
+  (`silent_zone_tuning` kod tabanında yok). E4 Should.
+- **Kapsam kararları:** bölge başına **tek kalıcı override satırı** (NULL →
+  varsayılanı devralır); her gerçek değişiklik **tekilleştirilmiş denetim
+  defterine** (`threshold` alanı, EM-096 `record_audit`) yazılır — **ikinci bir
+  denetim tablosu açılmaz**; `reset` satırı düşürür, zaten varsayılan için
+  idempotenttir. Legacy `Column` mutasyonu mypy için `setattr` ile (envanter
+  deyimi).
+- **Uygulama:** Model `silent_zone_tuning.py` + `V032__silent_zone_tuning.sql`;
+  servis `silent_zone_tuning.py`: `effective_for_region`/`list_effective`
+  (varsayılan⊕override, ayarlanmışlar önde), `set_tuning` (en az bir düğme,
+  sınır doğrulama, upsert + `create`/`update` denetim), `reset_tuning` (`delete`
+  denetim), `tuning_config`. `/api/v1/silent-zone-tuning` (+`/config`, `/effective`,
+  POST, `/reset`; geçersiz→400, bölge yok→404); `settings.py` + `.env.example`
+  (`SILENT_TUNING_*`); `fastapi_app` kaydı, `ui_states` `silent_zone_tuning`;
+  `operator_map` **Sessiz Bölge Ayarı** paneli (bölge başına eşik+min-sessizlik
+  editörleri, varsayılan/sınır şeridi, Kaydet/Varsayılana dön, operatör girişi);
+  23 test.
+- **Kapılar:** black(temiz, 245)/mypy(Success, 163 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1310** (1287 + 23 yeni).
+- **Commit:** `feat(EM-044): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).

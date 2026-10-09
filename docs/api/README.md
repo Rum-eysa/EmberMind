@@ -1287,6 +1287,33 @@ dahil edilmez). Bu panel okuma-zamanlı E4 panellerinden farklı olarak **yazar*
 hüküm rozeti + satır içi Doğrulandı/Yanlış alarm/İnceleniyor düğmeleri, operatör adı
 girişi ve yanlış-alarm oranı şeridi.
 
+### Sessiz Bölge Hassasiyet ve Eşik Ayarı (EM-044)
+```
+GET   /api/v1/silent-zone-tuning/config                    # varsayılanlar, sınırlar, devralma kuralı, denetim alanı
+GET   /api/v1/silent-zone-tuning/effective[?region_id=N]   # tek bölgenin ya da tüm etkin bölgelerin birleşik (varsayılan+override) ayarı
+POST  /api/v1/silent-zone-tuning                           # bir bölgenin override'ını kaydet (beden: region_id[, sensitivity_z, min_silence_hours, actor])
+POST  /api/v1/silent-zone-tuning/reset                     # override'ı sil, bölge varsayılana döner (beden: region_id[, actor])
+```
+EM-035 tek bir **küresel** sessizlik z-eşiği, EM-040 tek bir **küresel** minimum
+sessizlik süresi kullanır; oysa "ne kadar sessiz = sessiz" ve "ne kadar bekleyelim"
+bölgeden bölgeye değişen bir yanlış-alarm/kaçırma takasıdır ve **operatöre** aittir.
+Bu servis bölge başına iki düğmeyi (`sensitivity_z`, `min_silence_hours`) **kalıcı**
+bir override satırıyla (NULL → varsayılanı devralır) etkin değere birleştirir.
+`effective_for_region`/`list_effective` ayarlanmamış bölgeyi varsayılana, ayarlanmış
+olanı override'a çözer (listede ayarlanmışlar önde). `set_tuning` **en az bir** düğme
+ister (yoksa `400`); verilen düğmeleri sınıra göre doğrular (`sensitivity_z`
+`0.5–5.0`, `min_silence_hours` `0–168`, dışındakiler `400`), yoksa satırı oluşturur
+varsa günceller ve **tekilleştirilmiş denetim defterine** `threshold` alanında
+(EM-096) kim/ne-zaman/eski→yeni satırı **yazar**. `reset_tuning` satırı siler ve
+`delete` denetim satırı yazar; zaten varsayılan olan bölge için **idempotenttir**
+(denetim satırı yazmaz). Bulunamayan `region_id` → `404`. Bu panel E4'ün okuma-zamanlı
+panellerinden farklı olarak **yazar** (`persistence: silent_zone_tuning`). Ayarlar:
+`SILENT_TUNING_DEFAULT_SENSITIVITY_Z`, `_DEFAULT_MIN_SILENCE_HOURS`,
+`_MIN/_MAX_SENSITIVITY_Z`, `_MIN/_MAX_SILENCE_HOURS`, `_MAX_LIMIT`. UI: **Sessiz Bölge
+Ayarı** paneli (bölge başına eşik + minimum-sessizlik editörleri, varsayılan/sınır
+şeridi, "Kaydet" ve "Varsayılana dön" düğmeleri, operatör adı girişi, ayarlanmış
+bölge rozeti).
+
 ## Error Codes
 
 - `200`: Başarılı

@@ -18,6 +18,33 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-044: Sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı eşik + minimum
+  sessizlik süresi, denetim kaydı ve varsayılana dönüş (E4)
+  - EM-035 tek bir **küresel** sessizlik z-eşiği, EM-040 tek bir **küresel** minimum
+    sessizlik süresi kullanıyor; oysa "ne kadar sessiz = sessiz" ve "ne kadar
+    bekleyelim" bölgeden bölgeye değişen bir yanlış-alarm/kaçırma takasıdır ve
+    operatöre aittir (kabul kriterleri: "eşik ve minimum sessizlik süresi arayüzden
+    ayarlanır; değişiklik denetim kaydına yazılır; varsayılana dönme seçeneği
+    vardır") — bugüne dek bölge bazında bu düğmeleri ayarlayıp denetleyen bir katman
+    **yoktu** (gerçek eksik: `silent_zone_tuning` yok)
+  - `src/models/silent_zone_tuning.py` + `V032__silent_zone_tuning.sql`: bölge
+    başına **tek** override satırı; yalnızca operatörün dokunduğu düğmeler saklanır,
+    `NULL` küresel varsayılanı devralır, sıfırlama satırı düşürür
+  - `src/services/silent_zone_tuning.py`: `effective_for_region`/`list_effective`
+    varsayılanı override ile birleştirir (ayarlanmışlar önde, tek geçişte yükler);
+    `set_tuning` en az bir düğme ister, sınıra göre doğrular (`sensitivity_z`
+    `0.5–5.0`, `min_silence_hours` `0–168`) ve **tekilleştirilmiş denetim
+    defterine** (`threshold` alanı, EM-096 `record_audit`) eski→yeni satırı yazar;
+    `reset_tuning` satırı siler ve `delete` denetim satırı yazar, zaten varsayılan
+    olan için **idempotent** (denetim yazmaz) — ikinci bir denetim tablosu **yok**
+  - `src/routes/silent_zone_tuning.py`: `GET .../config`, `GET .../effective`
+    (tek/liste), `POST ...` (kaydet), `POST .../reset`; geçersiz değer → `400`,
+    bulunamayan bölge → `404`; `src/config/settings.py` + `.env.example`:
+    `SILENT_TUNING_DEFAULT_SENSITIVITY_Z`, `_DEFAULT_MIN_SILENCE_HOURS`,
+    `_MIN/_MAX_SENSITIVITY_Z`, `_MIN/_MAX_SILENCE_HOURS`, `_MAX_LIMIT`
+  - Operatör haritasına "Sessiz Bölge Ayarı" paneli: bölge başına eşik +
+    minimum-sessizlik editörleri, varsayılan/sınır şeridi, "Kaydet" ve
+    "Varsayılana dön" düğmeleri, operatör adı girişi ve ayarlanmış-bölge rozeti
 - EM-043: Mevsimsel sinyal baz çizgisi — saat-in-günü + haftanın-günü etkisi ve günlük
   yeniden hesaplama (E4)
   - EM-035 düz 30 günlük normal öğreniyor; bu yüzden yapısal olarak sessiz bir bölge

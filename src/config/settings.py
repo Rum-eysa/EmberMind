@@ -543,6 +543,33 @@ class Config:
         os.getenv("SILENT_VERIFICATION_MAX_LIMIT", "200")
     )
 
+    # EM-044: sessiz bölge hassasiyet ve eşik ayarı - bölge bazlı override (Epic E4)
+    # EM-035 tek global sessizlik z-skoru, EM-040 tek global minimum öğrenir; ama
+    # "ne kadar sessiz = sessiz" ve "ne kadar bekleyelim" bölgeden bölgeye değişen
+    # yanlış-alarm/kaçırma takasıdır ve operatöre aittir. Bu anahtarlar global
+    # varsayılanı ve override sınırlarını verir; bölge override'ı silent_zone_tuning
+    # tablosunda saklanır, her değişiklik tekilleştirilmiş denetim defterine
+    # (threshold alanı) yazılır. Kalıcılık: silent_zone_tuning.
+    SILENT_TUNING_DEFAULT_SENSITIVITY_Z = float(
+        os.getenv("SILENT_TUNING_DEFAULT_SENSITIVITY_Z", "1.5")
+    )
+    SILENT_TUNING_DEFAULT_MIN_SILENCE_HOURS = float(
+        os.getenv("SILENT_TUNING_DEFAULT_MIN_SILENCE_HOURS", "6.0")
+    )
+    SILENT_TUNING_MIN_SENSITIVITY_Z = float(
+        os.getenv("SILENT_TUNING_MIN_SENSITIVITY_Z", "0.5")
+    )
+    SILENT_TUNING_MAX_SENSITIVITY_Z = float(
+        os.getenv("SILENT_TUNING_MAX_SENSITIVITY_Z", "5.0")
+    )
+    SILENT_TUNING_MIN_SILENCE_HOURS = float(
+        os.getenv("SILENT_TUNING_MIN_SILENCE_HOURS", "0.0")
+    )
+    SILENT_TUNING_MAX_SILENCE_HOURS = float(
+        os.getenv("SILENT_TUNING_MAX_SILENCE_HOURS", "168.0")
+    )
+    SILENT_TUNING_MAX_LIMIT = int(os.getenv("SILENT_TUNING_MAX_LIMIT", "200"))
+
     # EM-055: wind what-if live recomputation (Epic E6)
     # Wall-clock budget the ephemeral two-run recompute is graded against.
     WHATIF_RECOMPUTE_TARGET_SECONDS = float(

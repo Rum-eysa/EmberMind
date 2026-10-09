@@ -656,6 +656,38 @@
     #sra-panel .feedback { margin-top: 4px; padding: 4px 6px; font-size: 11px;
       border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
     #sra-panel .feedback b { color: var(--text-primary); }
+    /* EM-044: sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı editör */
+    #szt-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 340px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #szt-panel h1 { margin-bottom: 4px; }
+    #szt-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #szt-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #szt-panel .bar label { display: block; margin: 2px 0; }
+    #szt-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #szt-panel .cfg { margin-bottom: 4px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #szt-panel .cfg b { color: var(--text-primary); }
+    #szt-panel .item { padding: 5px 2px; border-bottom: 1px solid var(--border-color); }
+    #szt-panel .nm { font-weight: 600; }
+    #szt-panel .src { color: var(--text-secondary); font-weight: 400; font-size: 10px; }
+    #szt-panel .src.ovr { color: #1b5e20; font-weight: 700; }
+    #szt-panel .knobs { display: flex; gap: 6px; margin: 3px 0; flex-wrap: wrap; }
+    #szt-panel .knobs label { display: flex; flex-direction: column; gap: 1px;
+      font-size: 10px; color: var(--text-secondary); }
+    #szt-panel .knobs input { font-size: 11px; padding: 1px 4px; width: 72px;
+      border: 1px solid var(--border-color); border-radius: 5px; }
+    #szt-panel .acts { display: flex; gap: 4px; }
+    #szt-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #szt-panel .opbar { display: flex; align-items: center; gap: 4px; margin: 2px 0; }
+    #szt-panel .opbar input { flex: 1; font-size: 11px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 5px; min-width: 0; }
+    #szt-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -712,6 +744,9 @@
     <button type="button" id="sra-open"
       title="EM-040 sessiz bölge uyarıları — yayılım tehdidi ulaşan yüksek öncelikli sessiz bölgeler için bölge/süre/risk seviyeli uyarı; aynı bölgenin tekrar uyarıları bastırılır">
       Sessiz Bölge Uyarıları</button>
+    <button type="button" id="szt-open"
+      title="EM-044 sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı eşik (z-skoru) ve minimum sessizlik süresi arayüzden ayarlanır; her değişiklik denetim kaydına yazılır; varsayılana dönme seçeneği vardır">
+      Sessiz Bölge Ayarı</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -1078,6 +1113,17 @@
     <div id="sra-list"></div>
   </div>
 
+  <div id="szt-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölge Hassasiyet ve Eşik Ayarı <span id="szt-count" class="count"></span></h1>
+    <div class="bar">
+      <div class="opbar"><label>Operatör: <input id="szt-operator" type="text"
+        placeholder="kim ayarlıyor" autocomplete="off" size="12"></label></div>
+      <div class="acts"><button type="button" id="szt-refresh">Yenile</button></div>
+    </div>
+    <div id="szt-config" class="cfg" style="display:none"></div>
+    <div id="szt-list"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -1189,6 +1235,9 @@
   // EM-041: sessiz bölge doğrulama — güncel hükümler (bölge_id → hüküm) + geri bildirim özeti.
   let szvVerdicts = {};
   let szvFeedback = null;
+  // EM-044: sessiz bölge hassasiyet/eşik ayarı — panel durumu + config (sınırlar/varsayılanlar).
+  let sztPanelOpen = false;
+  let sztConfig = null;
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -4377,6 +4426,150 @@
     sraHighlight.openPopup();
   }
 
+  // --- EM-044: sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı editör
+  const SZT_API = "/api/v1/silent-zone-tuning";
+  async function toggleSZTPanel() {
+    const panel = document.getElementById("szt-panel");
+    if (sztPanelOpen) {
+      sztPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    sztPanelOpen = true;
+    panel.style.display = "block";
+    await loadSZTConfig();
+    await loadSZT();
+  }
+  async function loadSZTConfig() {
+    if (sztConfig) { renderSZTConfig(); return; }
+    try {
+      const res = await fetch(`${SZT_API}/config`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      sztConfig = await res.json();
+      renderSZTConfig();
+    } catch (err) {
+      setStatus(`Ayar sınırları alınamadı: ${err.message}`);
+    }
+  }
+  function renderSZTConfig() {
+    const el = document.getElementById("szt-config");
+    if (!el || !sztConfig) return;
+    const d = sztConfig.defaults || {};
+    const b = sztConfig.bounds || {};
+    const zb = b.sensitivity_z || {};
+    const hb = b.min_silence_hours || {};
+    el.style.display = "block";
+    el.innerHTML =
+      `Varsayılan — eşik (z): <b>${escapeHtml(String(d.sensitivity_z ?? "—"))}</b> `
+      + `(sınır ${escapeHtml(String(zb.min ?? "—"))}–${escapeHtml(String(zb.max ?? "—"))}), `
+      + `min sessizlik: <b>${escapeHtml(String(d.min_silence_hours ?? "—"))}</b> sa `
+      + `(sınır ${escapeHtml(String(hb.min ?? "—"))}–${escapeHtml(String(hb.max ?? "—"))})<br>`
+      + `Ayarlanmamış bölge varsayılanı devralır; her değişiklik denetim kaydına yazılır.`;
+  }
+  async function loadSZT() {
+    const box = document.getElementById("szt-list");
+    panelLoading(box, "silent_zone_tuning");
+    try {
+      const res = await fetch(`${SZT_API}/effective`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderSZT(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("silent_zone_tuning", err.message);
+      setStatus(`Sessiz bölge ayarları alınamadı: ${err.message}`);
+    }
+  }
+  function renderSZT(data) {
+    const box = document.getElementById("szt-list");
+    const countEl = document.getElementById("szt-count");
+    const rows = data.regions || [];
+    const tuned = rows.filter(r => r.is_overridden).length;
+    if (countEl) { countEl.textContent = `(${rows.length} bölge · ${tuned} ayarlanmış)`; }
+    box.innerHTML = "";
+    if (!rows.length) {
+      panelEmpty(box, "silent_zone_tuning",
+        "Etkin sessiz bölge yok; ayarlanacak bölge önce sessiz bölge olarak kaydedilmeli.");
+      return;
+    }
+    const def = (sztConfig && sztConfig.defaults) || {};
+    for (const r of rows) {
+      const item = document.createElement("div");
+      item.className = "item";
+      const srcTag = r.is_overridden
+        ? `<span class="src ovr">ayarlandı${r.updated_by ? " · " + escapeHtml(r.updated_by) : ""}</span>`
+        : `<span class="src">varsayılan</span>`;
+      item.innerHTML =
+        `<b class="nm">${escapeHtml(r.region_name)}</b> #${escapeHtml(String(r.region_id))} ${srcTag}`
+        + `<div class="knobs">`
+        + `<label>Eşik (z-skoru)<input type="number" step="0.1" class="z" `
+        + `value="${escapeHtml(String(r.sensitivity_z))}" `
+        + `placeholder="vars. ${escapeHtml(String(def.sensitivity_z ?? ""))}"></label>`
+        + `<label>Min sessizlik (sa)<input type="number" step="0.5" class="h" `
+        + `value="${escapeHtml(String(r.min_silence_hours))}" `
+        + `placeholder="vars. ${escapeHtml(String(def.min_silence_hours ?? ""))}"></label>`
+        + `</div>`
+        + `<div class="acts"><button type="button" class="save">Kaydet</button>`
+        + `<button type="button" class="reset">Varsayılana dön</button></div>`;
+      item.querySelector(".save").addEventListener("click", () => {
+        const z = item.querySelector(".z").value;
+        const h = item.querySelector(".h").value;
+        saveSZT(r.region_id, r.region_name, z, h);
+      });
+      item.querySelector(".reset").addEventListener("click", () => {
+        resetSZT(r.region_id, r.region_name);
+      });
+      box.appendChild(item);
+    }
+    setStatus(`Sessiz bölge ayarları — ${rows.length} bölge, ${tuned} ayarlanmış — ${data.attribution || ""}`);
+  }
+  async function saveSZT(regionId, regionName, zVal, hVal) {
+    const opEl = document.getElementById("szt-operator");
+    const actor = opEl ? opEl.value.trim() : "";
+    const body = { region_id: regionId, actor: actor || null };
+    if (zVal !== "") { body.sensitivity_z = Number(zVal); }
+    if (hVal !== "") { body.min_silence_hours = Number(hVal); }
+    if (body.sensitivity_z === undefined && body.min_silence_hours === undefined) {
+      setStatus("En az bir alan doldurulmalı (eşik veya min sessizlik).");
+      return;
+    }
+    setStatus(`Kaydediliyor: ${regionName}…`);
+    try {
+      const res = await fetch(`${SZT_API}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err.detail && err.detail.error) || err.error || `HTTP ${res.status}`);
+      }
+      await loadSZT();
+      setStatus(`${regionName} ayarı kaydedildi — denetim kaydına yazıldı`);
+    } catch (err) {
+      setStatus(`Ayar kaydedilemedi: ${err.message}`);
+    }
+  }
+  async function resetSZT(regionId, regionName) {
+    const opEl = document.getElementById("szt-operator");
+    const actor = opEl ? opEl.value.trim() : "";
+    setStatus(`Varsayılana döndürülüyor: ${regionName}…`);
+    try {
+      const res = await fetch(`${SZT_API}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ region_id: regionId, actor: actor || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err.detail && err.detail.error) || err.error || `HTTP ${res.status}`);
+      }
+      await loadSZT();
+      setStatus(`${regionName} varsayılana döndürüldü`);
+    } catch (err) {
+      setStatus(`Varsayılana döndürülemedi: ${err.message}`);
+    }
+  }
+
   async function init() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
@@ -4687,6 +4880,12 @@
         renderSRA(JSON.parse(box.dataset.sraLast));
       }
     });
+
+    // EM-044: sessiz bölge hassasiyet/eşik ayarı paneli düğmeleri.
+    const sztBtn = document.getElementById("szt-open");
+    if (sztBtn) sztBtn.addEventListener("click", toggleSZTPanel);
+    const sztRefresh = document.getElementById("szt-refresh");
+    if (sztRefresh) sztRefresh.addEventListener("click", loadSZT);
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));
