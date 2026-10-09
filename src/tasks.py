@@ -22,6 +22,7 @@ from src.services.effis import import_effis_perimeters
 from src.services.fire_sync import sync_firms
 from src.services.fwi import compute_region_fwi
 from src.services.grid_standard import PilotRegionGridService
+from src.services.isolation_forest_anomaly import score_silent_zone_anomalies
 from src.services.land_cover import sync_land_cover_for_clusters
 from src.services.pipeline_tracker import PipelineTracker
 from src.services.road_network import sync_road_network as import_road_network
@@ -71,6 +72,10 @@ celery_app.conf.update(
         "auto-recompute-plans": {
             "task": "src.tasks.auto_recompute_plans",
             "schedule": config.AUTO_RECOMPUTE_INTERVAL_MINUTES * 60,
+        },
+        "score-silent-zone-anomalies": {
+            "task": "src.tasks.score_silent_zone_anomaly_scores",
+            "schedule": config.ANOMALY_INTERVAL_MINUTES * 60,
         },
     },
     timezone="UTC",
@@ -125,6 +130,12 @@ def _pilot_bbox() -> tuple[float, float, float, float]:
     """Pilot-region bounding box (min_lat, min_lon, max_lat, max_lon)."""
     grid = PilotRegionGridService()
     return (grid.min_lat, grid.min_lon, grid.max_lat, grid.max_lon)
+
+
+def _score_anomalies(session: Any, settings: Any) -> dict[str, Any]:
+    """EM-036 read-time scorer adapter: needs only settings, so the session is unused."""
+    del session
+    return score_silent_zone_anomalies(settings)
 
 
 @celery_app.task(
@@ -274,4 +285,22 @@ def auto_recompute_plans(self: Any) -> dict[str, Any]:
         "EM-057/auto-recompute",
         auto_recompute_sweep,
         "recomputed_count",
+    )
+
+
+@celery_app.task(
+    name="src.tasks.score_silent_zone_anomaly_scores",
+    bind=True,
+    max_retries=config.PIPELINE_MAX_RETRIES,
+)
+def score_silent_zone_anomaly_scores(self: Any) -> dict[str, Any]:
+    """EM-036: recompute every cell's Isolation-Forest anomaly score (15-min)."""
+    if not config.ANOMALY_SCORING_ENABLED:
+        return {"status": "disabled"}
+    return _run_tracked_task(
+        self,
+        "score_silent_zone_anomaly_scores",
+        "EM-036/isolation-forest",
+        _score_anomalies,
+        "anomaly_count",
     )

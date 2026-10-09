@@ -31,6 +31,9 @@ from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.i18n import register_i18n_routes
 from src.routes.inventory import register_inventory_routes
+from src.routes.isolation_forest_anomaly import (
+    register_isolation_forest_anomaly_routes,
+)
 from src.routes.live import register_live_routes
 from src.routes.localization import register_localization_routes
 from src.routes.map_layers import register_map_layer_routes
@@ -460,6 +463,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_silent_zone_panel_routes(api, database, settings)
     register_signal_baseline_routes(api, database, settings)
     register_signal_baseline_seasonal_routes(api, database, settings)
+    register_isolation_forest_anomaly_routes(api, database, settings)
     register_silent_region_risk_routes(api, database, settings)
     register_silent_zone_confidence_routes(api, database, settings)
     register_silent_detection_performance_routes(api, database, settings)

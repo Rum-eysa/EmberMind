@@ -18,6 +18,35 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-036: Isolation Forest ile anomali skorlama — hücre bazında çok-özellikli
+  öğrenilmiş anomali skoru + yapılandırılabilir sessizlik eşiği (E4)
+  - EM-035 tek bir **elle seçilmiş** z-eşiğiyle, EM-043 ise mevsimselliği
+    temizleyerek sessiz bölgeyi işaretliyor; veri bilimcisinin isteği ise
+    "bölgelerin normal dışı sessizleşmesini **otomatik** puanlamak … elle
+    inceleme gerekmesin" (kabul kriterleri: "15 dakikalık aralıklarla gerçek
+    zamanlı anomali skoru üretilir; eşik: ortalama(baz çizgi) − 3σ;
+    yapılandırılabilir") — bugüne dek istatistiği **öğrenen** çok-özellikli bir
+    sınıflandırıcı **yoktu** (gerçek eksik: `isolation_forest_anomaly` yok)
+  - `src/services/isolation_forest_anomaly.py`: EM-035 baz çizgisi **yeniden
+    kullanılır** (`compute_cell_baseline`) — istatistiksel taraf `ortalama −
+    sigma·sapma` sessizlik eşiğini verir (sigma varsayılan 3.0, `1.0–5.0`
+    ayarlanabilir); ayrıca `[bugünkü sinyal, dünki sinyal]` (düzey + gündüz
+    momentumu) iki-özellikli vektör üzerinde hücre başına bir `IsolationForest`
+    baz penceresinde eğitilir ve `as_of` okulu (eğitime **girmez**) otomatik
+    puanlanır; `random_state` sabitlenmiştir, skorlar çalıştırmalar arasında
+    **yeniden üretilebilir**; kalıcılık `none`
+  - "15 dakikalık aralıklarla gerçek zamanlı" isteği `ANOMALY_INTERVAL_MINUTES`
+    (varsayılan 15) ile bir Celery beat'i olarak modellendi: `score_silent_zone_anomalies`
+    okuma zamanı taraması her aralıkta skorları tazeler, hiçbir şey saklanmaz
+  - `src/routes/isolation_forest_anomaly.py`: salt-okunur `GET .../config`,
+    `GET ...` (kaynak/`as_of`/pencere/sigma/bölge/limit süzmeli hücre bazlı rapor)
+    ve `GET .../latest` (beat'in sürdüğü anlık anormallik taraması)
+  - Operatör haritasına **Isolation Forest Anomali** paneli eklendi: hücre bazında
+    öğrenilmiş skor, `ortalama − sigma·sapma` eşiği, istatistikî/öğrenilmiş/ikisi
+    temel rozetleri, sigma + pencere + kaynak kontrolleri, harita senkron hücre
+    seçimi ve "Anlık Tara" (15 dk tarama) düğmesi
+  - `scikit-learn==1.3.0` (zaten `requirements.txt`'te sabitlenmişti) kullanıldı;
+    21 birim test (`tests/unit/test_isolation_forest_anomaly.py`) eklendi
 - EM-044: Sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı eşik + minimum
   sessizlik süresi, denetim kaydı ve varsayılana dönüş (E4)
   - EM-035 tek bir **küresel** sessizlik z-eşiği, EM-040 tek bir **küresel** minimum

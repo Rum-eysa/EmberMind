@@ -468,6 +468,32 @@ class Config:
     )
     SIGNAL_SEASONAL_MAX_CELLS = int(os.getenv("SIGNAL_SEASONAL_MAX_CELLS", "60"))
 
+    # EM-036: Isolation Forest ile anomali skorlama (Epic E4)
+    # EM-035/EM-043 tek bir z-skoru ile işaretler; burada her hücrenin baz
+    # penceresinde çok-özellikli [bugünkü, dünki] sinyal vektörüyle bir
+    # Isolation Forest eğitilir ve son okumun otomatik anomali skoru üretilir
+    # (elle inceleme gerekmez). Sessizlik eşiği ortalama(baz) - sigma*sapma;
+    # sigma varsayılan 3.0 ve yapılandırılabilir. "15 dakikalık aralıklarla
+    # gerçek zamanlı" bir Celery beat tazeleme sıklığıdır; kalıcılık: none —
+    # okuma zamanı yeniden hesaplanır. random_state sabitlenmiştir ki skorlar
+    # çalıştırmalar arası kaymasın.
+    ANOMALY_SIGMA_MULTIPLIER = float(os.getenv("ANOMALY_SIGMA_MULTIPLIER", "3.0"))
+    ANOMALY_WINDOW_DAYS = int(os.getenv("ANOMALY_WINDOW_DAYS", "30"))
+    ANOMALY_CONTAMINATION = float(os.getenv("ANOMALY_CONTAMINATION", "0.1"))
+    ANOMALY_N_ESTIMATORS = int(os.getenv("ANOMALY_N_ESTIMATORS", "100"))
+    ANOMALY_RANDOM_STATE = int(os.getenv("ANOMALY_RANDOM_STATE", "0"))
+    ANOMALY_MAX_CELLS = int(os.getenv("ANOMALY_MAX_CELLS", "60"))
+    ANOMALY_INTERVAL_MINUTES = int(os.getenv("ANOMALY_INTERVAL_MINUTES", "15"))
+    ANOMALY_DEFAULT_SOURCE = os.getenv(
+        "ANOMALY_DEFAULT_SOURCE", "synthetic_communication"
+    )
+    ANOMALY_SCORING_ENABLED = os.getenv("ANOMALY_SCORING_ENABLED", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:

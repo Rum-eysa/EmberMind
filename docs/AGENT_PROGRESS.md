@@ -1554,12 +1554,43 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1310** (1287 + 23 yeni).
 - **Commit:** `feat(EM-044): ...` (bu dal).
 
+### EM-036 — Isolation Forest ile anomali skorlama (#36) — DONE
+- **Eksik analizi:** EM-035 **elle seçilmiş** tek bir z-eşiğiyle, EM-043 ise
+  mevsimselliği arındırarak sessiz bölgeyi işaretliyor; hiçbiri istatistiği
+  **öğrenen** çok-özellikli bir sınıflandırıcı değil (kabul: "15 dakikalık
+  aralıklarla gerçek zamanlı anomali skoru üretilir; eşik: ortalama(baz çizgi) −
+  3σ; yapılandırılabilir"). `isolation_forest_anomaly` kod tabanında **yoktu**.
+  E4 Must (sp8). `scikit-learn==1.3.0` zaten `requirements.txt`'te sabitliydi;
+  venv'e kuruldu.
+- **Kapsam kararları:** EM-035 baz çizgisi **yeniden kullanılır**
+  (`compute_cell_baseline`) — istatistiksel eşik kabul kriterindeki `ortalama −
+  sigma·sapma` (sigma varsayılan 3.0, `1.0–5.0`); yanı sıra hücre başına
+  `[bugünkü, dünki sinyal]` iki-özellikli vektör üzerinde baz penceresinde
+  `IsolationForest` eğitilir, `as_of` yalnızca puanlanır (eğitime girmez);
+  `random_state` sabit → yeniden üretilebilir skorlar; kalıcılık `none`
+  ("gerçek zamanlı 15 dk" = `ANOMALY_INTERVAL_MINUTES` Celery beat'i okuma-zamanı
+  taramasını tazeler). `detection_basis` model ile eşiğin uzlaşısını gösterir.
+- **Uygulama:** Servis `isolation_forest_anomaly.py`: `build_feature_matrix`,
+  `score_cell_anomaly` (öğrenilmiş `anomaly_score` + `learned_anomalous` +
+  `quiet_threshold`/`silent_anomaly` + `detection_basis`), `anomaly_report`,
+  `score_silent_zone_anomalies` (beat hedefi), `interval_minutes`,
+  `anomaly_config`. `/api/v1/isolation-forest-anomaly` (+`/config`, `/latest`;
+  geçersiz kaynak/as_of→400, sigma 1.0–5.0 dışı→422); `settings.py` +
+  `.env.example` (`ANOMALY_*`); `fastapi_app` kaydı, `ui_states`
+  `isolation_forest_anomaly`; `tasks.py` 15 dk beat (`score_silent_zone_anomaly_scores`,
+  `ANOMALY_SCORING_ENABLED` kapılı); `operator_map` **Isolation Forest Anomali**
+  paneli (sigma/pencere/kaynak/tarih + yalnızca-anomali süzmesi + skor/eşik/temel
+  rozetleri + Anlık Tara + harita senkron); 21 test.
+- **Kapılar:** black(temiz, 248)/mypy(Success, 165 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1331** (1310 + 21 yeni).
+- **Commit:** `feat(EM-036): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).

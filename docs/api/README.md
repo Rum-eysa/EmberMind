@@ -1179,6 +1179,32 @@ paneli (kaynak/kontrol-saati/referans-tarih + yalnızca-mevsimsel-aday süzmesi 
 düz→mevsimsel aday geçişini gösteren özet + tek tık Günlük Yenile + harita
 senkron hücre seçimi).
 
+### Isolation Forest Anomali Skorlaması (EM-036)
+```
+GET    /api/v1/isolation-forest-anomaly/config   # kaynaklar, sigma/pencere sınırları, model düğmeleri, gerçek zamanlı aralık
+GET    /api/v1/isolation-forest-anomaly          # hücre bazında öğrenilmiş anomali skoru + ortalama-sigma·sapma sessizlik testi
+                 ?source&as_of&window_days&sigma_multiplier(1.0-5.0)&region_key&limit
+GET    /api/v1/isolation-forest-anomaly/latest   # 15 dakikalık beat'in sürdüğü anlık anormallik taraması
+```
+EM-035/EM-043 sessiz bölgeyi **tek bir elle seçilmiş** z-eşiğiyle işaretler. Bu
+servis veri bilimcisinin isteğini karşılar: her hücre için baz penceresinde bir
+`IsolationForest` **eğitilir** ve son okumun **çok-özellikli** anomali skoru
+otomatik üretilir — elle inceleme gerekmez. Özellik vektörü `[bugünkü sinyal,
+dünki sinyal]` (düzey + gündüz momentumu); `as_of` eğitime girmez, yalnızca
+puanlanır. İstatistiksel taraf kabul kriterindeki **`ortalama(baz) − sigma·sapma`**
+sessizlik eşiğini verir (sigma varsayılan `3.0`, `1.0–5.0` yapılandırılabilir);
+`detection_basis` `istatistikî`/`isolation_forest`/`ikisi`/`yok` olarak model ile
+eşiğin **uzlaşıp uzlaşmadığını** gösterir. `random_state` sabittir, skorlar
+yeniden üretilebilir. "15 dakikalık aralıklarla gerçek zamanlı" isteği
+`ANOMALY_INTERVAL_MINUTES` ile bir Celery beat'i olarak modellendi; kalıcılık
+`none` (okuma-zamanı yeniden hesaplama). Bilinmeyen kaynak/`as_of` → `400`/`422`.
+Ayarlar: `ANOMALY_SIGMA_MULTIPLIER`, `_WINDOW_DAYS`, `_CONTAMINATION`,
+`_N_ESTIMATORS`, `_RANDOM_STATE`, `_MAX_CELLS`, `_INTERVAL_MINUTES`,
+`_DEFAULT_SOURCE`, `_SCORING_ENABLED`. UI: `/ui` haritasındaki **Isolation Forest
+Anomali** paneli (sigma + pencere + kaynak + referans-tarih kontrolleri +
+yalnızca-anomali süzmesi + hücre bazlı skor/eşik/temel rozetleri + "Anlık Tara" +
+harita senkron hücre seçimi).
+
 ### Yüksek Öncelikli Sessiz Bölge Kesişimi (EM-037)
 ```
 GET    /api/v1/silent-region-risk/config      # formül, eşikler, yüksek-öncelik kuralı, kalıcılık

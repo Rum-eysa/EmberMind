@@ -38,6 +38,7 @@ PANEL_KEYS = (
     "audit_trail",
     "signal_baseline",
     "signal_baseline_seasonal",
+    "isolation_forest_anomaly",
     "silent_region_risk",
     "silent_zone_confidence",
     "silent_detection_performance",
@@ -179,6 +180,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Seçili filtrede izleme hücresi yok; kaynak/saat seçimini gözden geçirin.",
         "error": "Mevsimsel baz çizgisi alınamadı.",
         "error_action": "Kaynak, saat ve tarih seçimini kontrol edip yeniden deneyin.",
+    },
+    "isolation_forest_anomaly": {
+        "title": "Isolation Forest Anomali Skoru",
+        "loading": "Hücre bazında çok-özellikli anomali skoru öğreniliyor…",
+        "empty": "Seçili filtrede izleme hücresi yok; kaynak/tarih/sigma seçimini gözden geçirin.",
+        "error": "Anomali skorları alınamadı.",
+        "error_action": "Kaynak, sigma katsayısı ve tarih seçimini kontrol edip yeniden deneyin.",
     },
     "silent_region_risk": {
         "title": "Yüksek Öncelikli Sessiz Bölge",

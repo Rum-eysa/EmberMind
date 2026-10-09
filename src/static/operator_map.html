@@ -531,6 +531,41 @@
     #seas-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #seas-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
       border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-036: Isolation Forest anomali skoru — hücre bazında çok-özellikli öğrenilmiş skor */
+    #ifa-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 300px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #ifa-panel h1 { margin-bottom: 4px; }
+    #ifa-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #ifa-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #ifa-panel .bar label { display: block; margin: 2px 0; }
+    #ifa-panel input[type=text], #ifa-panel input[type=number], #ifa-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #ifa-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #ifa-panel .summary { margin-bottom: 6px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #ifa-panel .summary b { color: var(--text-primary); }
+    #ifa-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #ifa-panel .item:hover { background: rgba(33,102,172,.10); }
+    #ifa-panel .item.sel { background: rgba(33,102,172,.18); }
+    #ifa-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; }
+    #ifa-panel .nm { font-weight: 600; }
+    #ifa-panel .score { margin-left: auto; font-weight: 700; white-space: nowrap;
+      text-align: right; }
+    #ifa-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #ifa-panel .syn { color: #e65100; font-weight: 600; }
+    #ifa-panel .basis { font-weight: 600; }
+    #ifa-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #ifa-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     /* EM-037: yüksek öncelikli sessiz bölge — yayılım tahmini × sessizlik güveni */
     #srisk-panel {
       position: absolute; top: 70px; left: 300px; z-index: 1000;
@@ -732,6 +767,9 @@
     <button type="button" id="seas-open"
       title="EM-043 mevsimsel sinyal baz çizgisi — saat-in-günü + haftanın-günü mevsimselliği öğrenilir; gece/hafta sonu sessizliği yanlış alarm olmaz; düz önceki vs mevsimsel sonraki karşılaştırılır">
       Mevsimsel Baz Çizgisi</button>
+    <button type="button" id="ifa-open"
+      title="EM-036 Isolation Forest anomali skoru — her hücre için baz penceresinde çok-özellikli model eğitilir, son okumun anomali skoru otomatik üretilir; eşik ortalama(baz) − sigma·sapma (sigma varsayılan 3.0, yapılandırılabilir); 15 dk aralıkla tazelenir">
+      Isolation Forest Anomali</button>
     <button type="button" id="srisk-open"
       title="EM-037 yüksek öncelikli sessiz bölge — yayılım tahmini ulaşan ama SOS olmayan bölgeler, risk × sessizlik sıralı">
       Yüksek Öncelikli Sessiz Bölge</button>
@@ -1056,6 +1094,28 @@
     <div id="seas-list"></div>
   </div>
 
+  <div id="ifa-panel" class="panel" aria-live="polite">
+    <h1>Isolation Forest Anomali <span id="ifa-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Kaynak:
+        <select id="ifa-source" aria-label="Anomali sinyal kaynağı seçimi"></select>
+      </label>
+      <label>sigma katsayısı: <input type="number" id="ifa-sigma" size="3" step="0.5"
+        min="1" max="5" value="3.0" aria-label="Sessizlik eşiği sigma katsayısı"></label>
+      <label>Baz penceresi (gün): <input type="number" id="ifa-window" size="3" step="1"
+        min="1" max="365" aria-label="Baz penceresi gün sayısı"></label>
+      <label>Referans tarih: <input type="text" id="ifa-asof" size="10"
+        placeholder="boş = bugün"></label>
+      <label><input type="checkbox" id="ifa-anomaly"> yalnızca anomali</label>
+      <div class="acts">
+        <button type="button" id="ifa-refresh">Yenile</button>
+        <button type="button" id="ifa-latest" title="EM-036 15 dk gerçek zamanlı tarama">Anlık Tara</button>
+      </div>
+    </div>
+    <div id="ifa-summary" class="summary" style="display:none"></div>
+    <div id="ifa-list"></div>
+  </div>
+
   <div id="srisk-panel" class="panel" aria-live="polite">
     <h1>Yüksek Öncelikli Sessiz Bölge <span id="srisk-count" class="count"></span></h1>
     <div class="bar">
@@ -1221,6 +1281,10 @@
   let seasPanelOpen = false;
   let seasConfigLoaded = false;
   let seasHighlight = null;        // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
+  // EM-036: Isolation Forest anomali skoru paneli durumu.
+  let ifaPanelOpen = false;
+  let ifaConfigLoaded = false;
+  let ifaHighlight = null;         // seçili hücrenin vurgu dikdörtgeni (L.Rectangle)
   // EM-037: yüksek öncelikli sessiz bölge paneli durumu.
   let sriskPanelOpen = false;
   let sriskHighlight = null;       // seçili bölgenin vurgu dikdörtgeni (L.Rectangle)
@@ -3962,6 +4026,170 @@
     }
   }
 
+  // --- EM-036: Isolation Forest anomali skoru (çok-özellikli öğrenilmiş) -------
+  const IFA_API = "/api/v1/isolation-forest-anomaly";
+  async function toggleIfaPanel() {
+    const panel = document.getElementById("ifa-panel");
+    if (ifaPanelOpen) {
+      ifaPanelOpen = false;
+      panel.style.display = "none";
+      if (ifaHighlight) { map.removeLayer(ifaHighlight); ifaHighlight = null; }
+      return;
+    }
+    ifaPanelOpen = true;
+    panel.style.display = "block";
+    await loadIfa();
+  }
+  async function loadIfa() {
+    const box = document.getElementById("ifa-list");
+    panelLoading(box, "isolation_forest_anomaly");
+    try {
+      if (!ifaConfigLoaded) { await loadIfaConfig(); }
+      const res = await fetch(`${IFA_API}?${ifaParams().toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderIfa(data);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("isolation_forest_anomaly", err.message);
+      setStatus(`Isolation Forest anomali skoru alınamadı: ${err.message}`);
+    }
+  }
+  function ifaParams() {
+    const params = new URLSearchParams();
+    const src = document.getElementById("ifa-source").value;
+    if (src) params.set("source", src);
+    const sigma = document.getElementById("ifa-sigma").value.trim();
+    if (sigma) params.set("sigma_multiplier", sigma);
+    const win = document.getElementById("ifa-window").value.trim();
+    if (win) params.set("window_days", win);
+    const asof = document.getElementById("ifa-asof").value.trim();
+    if (asof) params.set("as_of", asof);
+    return params;
+  }
+  async function loadIfaConfig() {
+    const res = await fetch(`${IFA_API}/config`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const cfg = await res.json();
+    const sel = document.getElementById("ifa-source");
+    if (sel && !sel.options.length) {
+      for (const kind of (cfg.sources.available || [])) {
+        const op = document.createElement("option");
+        op.value = kind;
+        op.textContent = kind;
+        sel.appendChild(op);
+      }
+    }
+    const sigma = document.getElementById("ifa-sigma");
+    if (sigma && cfg.sigma_multiplier) { sigma.value = cfg.sigma_multiplier.default; }
+    const win = document.getElementById("ifa-window");
+    if (win && cfg.window_days) { win.value = cfg.window_days.default; }
+    ifaConfigLoaded = true;
+  }
+  function ifaBasisLabel(basis) {
+    if (basis === "both") return "istatistikî + IF";
+    if (basis === "statistical") return "istatistikî";
+    if (basis === "isolation_forest") return "Isolation Forest";
+    return "—";
+  }
+  function renderIfa(data) {
+    const box = document.getElementById("ifa-list");
+    const countEl = document.getElementById("ifa-count");
+    // Son yanıtı önbelleğe al: anomali süzmesi sunucuya gitmeden yeniden işlenir.
+    box.dataset.ifaLast = JSON.stringify(data);
+    let cells = (data.cells || []).slice();
+    const onlyAnomaly = document.getElementById("ifa-anomaly").checked;
+    if (onlyAnomaly) { cells = cells.filter(c => c.is_anomaly); }
+    if (countEl) {
+      countEl.textContent = `(${data.anomaly_count}/${data.cell_count})`;
+    }
+    const sum = document.getElementById("ifa-summary");
+    if (sum) {
+      sum.style.display = "block";
+      sum.innerHTML =
+        `anomali <b>${escapeHtml(String(data.anomaly_count))}</b>`
+        + ` · sessiz <b>${escapeHtml(String(data.silent_anomaly_count))}</b>`
+        + ` · öğrenilmiş <b>${escapeHtml(String(data.learned_anomaly_count))}</b>`
+        + `<br><span class="meta">özellikler: ${escapeHtml((data.features || []).join(", "))}`
+        + ` · sigma=${escapeHtml(String(data.sigma_multiplier))}`
+        + ` · ${escapeHtml(String(data.window_days))} gün`
+        + ` · kirlenme ${escapeHtml(String(data.contamination))}</span>`;
+    }
+    box.innerHTML = "";
+    if (!cells.length) {
+      panelEmpty(box, "isolation_forest_anomaly",
+        data.synthetic ? "Anomali yok — akış SENTETİK, gerçek uyarı değil." : null);
+      setStatus(`Isolation Forest anomali — ${data.as_of}: anomali yok — ${data.attribution}`);
+      return;
+    }
+    for (const cell of cells) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      const color = cell.is_anomaly ? "#c62828" : "#2e7d32";
+      const syn = cell.synthetic ? ' <span class="syn">SENTETİK</span>' : "";
+      row.innerHTML =
+        `<span class="dot" style="background:${color}"></span>`
+        + `<span><b class="nm">${escapeHtml(cell.name || cell.region_key)}</b>${syn}`
+        + `<br><span class="meta">baz ${escapeHtml(String(cell.baseline_mean))}`
+        + ` ± ${escapeHtml(String(cell.baseline_std))}`
+        + ` · eşik ${escapeHtml(String(cell.quiet_threshold))}`
+        + ` · son ${escapeHtml(String(cell.latest_value))}</span>`
+        + `<br><span class="basis">temel: ${escapeHtml(ifaBasisLabel(cell.detection_basis))}</span></span>`
+        + `<span class="score">skor ${escapeHtml(String(cell.anomaly_score))}</span>`;
+      const select = () => focusIfaCell(cell, row);
+      row.addEventListener("click", select);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+      box.appendChild(row);
+    }
+    setStatus(
+      `Isolation Forest anomali — ${data.as_of}, ${data.window_days} gün, `
+      + `sigma ${data.sigma_multiplier}, anomali ${data.anomaly_count}/${data.cell_count} — ${data.attribution}`);
+  }
+  function focusIfaCell(cell, row) {
+    for (const el of document.querySelectorAll("#ifa-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    // Harita senkron seçim: hücre sınırlarına odaklan ve vurgula.
+    const bounds = L.latLngBounds(
+      [[cell.min_lat, cell.min_lon], [cell.max_lat, cell.max_lon]]);
+    map.fitBounds(bounds, { padding: [40, 40] });
+    if (ifaHighlight) { map.removeLayer(ifaHighlight); }
+    ifaHighlight = L.rectangle(bounds, {
+      color: "#2166ac", weight: 3, dashArray: "6 4",
+      fillColor: "#2166ac", fillOpacity: 0.12,
+    }).addTo(map);
+    ifaHighlight.bindPopup(
+      `<b>${escapeHtml(cell.name || cell.region_key)}</b><br>`
+      + `anomali skoru: ${escapeHtml(String(cell.anomaly_score))} `
+      + `(temel: ${escapeHtml(ifaBasisLabel(cell.detection_basis))})<br>`
+      + `baz: ${escapeHtml(String(cell.baseline_mean))} ± ${escapeHtml(String(cell.baseline_std))}<br>`
+      + `sessizlik eşiği: ${escapeHtml(String(cell.quiet_threshold))} · son: ${escapeHtml(String(cell.latest_value))}`);
+    ifaHighlight.openPopup();
+  }
+  async function scanIfaLatest() {
+    const box = document.getElementById("ifa-list");
+    panelLoading(box, "isolation_forest_anomaly");
+    try {
+      const res = await fetch(`${IFA_API}/latest?${ifaParams().toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const keys = (data.anomaly_region_keys || []);
+      setStatus(
+        `Anlık anomali taraması — ${data.scored_at} (aralık ${data.interval_minutes} dk): `
+        + `${data.anomaly_count}/${data.cell_count} hücre anomali`
+        + (keys.length ? ` (${escapeHtml(keys.slice(0, 6).join(", "))}${keys.length > 6 ? "…" : ""})` : "")
+        + ` — ${data.attribution}`);
+      await loadIfa();
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("isolation_forest_anomaly", err.message);
+      setStatus(`Anlık anomali taraması yapılamadı: ${err.message}`);
+    }
+  }
+
   // --- EM-037: yüksek öncelikli sessiz bölge (yayılım riski × sessizlik) ----
   const SRISK_API = "/api/v1/silent-region-risk";
   async function toggleSRiskPanel() {
@@ -4829,6 +5057,30 @@
       const box = document.getElementById("seas-list");
       if (box && box.dataset.seasLast) {
         renderSeas(JSON.parse(box.dataset.seasLast));
+      }
+    });
+
+    // EM-036: Isolation Forest anomali düğmeleri + kaynak/sigma/pencere/tarih/süzme.
+    const ifaBtn = document.getElementById("ifa-open");
+    if (ifaBtn) ifaBtn.addEventListener("click", toggleIfaPanel);
+    const ifaRefresh = document.getElementById("ifa-refresh");
+    if (ifaRefresh) ifaRefresh.addEventListener("click", loadIfa);
+    const ifaLatest = document.getElementById("ifa-latest");
+    if (ifaLatest) ifaLatest.addEventListener("click", scanIfaLatest);
+    const ifaSource = document.getElementById("ifa-source");
+    if (ifaSource) ifaSource.addEventListener("change", loadIfa);
+    const ifaSigma = document.getElementById("ifa-sigma");
+    if (ifaSigma) ifaSigma.addEventListener("change", loadIfa);
+    const ifaWindow = document.getElementById("ifa-window");
+    if (ifaWindow) ifaWindow.addEventListener("change", loadIfa);
+    const ifaAsof = document.getElementById("ifa-asof");
+    if (ifaAsof) ifaAsof.addEventListener("change", loadIfa);
+    const ifaAnomaly = document.getElementById("ifa-anomaly");
+    if (ifaAnomaly) ifaAnomaly.addEventListener("change", () => {
+      // Ön yüz süzme: son yanıt yeniden işlenir, sunucuya gidilmez.
+      const box = document.getElementById("ifa-list");
+      if (box && box.dataset.ifaLast) {
+        renderIfa(JSON.parse(box.dataset.ifaLast));
       }
     });
 
