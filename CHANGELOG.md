@@ -18,6 +18,24 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-092: API anahtarı ve hız sınırlama — dış istemciler için anahtarla
+  yetkilendirme + sabit-pencere hız kesesi (E9)
+  - Sistem yöneticisi, dış entegrasyonları bir **API anahtarıyla yetkilendirip**
+    **hızlarını sınırlamak** ister ki sistem kötüye kullanılmasın (kabul: "dış
+    istemciler anahtarla yetkilendirilir, hız sınırı uygulanır") — bugüne dek
+    yalnızca sağlayıcı (FIRMS/hava) çıkış anahtarları vardı; **giren** istekler
+    için anahtar doğrulama ya da 429 hız sınırı **yoktu**
+  - `src/services/api_access.py` (kalıcılık `none`, süreç-içi sayaçlar):
+    `authorize` (disabled/unauthorized/allowed/rate_limited), `RateLimiter`
+    sabit-pencere (istemci-anahtarı başına bağımsız kova, eski pencere budanır),
+    `access_config`; zorlama yalnızca AÇIK *ve* en az bir anahtar varken devrede,
+    aksi halde uç bilinçli olarak `disabled` döner (gerçekten korumayan bir kontrolü
+    varmış gibi göstermeyiz); anahtar asla yanıtta geri yansımaz (sha256 parmak izi)
+  - `src/routes/api_access.py`: korumalı örnek uç `GET /api/v1/external/status`
+    (eksik/yanlış anahtar → `401`; limit aşımı → `429` + `Retry-After`; izinli →
+    `200` + `X-RateLimit-*` başlıkları) ve yönetici ucu `GET /api/v1/api-access/config`
+    (anahtarları ifşa etmeden politika); `settings.py` + `.env.example`
+    (`API_ACCESS_*`); `fastapi_app` kaydı; tablo/migration yok. 20 test.
 - EM-097: Karar destek uyarısı ve sorumluluk çerçevesi — öneri ekranında kalıcı
   sorumluluk/versiyon şeridi + sentetik veri rozeti (E10)
   - Komutan, sistemin bir **karar destek aracı** olduğunu ve nihai kararın

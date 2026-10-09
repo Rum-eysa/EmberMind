@@ -1123,6 +1123,23 @@ okuma hiçbir şey yazmaz ve mevcut alt-özellik denetim tablolarına dokunulmaz
 (yalnızca-eklenen `audit_trail`, **V030**). UI: `/ui` haritasındaki **Birleşik
 Denetim Kaydı** paneli (alan/aktör filtresi + alan sayımlı değişmez geçmiş).
 
+### Dış İstemci Erişim Kontrolü (EM-092)
+```
+GET    /api/v1/external/status                          # API anahtarıyla korumalı örnek uç (401 / 429 / 200 + X-RateLimit-*)
+GET    /api/v1/api-access/config                        # etkin/zorunlu, başlık adı, anahtar sayısı ve hız kesesi (anahtarları ifşa etmez)
+```
+Sistem yöneticisi, dış entegrasyonları bir **API anahtarıyla** yetkilendirip
+**hızlarını sınırlamak** ister ki sistem kötüye kullanılmasın. Anahtar
+`x-api-key` başlığıyla gönderilir; eksik/yanlış anahtar `401`, anahtarı geçerli
+olup pencere bütçesini aşan istemci `429` (+ `Retry-After`) alır; izinli çağrı
+`200` ve kalan bütçeyi `X-RateLimit-*` başlıklarında döner. Hız sınırı
+**sabit-pencere** sayacıdır ve her istemci-anahtarının **kendi bağımsız** kovası
+vardır. Zorlama yalnızca açık *ve* en az bir anahtar tanımlıyken devreye girer;
+aksi halde uç bilinçli olarak `disabled` döner — korumayan bir güvenlik kontrolü
+varmış gibi davranmayız. Yapılandırma `API_ACCESS_*` ayarlarındadır; kabul
+edilen anahtarlar yanıtta/`config` ucunda **asla** geri yansımaz (yalnızca sayısı
+ve sha256 parmak izi). Kalıcılık `none` (sayaçlar süreç-içi; tablo/migration yok).
+
 ### Karar Destek Çerçevesi (EM-097)
 ```
 GET    /api/v1/decision-support                         # sorumluluk ifadesi + veri/model sürümü + senaryo (sentetik) rozeti

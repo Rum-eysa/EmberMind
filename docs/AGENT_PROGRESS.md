@@ -1611,12 +1611,39 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1341** (1331 + 10 yeni).
 - **Commit:** `feat(EM-097): ...` (bu dal).
 
+### EM-092 — API anahtarı ve hız sınırlama (#92) — DONE
+- **Eksik analizi:** Sistem yöneticisi, dış entegrasyonları bir **API anahtarıyla**
+  yetkilendirip **hızlarını sınırlamak** ister ki sistem kötüye kullanılmasın
+  (kabul #92: "dış istemciler anahtarla yetkilendirilir, hız sınırı uygulanır").
+  Bugüne dek yalnızca sağlayıcı (FIRMS/hava) **çıkış** anahtarları vardı;
+  **giren** istekler için anahtar doğrulama ya da `429` hız sınırı **yoktu**
+  (`api_access`/`external` yüzü kod tabanında yok). E9 Should (sp3). Not: E9
+  Must (EM-090 WebSocket canlı akış) ve Should EM-091 (REST API) zaten mevcut.
+- **Kapsam kararları:** **ek-yazılımlı** (yalnızca yeni `/api/v1/external/*` +
+  `/api/v1/api-access/*` yüzü; mevcut operatör uçlarına dokunulmaz, hepsi etkilenmez);
+  kalıcılık `none` — hız sayaçları **süreç-içi** (tablo/migration yok); zorlama
+  yalnızca AÇIK *ve* en az bir anahtar tanımlıyken devreye girer, aksi halde uç
+  bilinçli `disabled` döner (korumayan bir kontrolü varmış gibi göstermeyiz); anahtar
+  yanıtta **asla** geri yansımaz (istemci kovası sha256 parmak iziyle). UI yok —
+  bu bir operatör paneli değil, dış-istemci/altyapı yeteneğidir.
+- **Uygulama:** Servis `api_access.py`: `authorize`
+  (`disabled`/`unauthorized`/`allowed`/`rate_limited`), `RateLimiter` sabit-pencere
+  (istemci-anahtarı başına bağımsız kova, eski pencere budanır, `reset`),
+  `accepted_keys`/`auth_required`/`rate_limit`/`window_seconds` (bozuk/eksik→varsayılan,
+  taban `[1,·]`), `access_config`. Rota `api_access.py`: `GET /api/v1/external/status`
+  (401/429+`Retry-After`/200+`X-RateLimit-*`) + `GET /api/v1/api-access/config`
+  (salt-okunur, `del database`). `settings.py` (`API_ACCESS_*`) + TestingConfig
+  sabit çift anahtar/bütçe; `.env.example`; `fastapi_app` kaydı. 20 test.
+- **Kapılar:** black(temiz, 254)/mypy(Success, 169 dosya)/pylint(10.00)/bandit(-ll 0)
+  yeşil; pytest **1361** (1341 + 20 yeni).
+- **Commit:** `feat(EM-092): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1629,8 +1656,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 251 değişmez · mypy Success (167 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1341 passed**.
+- **Final kapılar:** black 254 değişmez · mypy Success (169 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1361 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

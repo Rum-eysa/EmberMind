@@ -515,6 +515,26 @@ class Config:
         "DECISION_SUPPORT_SCENARIO_DATA", "true"
     ).lower() in ("1", "true", "yes", "on")
 
+    # EM-092: dış istemci API anahtarı + hız sınırlama (Epic E9)
+    # Sistem yöneticisi, dış entegrasyonları bir API anahtarıyla yetkilendirip
+    # hızlarını sınırlamak ister ki sistem kötüye kullanılmasın. Zorlama yalnızca
+    # AÇIK *ve* en az bir anahtar tanımlıyken devreye girer; aksi halde uç bilinçli
+    # olarak "disabled" raporlanır (gerçekten korumayan bir güvenlik kontrolü gibi
+    # davranmayız). Kalıcılık: none — pencere sayaçları yalnızca süreç belleğinde.
+    API_ACCESS_ENABLED = os.getenv("API_ACCESS_ENABLED", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    API_ACCESS_KEYS = os.getenv("API_ACCESS_KEYS", "")
+    API_ACCESS_RATE_LIMIT_REQUESTS = int(
+        os.getenv("API_ACCESS_RATE_LIMIT_REQUESTS", "30")
+    )
+    API_ACCESS_RATE_LIMIT_WINDOW_SECONDS = float(
+        os.getenv("API_ACCESS_RATE_LIMIT_WINDOW_SECONDS", "60")
+    )
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:
@@ -787,6 +807,13 @@ class TestingConfig(Config):
     # EM-090: fast feed poll so WebSocket push tests are not timing-sensitive.
     LIVE_POLL_INTERVAL_SECONDS = 0.05
     LIVE_HEARTBEAT_SECONDS = 0.0
+    # EM-092: enforce external API-key + rate limiting with two fixed keys and a
+    # large budget so single HTTP calls are deterministic (401/200 paths); the
+    # 429 path is exercised directly against the in-memory limiter in unit tests.
+    API_ACCESS_ENABLED = True
+    API_ACCESS_KEYS = "test-external-key-alpha,test-external-key-beta"  # nosec B105
+    API_ACCESS_RATE_LIMIT_REQUESTS = 1000
+    API_ACCESS_RATE_LIMIT_WINDOW_SECONDS = 60.0
 
 
 class ProductionConfig(Config):
