@@ -1725,11 +1725,34 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
 - **Commit:** `feat(EM-105): ...` (bu dal).
 
 
+### EM-106 — Tek komutla demo veritabanı sıfırlama + seed (#195) — DONE
+- **Eksik analizi:** Demo sunucusu tekrar tekrar aynı temiz durumdan başlamak
+  ister (kabul: "tek komutla veritabanı sıfırlanır ve seed yüklenir; seed
+  sentetik olarak etiketlenir; komut dokümante edilir"). `scripts/demo_seed.py`
+  yalnızca `create_all()` + upsert-idempotent `persist_dataset` yapıyordu;
+  biriken eski/bozuk satırları temizleyen **hiçbir sıfırlama/drop yolu yoktu**
+  (`reset_all`/`--reset` kod tabanında yok). E11 Must (sp2).
+- **Kapsam kararları:** CLI/demo aracıdır, operatör paneli değil → **rota/UI/
+  `ui_states` yok**; yeni tablo/migration gerekmez. Kapsam: `src/database.py`
+  (`reset_all`), `scripts/demo_seed.py` (`--reset` + test edilebilir `seed_demo`),
+  `Makefile` (`demo-reset` hedefi), `docs/guides/INSTALLATION.md` (komut
+  dokümanı), birim testleri.
+- **Uygulama:** `Database.reset_all()` → `Base.metadata.drop_all` + `create_all`
+  (tam sıfırlama için `import src.models` koşulu docstring'de). `demo_seed.py`
+  `seed_demo(database, seed, preset, reset=False)` + `_reset_requested(argv)`
+  (`--reset` bayrağı veya `DEMO_RESET` ortamı); `main(argv=None)` raporı basar ve
+  **SENTETİK VERİ** etiketini gösterir. `Makefile`: `.PHONY` + `help` + `demo-reset`
+  hedefi. 8 test (`test_demo_seed_reset.py`).
+- **Kapılar:** black(temiz, 264)/mypy(Success, 175 dosya)/pylint(10.00)/bandit(-ll 0)
+  yeşil; pytest **1439** (1431 + 8 yeni).
+- **Commit:** `feat(EM-106): ...` (bu dal).
+
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1742,8 +1765,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 263 değişmez · mypy Success (175 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1431 passed**.
+- **Final kapılar:** black 264 değişmez · mypy Success (175 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1439 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

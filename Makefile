@@ -1,5 +1,5 @@
 .PHONY: help install dev test lint format clean docker-build docker-up docker-down \
-        demo-up demo-down demo-seed ci-check env-check
+        demo-up demo-down demo-seed demo-reset ci-check env-check
 
 help:
 	@echo "Kullanılabilir komutlar:"
@@ -13,6 +13,8 @@ help:
 	@echo "  make docker-up     - Docker konteynerlerini başlat"
 	@echo "  make docker-down   - Docker konteynerlerini durdur"
 	@echo "  make api-docs      - FastAPI OpenAPI dokümantasyonunu aç"
+	@echo "  make demo-seed     - Demo veritabanını sentetik senaryoyla tohumla"
+	@echo "  make demo-reset    - Demo veritabanını sıfırla ve yeniden tohumla (EM-106)"
 
 install:
 	pip install -r requirements-dev.txt
@@ -56,6 +58,9 @@ api-docs:
 
 demo-seed:
 	APP_ENV=demo python scripts/demo_seed.py
+
+demo-reset:
+	APP_ENV=demo python scripts/demo_seed.py --reset
 
 demo-up:
 	docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build

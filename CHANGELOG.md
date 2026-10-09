@@ -18,6 +18,20 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-106: tek komutla demo veritabanı sıfırlama + seed (E11)
+  - Demo sunucusu tekrar tekrar aynı temiz durumdan başlamak ister; önceki
+    `demo_seed.py` yalnızca tablo oluşturup veriyi **yukarı-yazımlı** (upsert)
+    işliyordu — biriken eski/bozuk satırları temizleyen **tek komutluk sıfırlama
+    yoktu** (kabul: "tek komutla veritabanı sıfırlanır ve seed yüklenir; seed
+    sentetik olarak etiketlenir; komut dokümante edilir")
+  - `Database.reset_all()` eklendi: kayıtlı tüm tabloları düşürür ve yeniden
+    oluşturur (tam sıfırlama için çağıran `import src.models` ile metadata'yı
+    doldurmalıdır)
+  - `scripts/demo_seed.py` test edilebilir `seed_demo(database, seed, preset,
+    reset=False)` işlevine ayrıldı; `--reset` bayrağı ve `DEMO_RESET` ortam
+    değişkeni desteklenir; rapor döndürür ve **SENTETİK VERİ** etiketini basar
+  - `Makefile` içine `make demo-reset` hedefi ve `help` satırları eklendi;
+    `docs/guides/INSTALLATION.md` komutu dokümante eder
 - EM-105: hazır senaryo kütüphanesi — tek tıkla adlandırılmış, deterministik demo
   senaryoları ve geri sarma (E11)
   - Demo sunucusu, **adlı** bir senaryoyu tek tıkla başlatmak ve sunumun her
