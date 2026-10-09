@@ -1123,6 +1123,26 @@ okuma hiçbir şey yazmaz ve mevcut alt-özellik denetim tablolarına dokunulmaz
 (yalnızca-eklenen `audit_trail`, **V030**). UI: `/ui` haritasındaki **Birleşik
 Denetim Kaydı** paneli (alan/aktör filtresi + alan sayımlı değişmez geçmiş).
 
+### Belediye / Trafik / Kamu Uyarı Entegrasyon Şablonu (EM-093)
+```
+GET    /api/v1/integration-templates                     # birleşik paket: config + kanal bazlı örnekler + örnek alıcı
+GET    /api/v1/integration-templates/config              # kanal kataloğu + olay tipleri + imza sözleşmesi (canlı EM-094)
+GET    /api/v1/integration-templates/consumer            # imza doğrulama parçacığı + dağıtım notu (gizli anahtar gömmez)
+GET    /api/v1/integration-templates/{event_type}        # bir olay tipi için tüm kanal biçimleri (temsili zarf)
+GET    /api/v1/integration-templates/{event_type}/{channel}  # tek kanal biçimi
+```
+Entegratör, **yeni donanım gerekmeden** mevcut belediye bilgi panosu / trafik
+değişken mesaj işareti (VMS) / kamu uyarı (CAP-benzeri) head-end'ini EM-094'ün
+**imzalı webhook'una** bağlamak ister. EM-093 gönderim mekanizmasını yeniden
+icra etmez; onun **alıcı tarafı bağlantı şablonudur**: gerçek bir EM-094 zarfını
+her kanalın yerel biçimine nasıl dönüştüreceğini, paylaşılır gizli anahtarla
+`X-EmberMind-Signature` imzasını nasıl doğrulayacağını ve kopyala-yapıştır küçük
+bir alıcı iskeletini gösterir. Kanal kataloğu, imza başlığı ve olay tipleri
+**canlı EM-094 sözleşmesinden** türer (asla sapmaz). Güvenlik notu: örnekler
+gerçek bir gizli anahtar **gömmez** — yalnızca `$EMBERMIND_WEBHOOK_SECRET` ortam
+yer tutucusu kullanılır. Kalıcılık `none` (salt okuma zamanı projeksiyon; tablo/
+migration/operatör paneli yok — bu bir geliştirici/entegratör yeteneğidir).
+
 ### API Dokümantasyonu ve Örnek İstemci (EM-095)
 ```
 GET    /api/v1/api-docs                                  # birleşik paket: openapi + errors + rate_limits + examples

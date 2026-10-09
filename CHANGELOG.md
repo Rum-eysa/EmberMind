@@ -18,6 +18,29 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-093: belediye panosu / trafik / kamu uyarı entegrasyon şablonu — mevcut
+  EM-094 imzalı webhook'unu yeni donanım gerekmeden downstream sistemlere bağlayan
+  tüketicici tarafı şablonları + imza doğrulama örneği (E9)
+  - Sistem entegratörü, yeni donanım gerekmeden belediye bilgi panosu / trafik
+    değişken mesaj işareti (VMS) / kamu uyarı (CAP-benzeri) head-end'ini bağlamak
+    ister (kabul: "örnek webhook entegrasyonu ve dokümantasyonu sağlanır; yeni
+    donanım gerekmez") — bugüne dek EM-094 **gönderen** tarafı (abonelik + imzalı
+    zarf + tekrar deneme defteri) vardı; ancak tüketicinin zarfı kanal biçimlerine
+    nasıl çevireceğine dair **bağlantı şablonu / örnek alıcı** hiç **yoktu**
+  - `src/services/integration_templates.py` (kalıcılık `none`, salt okuma zamanı
+    projeksiyon): kanal kataloğu (belediye panosu / VMS / kamu uyarısı) — kanal
+    listesi, imza başlığı ve olay tipleri **canlı EM-094 sözleşmesinden** türetilir
+    (`SIGNATURE_HEADER`, `VALID_EVENT_TYPES`); `example_envelope` (temsili zarf),
+    `transform` (zarf → kanal yerel biçimi; VMS satırları büyük harf + karakter
+    sınırlı, kamu uyarısı CAP-benzeri alan kümesi + XML örneği),
+    `signature_verification_snippet` (HMAC doğrulama), `example_consumer` (alıcı
+    iskeleti), `templates_for`, `templates_bundle`, `integration_config`; örnekler
+    **gerçek gizli anahtar gömmez** — yalnızca `$EMBERMIND_WEBHOOK_SECRET` ortam
+    yer tutucusu kullanılır; yeni tablo/migration/operatör paneli yok
+  - `src/routes/integration_templates.py`: `GET /api/v1/integration-templates`
+    (+ `/config`, `/consumer`, `/{event_type}`, `/{event_type}/{channel}`)
+    salt-okunur uçlar (`del database`); `fastapi_app` kaydı; `settings.py` +
+    `.env.example` (`INTEGRATION_CAP_SENDER`, `INTEGRATION_ALERT_LANGUAGE`). 28 test.
 - EM-095: API dokümantasyonu ve örnek istemci — kimlik metadata'lı OpenAPI +
   birleşik hata/hız sınırı kataloğu + kopyala-yapıştır cURL/Python istemcileri (E9)
   - Entegratör API'yi **hızla denemek** ister (kabul: "OpenAPI/Swagger yayında;

@@ -543,6 +543,17 @@ class Config:
     API_DOCS_BASE_URL = os.getenv("API_DOCS_BASE_URL", "http://localhost:8000")
     API_DOCS_CONTACT_EMAIL = os.getenv("API_DOCS_CONTACT_EMAIL", "")
 
+    # EM-093: belediye panosu / trafik / kamu uyarı entegrasyon şablonu (Epic E9)
+    # Entegratör, yeni donanım gerekmeden mevcut belediye pano / trafik mesaj
+    # işareti / kamu uyarı (CAP-benzeri) sistemlerini EM-094 imzalı webhook'una
+    # bağlamak ister. Bu ayarlar yalnızca örnek çıktıyı biçimlendirir (CAP
+    # gönderen kimliği + uyarı dili); şablonlar EM-094 zarf sözleşmesinden türer.
+    # Kalıcılık: none (salt okuma zamanı projeksiyon).
+    INTEGRATION_CAP_SENDER = os.getenv(
+        "INTEGRATION_CAP_SENDER", "it.embermind.wildfire"
+    )
+    INTEGRATION_ALERT_LANGUAGE = os.getenv("INTEGRATION_ALERT_LANGUAGE", "tr")
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:
@@ -824,6 +835,9 @@ class TestingConfig(Config):
     API_ACCESS_RATE_LIMIT_WINDOW_SECONDS = 60.0
     # EM-095: fixed base URL so example-client snippets are deterministic in tests.
     API_DOCS_BASE_URL = "http://testserver"
+    # EM-093: deterministic CAP sender + language for template tests.
+    INTEGRATION_CAP_SENDER = "it.embermind.test"
+    INTEGRATION_ALERT_LANGUAGE = "tr"
 
 
 class ProductionConfig(Config):
