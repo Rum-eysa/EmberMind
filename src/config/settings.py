@@ -803,6 +803,16 @@ class Config:
     FIELD_VIEW_RADIUS_KM = float(os.getenv("FIELD_VIEW_RADIUS_KM", "25.0"))
     FIELD_VIEW_MAX_ITEMS = int(os.getenv("FIELD_VIEW_MAX_ITEMS", "5"))
 
+    # EM-085: operator-surface accessibility contract (Epic E8). The default
+    # theme (night-shift) and whether to honour reduced motion. The non-colour
+    # risk encoding and the keyboard-shortcut registry are code constants so the
+    # contract is deterministic, but these two knobs let a deployment flip the
+    # defaults without a rebuild. Read-time only: persistence none.
+    ACCESSIBILITY_DEFAULT_THEME = os.getenv("ACCESSIBILITY_DEFAULT_THEME", "dark")
+    ACCESSIBILITY_REDUCED_MOTION = os.getenv(
+        "ACCESSIBILITY_REDUCED_MOTION", "false"
+    ).lower() in ("1", "true", "yes", "on")
+
     # EM-066: cross-border shared situation view (Epic E7). FireEvent stores
     # only a coordinate, so each incident is attributed to TR (east) or GR
     # (west) by this pilot border longitude (deg East) - a deliberate
@@ -899,6 +909,9 @@ class TestingConfig(Config):
     FIELD_VIEW_MAX_ITEMS = 5
     # EM-108: fixed authored-scenario cap so editor tests are deterministic.
     SCENARIO_EDITOR_MAX_ITEMS = 50
+    # EM-085: fixed accessibility knobs so the contract tests are deterministic.
+    ACCESSIBILITY_DEFAULT_THEME = "dark"
+    ACCESSIBILITY_REDUCED_MOTION = False
 
 
 class ProductionConfig(Config):

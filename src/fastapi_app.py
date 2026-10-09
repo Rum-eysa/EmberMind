@@ -15,6 +15,7 @@ from src.models.land_cover import LandCoverDataPoint
 from src.models.spatial import FireEvent, FireForecast, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
+from src.routes.accessibility import register_accessibility_routes
 from src.routes.api_access import register_api_access_routes
 from src.routes.api_docs import register_api_docs_routes
 from src.routes.audit_trail import register_audit_trail_routes
@@ -478,6 +479,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_support_request_draft_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
     register_decision_support_routes(api, database, settings)
+    register_accessibility_routes(api, database, settings)
     register_api_access_routes(api, database, settings)
     register_api_docs_routes(api, database, settings)
     register_ui_state_routes(api, database, settings)

@@ -18,6 +18,25 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-085: erişilebilirlik sözleşmesi — renk körü güvenli palet + renkten-bağımsız
+  risk kodlaması + belge düzeyi genel klavye kısayolları (E8)
+  - Koyu tema ve ham renk jetonları EM-075 tasarım sisteminde zaten vardı
+    (`tokens.css` `html[data-theme="dark"]`), operatör seçimi EM-088 ile
+    kalıcılaştırılıyordu; eksik olan bu garantileri **test edilebilir ve tek
+    kaynaktan** kılan sözleşmeydi (kabul: "bilgi yalnız renkle taşınmaz; klavye
+    kısayolları; renk körü güvenli palet")
+  - `src/services/accessibility.py` (`persistence: none`): her FWI risk seviyesi
+    için **renk + Türkçe etiket + benzersiz şekil + tarama deseni** (renk
+    `RISK_COLORS`'tan aktarılır, asla yeniden yazılmaz → sürüklenme imkânsız);
+    Okabe-Ito renk körü güvenli niteliksel palet (deuteranopia/protanopia/
+    tritanopia için doğrulanmış); genel klavye kısayol kaydı (Alt+T tema, Alt+P
+    panel düğmeleri arası gezinme, Alt+K arama odağı, Alt+H yardım, Esc kapat)
+  - Uçlar: `GET /api/v1/accessibility/config`, `/risk-encodings`, `/shortcuts`
+  - UI: `operator_map.html` — erişilebilirlik paneli (renk+etiket+şekil+desen
+    birlikte gösterilir, bilgi asla yalnız renk değil) + `document` düzeyinde
+    genel kısayol bağlama (yazı alanlarında tetiklenmez) + tema geçişi
+  - **Kapsam notu:** kabul ölçütündeki "3 gerçek kullanıcı kullanılabilirlik
+    testi" insan gerektiren E14 epigine aittir; bu kod görevi değildir
 - EM-108: senaryo düzenleyici — arayüzden yeni demo senaryosu yazma + kütüphaneye kaydetme (E11)
   - EM-105 kütüphanesi arketipleri **kod sabiti** olarak sabitler; operatörün
     arayüzden kendi senaryosunu yazıp kütüphaneye ekleyeceği bir yüzey **yoktu**

@@ -47,6 +47,7 @@ PANEL_KEYS = (
     "silent_zone_tuning",
     "map_interaction",
     "field_view",
+    "accessibility",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -70,6 +71,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Atanmış görev yok; bir kaynak/olay seçin veya konum girin.",
         "error": "Saha görünümü alınamadı.",
         "error_action": "Kaynak/olay seçimini ve konumu kontrol edip yeniden deneyin; sürerse bağlantıyı gözden geçirin.",
+    },
+    "accessibility": {
+        "title": "Erişilebilirlik ve kısayollar",
+        "loading": "Renk körü güvenli palet, renkten-bağımsız risk kodlaması ve klavye kısayolları yükleniyor…",
+        "empty": "Erişilebilirlik kataloğu döndüğünde kısayollar ve risk kodlamaları burada listelenir.",
+        "error": "Erişilebilirlik kataloğu alınamadı.",
+        "error_action": "Bağlantınızı kontrol edip yeniden deneyin; sürerse tema/kısayol düğmelerini kullanın.",
     },
     "exposure": {
         "title": "Tehdit altındaki yapılar",

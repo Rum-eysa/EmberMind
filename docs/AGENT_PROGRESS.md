@@ -1866,12 +1866,43 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   kuralı nedeniyle V033 yorumunda noktalı-virgül bırakılmadı.
 - **Commit:** `feat(EM-108): ...` (bu dal).
 
+### EM-085 — Erişilebilirlik sözleşmesi (renk körü palet + kısayollar) (#85) — DONE
+- **Boşluk analizi:** Koyu tema ve ham renk jetonları EM-075 tasarım sisteminde
+  zaten var (`tokens.css` `html[data-theme="dark"]` + `@media prefers-color-scheme`);
+  operatör tema seçimi EM-088 ile kalıcı. `:focus-visible` EM-075'te mevcut.
+  Klavye: yalnızca **satır-başı** `keydown` (Enter/Space) vardı; **belge düzeyi**
+  genel kısayol yoktu. `--risk-*` paleti `RISK_COLORS`'ı yansıtır ama **renkten-
+  bağımsız** (etiket/şekil/desen) kodlama ve **renk körü güvenli** palet sözleşmesi
+  servis olarak **yoktu**. E8 Should (sp3). Not: kabul ölçütündeki "3 gerçek
+  kullanıcı testi" insan gerektiren E14 epigine aittir → kod görevi değil; bu görev
+  yalnızca **kodlanabilir** erişilebilirlik yarısını kapatır. EM-085 son kodlanabilir
+  E8 boşluğudur.
+- **Kapsam kararları:** `persistence: none` (model/migration yok) — her şey
+  ayarlar + `RISK_COLORS`'tan okuma-anı projeksiyonu. Renk **aktarılır**, asla
+  yeniden yazılmaz → `test_design_system.py` token-sürüklenmesi korunur. Genel
+  kısayollar `document`'e bağlanır; yazı alanlarında (`input/textarea/select/
+  contenteditable`) tetiklenmez (Esc hariç). Alt+P paneli "aç/kapat" yerine
+  **panel düğmeleri arasında gezinme** olarak uygulandı (durum takibi kırılgan
+  olduğundan dürüst davranış); servis açıklaması buna hizalandı.
+- **Uygulama:** `src/services/accessibility.py` (`risk_encodings`/`keyboard_shortcuts`
+  /`palette_contract`/`accessibility_config` + `_theme`/`_reduced_motion`; Okabe-Ito
+  paleti; 6 seviye şekil+desen; 5 kısayol). Rota `src/routes/accessibility.py`
+  (3 GET, `del database`, `tags=["panel"]`) + `fastapi_app` kaydı. `settings.py`
+  `ACCESSIBILITY_DEFAULT_THEME` + `ACCESSIBILITY_REDUCED_MOTION` (Config +
+  TestingConfig) + `.env.example`. `ui_states.py` `accessibility` panel anahtarı.
+  UI: `operator_map.html` **Erişilebilirlik** paneli (`toggleAccessibilityPanel`/
+  `loadAccessibility`/`renderA11yEncoding`) + `bindGlobalShortcuts` belge-küresel
+  kısayol + tema geçişi + CSS. 20 test (`test_accessibility.py`).
+- **Kapılar:** black(temiz)/mypy(Success)/pylint(10.00)/bandit(-ll 0) yeşil;
+  pytest **1572** (1552 + 20 yeni).
+- **Commit:** `feat(EM-085): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).

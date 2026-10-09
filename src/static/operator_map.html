@@ -331,6 +331,24 @@
     #fieldview-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                      border: 1px solid var(--border-color); border-radius: 6px;
                      background: none; }
+    /* EM-085: erişilebilirlik paneli — renk + etiket + şekil + desen birlikte gösterilir */
+    #a11y-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                 border: 1px solid var(--border-color); border-radius: 6px;
+                 background: none; }
+    #a11y-panel .a11y-h { font-weight: 700; margin: 8px 0 4px; }
+    #a11y-panel .a11y-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #a11y-panel .a11y-enc { display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid var(--border-color); padding: 4px 0; }
+    #a11y-panel .a11y-swatch { width: 18px; height: 18px; border-radius: 4px;
+      border: 1px solid var(--border-color); display: inline-block; }
+    #a11y-panel .a11y-glyph { font-size: 16px; width: 20px; text-align: center; }
+    #a11y-panel .a11y-label { font-weight: 700; }
+    #a11y-panel .a11y-pattern { color: var(--text-secondary); font-size: var(--font-size-xs); margin-left: auto; }
+    #a11y-panel .a11y-sc { list-style: none; margin: 0; padding: 0; }
+    #a11y-panel .a11y-sc li { padding: 2px 0; font-size: var(--font-size-xs); }
+    #a11y-panel .kbd { font-family: monospace; border: 1px solid var(--border-color);
+      border-radius: 4px; padding: 0 5px; background: var(--surface-color, #f4f4f4); }
+    #a11y-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     /* EM-084: mobil/tablet — dar ekranda panel tam genişlik, temel yazılar okunur kalır */
     @media (max-width: 640px) {
       #fieldview-panel { top: 56px; left: 6px; right: 6px; width: auto;
@@ -866,6 +884,9 @@
     <button type="button" id="fieldview-open"
       title="EM-084 saha görünümü — telefondan okunur görev kartı + konuma göre en yakın risk bölgesi">
       Saha Görünümü</button>
+    <button type="button" id="a11y-open"
+      title="EM-085 erişilebilirlik — renk körü güvenli risk kodlaması (renk+etiket+şekil+desen), tema ve genel klavye kısayolları">
+      Erişilebilirlik</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -1055,6 +1076,11 @@
       </label>
     </div>
     <div id="fv-body"></div>
+  </div>
+
+  <div id="a11y-panel" class="panel" aria-live="polite">
+    <h1>Erişilebilirlik ve Kısayollar</h1>
+    <div id="a11y-body"></div>
   </div>
 
   <div id="timeline-panel" class="panel" aria-live="polite">
@@ -1442,6 +1468,11 @@
   // EM-084: saha görünümü — telefondan okunur görev kartı + yakın risk bölgesi.
   let fieldviewPanelOpen = false;
   let fvConfig = null;               // /api/v1/field-view/config yanıtı (yarıçap/sınır)
+  // EM-085: erişilebilirlik — renk körü güvenli risk kodlaması + genel kısayollar.
+  let a11yPanelOpen = false;
+  let a11yConfig = null;             // /api/v1/accessibility/config yanıtı (kısayol/kodlama)
+  let a11yPanelKeys = [];            // Alt+P ile gezilen operatör paneli anahtarları
+  let a11yPanelIndex = -1;           // gezilen panelin sırası
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2169,6 +2200,136 @@
       + `<span class="lv lv-${escapeHtml(lv)}">${escapeHtml(lv)}</span>${idx}${horizon}</span>`
       + '<span class="fv-dist">' + escapeHtml(r.distance_km) + ' km' + bearing + '</span>'
       + '</div>';
+  }
+
+  // EM-085: erişilebilirlik — renk körü güvenli risk kodlaması + tema + genel kısayol kataloğu.
+  const ACCESSIBILITY_API = "/api/v1/accessibility";
+  function a11yIsTyping(e) {
+    const t = e.target;
+    if (!t || !t.tagName) return false;
+    const tag = t.tagName.toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || t.isContentEditable;
+  }
+  function a11yApplyTheme(theme) {
+    const root = document.documentElement;
+    if (theme === "light") root.setAttribute("data-theme", "light");
+    else if (theme === "dark") root.setAttribute("data-theme", "dark");
+    else root.removeAttribute("data-theme");  // auto -> prefers-color-scheme karari
+  }
+  function toggleTheme() {
+    const cur = document.documentElement.getAttribute("data-theme");
+    a11yApplyTheme(cur === "dark" ? "light" : "dark");
+  }
+  function cyclePanel() {
+    // Panel düğmeleri arasinda sirayla odaklan (klavye ile erisim).
+    const btns = Array.from(document.querySelectorAll('button[id$="-open"]'));
+    if (!btns.length) return;
+    a11yPanelIndex = (a11yPanelIndex + 1) % btns.length;
+    btns[a11yPanelIndex].focus();
+  }
+  function dismissOverlays() {
+    // Acik durumdaki operatör panellerini kapat; panel durumlarini sifirla.
+    document.querySelectorAll('.panel').forEach(p => {
+      if (p.id !== "status" && p.style && p.style.display === "block") p.style.display = "none";
+    });
+    a11yPanelOpen = false;
+    fieldviewPanelOpen = false;
+  }
+  function a11yRunAction(action) {
+    if (action === "toggle_theme") toggleTheme();
+    else if (action === "cycle_panel") cyclePanel();
+    else if (action === "focus_search") {
+      const q = document.getElementById("mt-query");
+      if (q) q.focus();
+    } else if (action === "toggle_help") toggleAccessibilityPanel();
+    else if (action === "dismiss") dismissOverlays();
+  }
+  function matchShortcut(e, combo) {
+    const parts = combo.split("+");
+    const key = parts[parts.length - 1].toUpperCase();
+    const wantAlt = parts.includes("Alt");
+    const wantShift = parts.includes("Shift");
+    const wantCtrl = parts.includes("Ctrl") || parts.includes("Cmd");
+    if (e.key.toUpperCase() !== key && !(key === "ESCAPE" && e.key === "Esc")) return false;
+    return !!e.altKey === wantAlt && !!e.shiftKey === wantShift && !!e.ctrlKey === wantCtrl;
+  }
+  function bindGlobalShortcuts() {
+    document.addEventListener("keydown", e => {
+      // Esc her zaman calisir; diger kisollar yazarken tetiklenmez.
+      if (e.key === "Escape") { a11yRunAction("dismiss"); return; }
+      if (a11yIsTyping(e)) return;
+      const list = (a11yConfig && a11yConfig.keyboard_shortcuts) || [];
+      for (const s of list) {
+        if (matchShortcut(e, s.combo)) { e.preventDefault(); a11yRunAction(s.action); return; }
+      }
+    });
+  }
+  async function toggleAccessibilityPanel() {
+    const panel = document.getElementById("a11y-panel");
+    if (!panel) return;
+    if (a11yPanelOpen) {
+      a11yPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    a11yPanelOpen = true;
+    panel.style.display = "block";
+    await loadAccessibility();
+  }
+  async function loadAccessibility() {
+    const box = document.getElementById("a11y-body");
+    if (!box) return;
+    panelLoading(box, "accessibility");
+    try {
+      const res = await fetch(`${ACCESSIBILITY_API}/config`);
+      const j = await res.json();
+      if (!res.ok) {
+        box.innerHTML = panelErrorHtml("accessibility",
+          (j && j.detail && j.detail.error) || "Erişilebilirlik kataloğu alınamadı.");
+        return;
+      }
+      a11yConfig = j;
+      renderAccessibility(j);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("accessibility", "Erişilebilirlik kataloğu alınamadı: " + err.message);
+    }
+  }
+  function renderAccessibility(j) {
+    const box = document.getElementById("a11y-body");
+    if (!box) return;
+    const enc = j.risk_encodings || [];
+    const sc = j.keyboard_shortcuts || [];
+    const theme = (j.theme && j.theme.default) || "dark";
+    let html = '<div class="a11y-h">Tema</div>';
+    html += `<div class="a11y-meta">Varsayılan: <b>${escapeHtml(theme)}</b> · gece vardiyası hazır`
+      + ` · <span class="kbd">Alt+T</span> geçiş</div>`;
+    html += '<div class="a11y-h">Risk kodlaması (renk + etiket + şekil + desen)</div>';
+    if (!enc.length) {
+      html += '<div class="empty">Risk kodlaması kataloğu boş.</div>';
+    } else {
+      for (const r of enc) html += renderA11yEncoding(r);
+    }
+    html += '<div class="a11y-h">Klavye kısayolları</div>';
+    if (!sc.length) {
+      html += '<div class="empty">Kısayol tanımlı değil.</div>';
+    } else {
+      html += '<ul class="a11y-sc">';
+      for (const s of sc) html += renderA11yShortcut(s);
+      html += '</ul>';
+    }
+    box.innerHTML = html;
+  }
+  function renderA11yEncoding(r) {
+    const color = escapeHtml(r.color || "#888");
+    return '<div class="a11y-enc">'
+      + `<span class="a11y-swatch" style="background:${color}"></span>`
+      + `<span class="a11y-glyph" aria-hidden="true">${escapeHtml(r.glyph || "?")}</span>`
+      + `<span class="a11y-label">${escapeHtml(r.label || r.level)}</span>`
+      + `<span class="a11y-pattern">${escapeHtml(r.pattern || "")}</span>`
+      + '</div>';
+  }
+  function renderA11yShortcut(s) {
+    return `<li><span class="kbd">${escapeHtml(s.combo)}</span> ${escapeHtml(s.description || "")}</li>`;
   }
 
   // EM-054: kabul/ret geri bildirim döngüsü raporunu ac/kapa.
@@ -5636,6 +5797,13 @@
     if (fvRefresh) fvRefresh.addEventListener("click", loadFieldView);
     const fvEventSel = document.getElementById("fv-event");
     if (fvEventSel) fvEventSel.addEventListener("change", loadFieldView);
+
+    // EM-085: erişilebilirlik — panel düğmesi + katalog (tema/kodlama/kısayol) + genel kısayollar.
+    const a11yBtn = document.getElementById("a11y-open");
+    if (a11yBtn) a11yBtn.addEventListener("click", toggleAccessibilityPanel);
+    await loadAccessibility();
+    if (a11yConfig && a11yConfig.theme) a11yApplyTheme(a11yConfig.theme.default);
+    bindGlobalShortcuts();
 
     // EM-097: karar destek çerçevesi - öneri ekranında sorumluluk/versiyon şeridi
     // ve sentetik veri durumunda SENARYO VERİSİ rozeti (bir kez yüklenir).

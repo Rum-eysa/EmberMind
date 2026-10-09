@@ -219,6 +219,25 @@ artan sıralı, `FIELD_VIEW_RADIUS_KM` (vars. 25) yarıçapıyla süzülür ve
 `peak_risk_index` taşır. Arayüz `operator_map.html` **Saha Görünümü** panelidir;
 `@media (max-width: 640px)` ile dar ekranda tam genişliğe çıkar.
 
+#### Erişilebilirlik Sözleşmesi (EM-085)
+```
+GET  /api/v1/accessibility/config        # tema + renkten-bağımsız kodlama + palet + kısayollar
+GET  /api/v1/accessibility/risk-encodings # seviye başına renk + etiket + şekil + desen
+GET  /api/v1/accessibility/shortcuts      # belge düzeyi genel klavye kısayol kaydı
+```
+Uzun vardiya erişilebilirliği için **tek, deterministik kaynak** (yeni tablo yok,
+`persistence: none`): her FWI risk seviyesi **renk + Türkçe etiket + benzersiz
+şekil + tarama deseni** ile üç kanalda yineltilir — bilgi **asla yalnız renkle**
+taşınmaz (`color_only_information: false`). Renk `RISK_COLORS`'tan
+(`src.services.fwi`) **aktarılır**, asla burada yeniden yazılmaz, böylece sözleşme
+haritadaki boyayla sürüklenemez. `palette` Okabe-Ito niteliksel paletini
+(deuteranopia/protanopia/tritanopia doğrulanmış) önerir. `keyboard_shortcuts`
+belgede bağlanır: **Alt+T** tema (gece vardiyası), **Alt+P** panel düğmeleri
+arası gezinme, **Alt+K** arama odağı, **Alt+H** yardım, **Esc** kapat; yazı
+alanlarında tetiklenmez. Koyu tema zaten `tokens.css`'tedir, operatör seçimi
+EM-088 ile kalıcıdır. Arayüz `operator_map.html` **Erişilebilirlik** paneli ve
+belge-küresel kısayol bağlayıcısıdır.
+
 ### Proaktif Kaynak Konumlandırma (EM-052)
 ```
 GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri
