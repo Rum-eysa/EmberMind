@@ -1585,12 +1585,38 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1331** (1310 + 21 yeni).
 - **Commit:** `feat(EM-036): ...` (bu dal).
 
+### EM-097 — Karar destek uyarısı ve sorumluluk çerçevesi (#186) — DONE
+- **Eksik analizi:** Komutan, öneri ekranında sistemin bir **karar destek aracı**
+  olduğunu ve nihai kararın kendisinde (yetkili operatör) olduğunu net görmeli;
+  öneriyi üreten veri/model sürümü görünür olmalı; sentetik veride "SENARYO
+  VERİSİ" rozeti basılmalıdır (kabul #186). Bugüne dek yalnızca **kayıt-bazlı**
+  sentetik notu (`synthetic.py` notice, EM-035 `SYNTHETIC_LABEL`) ve EM-047 karar
+  atfı vardı; operatöre dönük **merkezi bir sorumluluk/sürüm çerçevesi** ve kalıcı
+  senaryo rozeti **yoktu** (`decision_support` kod tabanında yok). E10 Must (sp2).
+- **Kapsam kararları:** **salt okuma zamanı** yapılandırma projeksiyonu
+  (`persistence: none`, tablo/migration yok); `advisory_only` **her zaman** `true`
+  — sistem asla kararı otomatik uygulamaz; senaryo bayrağı ayardan okunur (pilot
+  bilerek sentetik; gerçek dağıtım bayrağı kapatınca rozet gizlenir), biz "gerçek
+  veri" diye sahtelemeyiz; boş/whitespace override'ları varsayılana düşer; E10
+  auth/identity kapsam dışı (yetkili operatör **adlı** rol, oturum açma değil).
+- **Uygulama:** Servis `decision_support.py`: `support_framing`
+  (`advisory_only`/`decision_owner`/`responsibility_statement`/`model_version`/
+  `data_version`/`scenario_data`/`scenario_badge`/`scenario_notice`),
+  `support_config` (varsayılanlar + `editable_settings` + etiket kataloğu).
+  `/api/v1/decision-support` + `/config` (salt-okunur, `del database`);
+  `settings.py` + `.env.example` (`DECISION_SUPPORT_*`); `fastapi_app` kaydı;
+  `operator_map` **Konuşlanma Önerileri** paneli altına sorumluluk/model/veri
+  şeridi + başlıkta `SENARYO VERİSİ` rozeti (açılışta bir kez çekilir). 10 test.
+- **Kapılar:** black(temiz, 251)/mypy(Success, 167 dosya)/pylint(10.00)/bandit(0)
+  yeşil; pytest **1341** (1331 + 10 yeni).
+- **Commit:** `feat(EM-097): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1603,8 +1629,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 234 değişmez · mypy Success (155 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1232 passed**.
+- **Final kapılar:** black 251 değişmez · mypy Success (167 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1341 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

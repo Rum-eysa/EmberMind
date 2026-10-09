@@ -494,6 +494,27 @@ class Config:
         "on",
     )
 
+    # EM-097: karar destek uyarısı ve sorumluluk çerçevesi (Epic E10)
+    # Komutan, öneri ekranında sistemin bir KARAR DESTEK aracı olduğunu ve nihai
+    # kararın kendisinde (yetkili operatör) olduğunu net görmelidir; öneriyi
+    # üreten veri/model sürümü de görünür olmalıdır. Pilot sentetik veriyle
+    # çalıştığı için "SENARYO VERİSİ" rozeti ekranda ayrım gözetmeksizin
+    # basılır. Kalıcılık: none (salt okuma zamanı yapılandırma projeksiyonu).
+    DECISION_SUPPORT_MODEL_VERSION = os.getenv(
+        "DECISION_SUPPORT_MODEL_VERSION", "spread-v1+recommend-v1"
+    )
+    DECISION_SUPPORT_DATA_VERSION = os.getenv(
+        "DECISION_SUPPORT_DATA_VERSION", "pilot-synthetic-2026.08"
+    )
+    DECISION_SUPPORT_RESPONSIBILITY_TEXT = os.getenv(
+        "DECISION_SUPPORT_RESPONSIBILITY_TEXT",
+        "Nihai karar yetkili operatöre aittir; EmberMind yalnızca bir karar destek "
+        "aracıdır ve önerileri otomatik uygulanmaz.",
+    )
+    DECISION_SUPPORT_SCENARIO_DATA = os.getenv(
+        "DECISION_SUPPORT_SCENARIO_DATA", "true"
+    ).lower() in ("1", "true", "yes", "on")
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:

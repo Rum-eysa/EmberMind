@@ -1123,6 +1123,23 @@ okuma hiçbir şey yazmaz ve mevcut alt-özellik denetim tablolarına dokunulmaz
 (yalnızca-eklenen `audit_trail`, **V030**). UI: `/ui` haritasındaki **Birleşik
 Denetim Kaydı** paneli (alan/aktör filtresi + alan sayımlı değişmez geçmiş).
 
+### Karar Destek Çerçevesi (EM-097)
+```
+GET    /api/v1/decision-support                         # sorumluluk ifadesi + veri/model sürümü + senaryo (sentetik) rozeti
+GET    /api/v1/decision-support/config                  # varsayılanlar + ayar düğmeleri + etiket kataloğu
+```
+Komutan, öneri ekranında sistemin bir **karar destek aracı** olduğunu ve nihai
+kararın kendisinde (**yetkili operatör**) olduğunu net görmeli; öneriyi üreten
+**veri/model sürümü** de görünür olmalıdır. Pilot sentetik veriyle çalıştığı için
+bu gerçek ekranda **SENARYO VERİSİ** rozeti olarak ayrım gözetmeksizin basılır;
+gerçek bir dağıtımda bayrak kapatılınca rozet gizlenir. `advisory_only` her zaman
+`true`dur — sistem asla kararı otomatik uygulamaz. Boş/whitespace ayar
+override'ları varsayılana düşer. Salt okuma zamanıdır: **hiçbir şey yazılmaz**
+(`persistence: none`). UI: `/ui` haritasındaki **Konuşlanma Önerileri** panelinin
+altında kalıcı sorumluluk/model/veri şeridi + başlıkta senaryo rozeti. Ayarlar:
+`DECISION_SUPPORT_MODEL_VERSION`, `_DATA_VERSION`, `_RESPONSIBILITY_TEXT`,
+`_SCENARIO_DATA`.
+
 ### Bölge Sinyal Baz Çizgisi (EM-035)
 ```
 GET    /api/v1/signal-baseline/config                  # kullanılabilir+planlanan kaynaklar, pencere sınırları, ızgara, duyarlılık

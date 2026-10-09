@@ -18,6 +18,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-097: Karar destek uyarısı ve sorumluluk çerçevesi — öneri ekranında kalıcı
+  sorumluluk/versiyon şeridi + sentetik veri rozeti (E10)
+  - Komutan, sistemin bir **karar destek aracı** olduğunu ve nihai kararın
+    kendisinde (yetkili operatör) olduğunu net görmeli; öneriyi üreten **veri/model
+    sürümü** görünür olmalı; pilot sentetik veriyle çalıştığında bu durum ekranda
+    **ayrım gözetmeksizin** basılmalıdır (kabul: "karar yetkili operatöre aittir"
+    ifadesi + sürüm görünür; sentetik veride "SENARYO VERİSİ" rozeti) — bugüne dek
+    yalnızca kayıt-bazlı sentetik notu vardı, operatöre dönük **merkezi bir sorumluluk
+    /sürüm çerçevesi** yoktu (`decision_support` kod tabanında yok)
+  - `src/services/decision_support.py` (kalıcılık `none`, salt okuma zamanı):
+    `support_framing` her zaman `advisory_only: true` + `decision_owner` +
+    `responsibility_statement` + `model_version`/`data_version` + `scenario_data`
+    durumunda `SENARYO VERİSİ` rozeti ve senaryo notu döner; rozet kapalıyken
+    `scenario_badge: null`; `support_config` varsayılanlar + düğmeler + etiket
+    kataloğu; boş/whitespace ayar override'ları varsayılana düşer
+  - `src/routes/decision_support.py`: salt-okunur `GET /api/v1/decision-support` +
+    `/config`; `DECISION_SUPPORT_MODEL_VERSION`/`_DATA_VERSION`/`_RESPONSIBILITY_TEXT`/
+    `_SCENARIO_DATA` (`settings.py` + `.env.example`); `fastapi_app` kaydı
+  - Operatör haritası **Konuşlanma Önerileri** paneli: listenin altında kalıcı
+    sorumluluk/model/veri şeridi + başlıkta `SENARYO VERİSİ` rozeti (`/api/v1/
+    decision-support` açılışta bir kez çekilir; sentetik değilse rozet gizli)
+  - 10 birim test (`tests/unit/test_decision_support.py`)
 - EM-036: Isolation Forest ile anomali skorlama — hücre bazında çok-özellikli
   öğrenilmiş anomali skoru + yapılandırılabilir sessizlik eşiği (E4)
   - EM-035 tek bir **elle seçilmiş** z-eşiğiyle, EM-043 ise mevsimselliği

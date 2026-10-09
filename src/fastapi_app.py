@@ -23,6 +23,7 @@ from src.routes.crossborder_notification import (
 )
 from src.routes.data_governance import register_data_governance_routes
 from src.routes.data_quality import register_data_quality_routes
+from src.routes.decision_support import register_decision_support_routes
 from src.routes.design_system import register_design_system_routes
 from src.routes.event_timeline import register_event_timeline_routes
 from src.routes.exposure import register_exposure_routes
@@ -448,6 +449,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_crossborder_notification_routes(api, database, settings)
     register_support_request_draft_routes(api, database, settings)
     register_design_system_routes(api, database, settings)
+    register_decision_support_routes(api, database, settings)
     register_ui_state_routes(api, database, settings)
     register_event_timeline_routes(api, database, settings)
     register_multi_fire_routes(api, database, settings)

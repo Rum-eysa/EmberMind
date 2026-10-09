@@ -87,6 +87,18 @@
         }
     #positioning-panel .mode-air { background: #1565c0; }
     #positioning-panel .mode-road { background: #6d4c41; }
+    /* EM-097: karar destek çerçevesi - sorumluluk/versiyon şeridi + senaryo rozeti */
+    #positioning-panel .ds-scenario {
+          background: #b71c1c; color: #fff; font-size: var(--font-size-xs);
+          padding: 0 5px; border-radius: 3px; font-weight: 700; vertical-align: middle;
+        }
+    #positioning-panel .ds-frame {
+          margin-top: 6px; padding: 5px 6px; border-top: 1px solid var(--border-color);
+          font-size: var(--font-size-xs); color: var(--text-secondary); line-height: 1.35;
+        }
+    #positioning-panel .ds-frame .ds-resp { font-weight: 700; color: var(--text-primary); }
+    #positioning-panel .ds-frame .ds-ver { margin-top: 2px; }
+    #positioning-panel .ds-frame .ds-notice { margin-top: 2px; font-style: italic; color: #b71c1c; }
     /* EM-048: etki karsilastirmasi butonu + yan yana risk tablosu */
     #positioning-panel .pi-btn {
           width: 100%; margin-top: 6px; padding: 5px 0; cursor: pointer;
@@ -838,8 +850,10 @@
   </div>
 
   <div id="positioning-panel" class="panel" aria-live="polite">
-    <h1>Konuşlanma Önerileri <span id="positioning-count" class="count"></span></h1>
+    <h1>Konuşlanma Önerileri <span id="positioning-count" class="count"></span>
+      <span id="ds-scenario" class="ds-scenario" title="Görünen veriler sentetik senaryo üretimidir" hidden>SENARYO VERİSİ</span></h1>
     <div id="positioning-list"></div>
+    <div id="ds-frame" class="ds-frame"></div>
     <button type="button" id="positioning-impact-btn" class="pi-btn" hidden
       onclick="loadImpactComparison()">Etki karşılaştırması (uygulanırsa vs uygulanmazsa)</button>
     <div id="positioning-impact" hidden></div>
@@ -1511,6 +1525,38 @@
         `<span class="t">T+${escapeHtml(p.first_impact_minutes)} dk</span>` +
         `<span class="pri" title="Öncelik skoru (EM-023)">${p.priority_score != null ? escapeHtml(p.priority_score) : ""}</span>`;
       box.appendChild(row);
+    }
+  }
+
+  // EM-097: karar destek çerçevesi - sorumluluk/versiyon şeridi + senaryo rozeti.
+  async function loadDecisionSupport() {
+    const frame = document.getElementById("ds-frame");
+    const badge = document.getElementById("ds-scenario");
+    if (!frame) return;
+    try {
+      const res = await fetch("/api/v1/decision-support");
+      const j = await res.json();
+      if (!res.ok) {
+        frame.innerHTML = '<div class="ds-notice">Karar destek çerçevesi'
+          + ' yüklenemedi.</div>';
+        return;
+      }
+      let html = '<div class="ds-resp">' + escapeHtml(j.responsibility_statement || "")
+        + '</div>';
+      html += '<div class="ds-ver">model: ' + escapeHtml(j.model_version || "—")
+        + ' · veri: ' + escapeHtml(j.data_version || "—") + '</div>';
+      if (j.scenario_data) {
+        html += '<div class="ds-notice">'
+          + escapeHtml(j.scenario_notice || "Sentetik senaryo verisi.") + '</div>';
+      }
+      frame.innerHTML = html;
+      if (badge) {
+        badge.hidden = !j.scenario_data;
+        if (j.scenario_badge) badge.textContent = j.scenario_badge;
+      }
+    } catch (err) {
+      frame.innerHTML = '<div class="ds-notice">Karar destek çerçevesi'
+        + ' yüklenemedi: ' + escapeHtml(err.message) + '</div>';
     }
   }
 
@@ -5138,6 +5184,10 @@
     if (sztBtn) sztBtn.addEventListener("click", toggleSZTPanel);
     const sztRefresh = document.getElementById("szt-refresh");
     if (sztRefresh) sztRefresh.addEventListener("click", loadSZT);
+
+    // EM-097: karar destek çerçevesi - öneri ekranında sorumluluk/versiyon şeridi
+    // ve sentetik veri durumunda SENARYO VERİSİ rozeti (bir kez yüklenir).
+    loadDecisionSupport();
   }
 
   init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));
