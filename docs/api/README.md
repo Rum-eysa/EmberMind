@@ -1123,6 +1123,24 @@ okuma hiçbir şey yazmaz ve mevcut alt-özellik denetim tablolarına dokunulmaz
 (yalnızca-eklenen `audit_trail`, **V030**). UI: `/ui` haritasındaki **Birleşik
 Denetim Kaydı** paneli (alan/aktör filtresi + alan sayımlı değişmez geçmiş).
 
+### API Dokümantasyonu ve Örnek İstemci (EM-095)
+```
+GET    /api/v1/api-docs                                  # birleşik paket: openapi + errors + rate_limits + examples
+GET    /api/v1/api-docs/config                           # OpenAPI kimlik metadata'sı (başlık/sürüm/taban URL/iletişim/lisans/etiketler)
+GET    /api/v1/api-docs/errors                           # birleşik HTTP hata sözleşmesi (400/401/404/409/422/429/500/503)
+GET    /api/v1/api-docs/rate-limits                      # EM-092 hız sözleşmesi (canlı ayardan; anahtar ifşa etmez)
+GET    /api/v1/api-docs/examples                         # kopyala-yapıştır cURL + Python örnek istemcileri
+```
+Entegratör API'yi hızla denemek ister. FastAPI zaten etkileşimli dokümanları
+yayarlar: **Swagger UI** `/docs`, **ReDoc** `/redoc`, ham şema `/openapi.json`.
+EM-095 bunları tamamlar: yayımlanan OpenAPI şeması artık bir **kimlik
+metadata'sı** (iletişim/lisans/servis şartları + etiket açıklamaları) taşır;
+ayrıca tek, dürüst bir **hata kodu** kataloğu, **EM-092 hız sınırı sözleşmesi**
+ve gerçek uçlara işaret eden **cURL/Python örnek istemcileri** sunulur. Güvenlik
+notu: örnekler **gerçek bir API anahtarı gömmez** — yalnızca `x-api-key` başlığı
+ve ortam yer tutucusu (`$WILDFIRE_API_KEY`) kullanılır. Kalıcılık `none` (salt
+okuma zamanı projeksiyon; tablo/migration/operatör paneli yok).
+
 ### Dış İstemci Erişim Kontrolü (EM-092)
 ```
 GET    /api/v1/external/status                          # API anahtarıyla korumalı örnek uç (401 / 429 / 200 + X-RateLimit-*)

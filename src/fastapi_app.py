@@ -16,6 +16,7 @@ from src.models.spatial import FireEvent, FireForecast, SilentRegion
 from src.models.topography import TopographyDataPoint
 from src.models.weather import WeatherDataPoint
 from src.routes.api_access import register_api_access_routes
+from src.routes.api_docs import register_api_docs_routes
 from src.routes.audit_trail import register_audit_trail_routes
 from src.routes.capacity import register_capacity_routes
 from src.routes.crossborder import register_crossborder_routes
@@ -83,6 +84,12 @@ from src.routes.user_preferences import register_user_preference_routes
 from src.routes.webhook import register_webhook_routes
 from src.routes.whatif import register_whatif_routes
 from src.routes.whatif_history import register_whatif_history_routes
+from src.services.api_docs import (
+    OPENAPI_CONTACT,
+    OPENAPI_LICENSE,
+    OPENAPI_TAGS,
+    OPENAPI_TERMS,
+)
 from src.services.data_governance import attribution_for
 from src.services.effis import EffisSourceError, import_effis_perimeters
 from src.services.fire_sync import sync_firms, sync_status
@@ -424,6 +431,16 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
             "data, every record explicitly labelled) for demo use."
         ),
         lifespan=lifespan,
+        # EM-095: publish a documented, self-describing OpenAPI surface. The
+        # interactive docs (Swagger UI / ReDoc / raw schema) are enabled
+        # explicitly and the schema carries maintainer + license identity.
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        openapi_tags=OPENAPI_TAGS,
+        contact=dict(OPENAPI_CONTACT),
+        license_info=dict(OPENAPI_LICENSE),
+        terms_of_service=OPENAPI_TERMS,
     )
     api.state.database = database
     api.state.settings = settings
@@ -452,6 +469,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_design_system_routes(api, database, settings)
     register_decision_support_routes(api, database, settings)
     register_api_access_routes(api, database, settings)
+    register_api_docs_routes(api, database, settings)
     register_ui_state_routes(api, database, settings)
     register_event_timeline_routes(api, database, settings)
     register_multi_fire_routes(api, database, settings)

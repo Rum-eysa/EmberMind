@@ -18,6 +18,24 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-095: API dokümantasyonu ve örnek istemci — kimlik metadata'lı OpenAPI +
+  birleşik hata/hız sınırı kataloğu + kopyala-yapıştır cURL/Python istemcileri (E9)
+  - Entegratör API'yi **hızla denemek** ister (kabul: "OpenAPI/Swagger yayında;
+    cURL ve Python örnek istemci sağlanır; hata kodları ve hız sınırları
+    belgelenir") — FastAPI zaten `/docs` ve `/openapi.json` yayınlar ancak sema
+    kimlik metadata'sı (iletişim/lisans/etiket açıklamaları) taşımıyordu; okunur
+    bir **hata kodu** kataloğu ve **örnek istemci** hiç **yoktu**
+  - `src/services/api_docs.py` (kalıcılık `none`, salt okuma zamanı projeksiyon):
+    `openapi_meta` (başlık/sürüm/taban URL/iletişim/lisans/etiketler), `error_codes`
+    (400/401/404/409/422/429/500/503 gerçek sözleşme), `rate_limit_docs` (EM-092
+    hız sözleşmesini **canlı** ayardan okur), `example_clients` (cURL + Python);
+    örnekler **gerçek anahtar gömmez** — yalnızca `x-api-key` başlığı + ortam yer
+    tutucusu; `docs_bundle`
+  - `src/routes/api_docs.py`: `GET /api/v1/api-docs` (+ `/config`, `/errors`,
+    `/rate-limits`, `/examples`) salt-okunur uçlar (`del database`); `fastapi_app`
+    constructor'ına `contact`/`license_info`/`terms_of_service`/`openapi_tags` ve
+    açık `docs_url`/`redoc_url`/`openapi_url` eklendi; `settings.py` + `.env.example`
+    (`API_DOCS_BASE_URL`, `API_DOCS_CONTACT_EMAIL`); tablo/migration/operatör paneli yok. 21 test.
 - EM-092: API anahtarı ve hız sınırlama — dış istemciler için anahtarla
   yetkilendirme + sabit-pencere hız kesesi (E9)
   - Sistem yöneticisi, dış entegrasyonları bir **API anahtarıyla yetkilendirip**

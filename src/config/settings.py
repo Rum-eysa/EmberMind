@@ -535,6 +535,14 @@ class Config:
         os.getenv("API_ACCESS_RATE_LIMIT_WINDOW_SECONDS", "60")
     )
 
+    # EM-095: API dokümantasyonu ve örnek istemci (Epic E9)
+    # Entegratör API'yi hızla denemek ister; FastAPI zaten /docs (Swagger) ve
+    # /openapi.json yayınlar, ancak şemanın bir kimlik metadata'sı (iletişim/
+    # lisans) ve okunur bir taban URL'si olmalıdır. Örnek istemciler bu taban
+    # URL üzerinde üretilir. Kalıcılık: none (salt okuma zamanı projeksiyon).
+    API_DOCS_BASE_URL = os.getenv("API_DOCS_BASE_URL", "http://localhost:8000")
+    API_DOCS_CONTACT_EMAIL = os.getenv("API_DOCS_CONTACT_EMAIL", "")
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:
@@ -814,6 +822,8 @@ class TestingConfig(Config):
     API_ACCESS_KEYS = "test-external-key-alpha,test-external-key-beta"  # nosec B105
     API_ACCESS_RATE_LIMIT_REQUESTS = 1000
     API_ACCESS_RATE_LIMIT_WINDOW_SECONDS = 60.0
+    # EM-095: fixed base URL so example-client snippets are deterministic in tests.
+    API_DOCS_BASE_URL = "http://testserver"
 
 
 class ProductionConfig(Config):
