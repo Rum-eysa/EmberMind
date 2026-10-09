@@ -13,10 +13,12 @@ from datetime import timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import src.models  # noqa: F401,E402  (populate Base.metadata for a full reset)
+from src.config.settings import Config  # noqa: E402
 from src.database import Database  # noqa: E402
 from src.models.exposure import ExposedAsset  # noqa: E402
 from src.models.road_network import RoadSegment  # noqa: E402
 from src.models.spatial import FireForecast  # noqa: E402
+from src.services.auth import bootstrap_demo_user, demo_credentials  # noqa: E402
 from src.services.synthetic import (  # noqa: E402
     SYNTHETIC_LABEL,
     build_dataset,
@@ -228,10 +230,16 @@ def seed_demo(database: Database, seed: int, preset: str, reset: bool = False) -
         database.create_all()
 
     dataset = build_dataset(seed, preset=preset)
+    settings = Config()
     with database.session() as session:
         counts = persist_dataset(session, dataset)
         record_run(session, dataset, persisted=True, preset=preset)
         exposure = seed_exposure_demo(session, dataset["fire"])
+        # EM-098: provision one clearly-labelled demo operator only when the
+        # user table is empty, so the login flow is real end to end offline.
+        demo_email, _ = demo_credentials(settings)
+        created = bootstrap_demo_user(session, settings) is not None
+        session.commit()
 
     return {
         "reset": reset,
@@ -240,6 +248,7 @@ def seed_demo(database: Database, seed: int, preset: str, reset: bool = False) -
         "scenario_tag": dataset["meta"]["scenario_tag"],
         "counts": counts,
         "exposure": exposure,
+        "demo_account": {"email": demo_email, "created": created},
         "synthetic_label": SYNTHETIC_LABEL,
     }
 

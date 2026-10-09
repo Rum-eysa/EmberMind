@@ -238,6 +238,32 @@ alanlarında tetiklenmez. Koyu tema zaten `tokens.css`'tedir, operatör seçimi
 EM-088 ile kalıcıdır. Arayüz `operator_map.html` **Erişilebilirlik** paneli ve
 belge-küresel kısayol bağlayıcısıdır.
 
+#### Kimlik Doğrulama ve Oturum (EM-098)
+```
+GET  /api/v1/auth/config        # oturum politikası + roller + hash/kilit ayarları
+POST /api/v1/auth/login         # e-posta/parola → opak bearer token + oturum
+GET  /api/v1/auth/me            # bearer'ı kullanıcıya çözer (Authorization: Bearer)
+POST /api/v1/auth/logout        # sunulan oturumu anında geçersiz kılar
+GET  /api/v1/auth/users         # hesap özetleri (digest asla dışarı çıkmaz)
+POST /api/v1/auth/users         # yeni hesap açar (yinelenen e-posta/zayıf parola → 400)
+POST /api/v1/auth/bootstrap-demo # yalnız hesap yoksa etiketli demo operatörü
+```
+Epic E10'un kişi katmanı: sistemin bundan önce **hiç** girişi yoktu, her panel
+serbest metin `updated_by`'ye güveniyordu. Parola asla saklanmaz — yalnızca tuzlu
+**PBKDF2-HMAC-SHA256** özeti (`iterations$salt_hex$hash_hex`, sabit-zamanlı
+karşılaştırma). Giriş opak bir `secrets` bearer token üretir; veritabanına sadece
+onun **SHA-256 parmak izi** yazılır, böylece sızan bir tablo yeniden
+oynatılamaz. Oturum **üç yolla ölür**: saltık TTL (`AUTH_SESSION_TTL_MINUTES`),
+kayan hareketsizlik süresi (`AUTH_IDLE_TIMEOUT_MINUTES`, her yetkili okumada
+ileri alınır) ve çıkışta anında revocation. Brute-force: `AUTH_MAX_FAILED_LOGINS`
+hatadan sonra hesap `AUTH_LOCKOUT_MINUTES` kilitlenir; retler **sayım-güvenli**
+birleşiktir — e-postanın varlığı asla sızdırılmaz, eksik hesap da bir hash
+maliyetiyle aynı mesajla reddedilir. HTTP eşlemesi: `401` (kimlik/oturum), `423`
+(kilitli), `400` (doğrulama). Roller EM-099 sözlüğüdür; burada saklanır/geri
+dönülür ama **yetki uygulama EM-099'un işidir**. Kalıcılık: `users` +
+`user_sessions` (V034). Arayüz `operator_map.html` giriş/oturum kartıdır;
+`demo_seed.py` boş kurulumda ayarlardan parolalı demo operatörü oluşturur.
+
 ### Proaktif Kaynak Konumlandırma (EM-052)
 ```
 GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri

@@ -18,6 +18,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-098: kimlik doğrulama — e-posta/parola girişi + sunucu taraflı oturum (E10)
+  - Sistemin **hiç** girişi yoktu: her panel ve denetim satırı, isteyenin
+    kendisi yazdığı serbest metin `updated_by` etiketine güveniyordu; tek erişim
+    kontrolü EM-092 API anahtarıydı ve o bir *entegrasyonu* yetkilendirir, bir
+    *kişiyi* değil (kabul: "e-posta/parola girişi; oturum süresi ve çıkış
+    yönetimi")
+  - `src/models/auth.py` + `V034`: `users` (tuzlu PBKDF2-HMAC-SHA256 parolası,
+    rol, brute-force sayaçları) + `user_sessions` (yalnızca token'ın SHA-256
+    parmak izi saklanır; ham token asla yazılmaz)
+  - `src/services/auth.py`: saltık TTL + kayan hareketsizlik (idle) süresi +
+    çıkışta anında revocation ile oturan üç yollu oturum ömrü; N hatadan sonra
+    geçici hesap kilidi; **sayım-güvenli** birleşik ret (e-postanın var olup
+    olmadığı asla sızdırılmaz, eksik hesap da aynı maliyette reddedilir); demo
+    hesabı yalnızca tablo boşken ve parolası ayarlardan gelir
+  - Uçlar: `GET /api/v1/auth/config`, `POST /login`, `GET /me`,
+    `POST /logout`, `GET/POST /users`, `POST /bootstrap-demo`
+    (401 kimlik/oturum, 423 kilitli, 400 doğrulama eşlemesi)
+  - Düzeltme: reddedilen girişte başarısız-deneme sayacı/klidi artık commit
+    ediliyor — önceki akış hata durumunda geri alıyor, brute-force koruması
+    istekler arasında kayboluyordu
+  - UI: `operator_map.html` giriş/oturum kartı (oturumda kim + çıkış);
+    `demo_seed.py` boş kurulumda demo operatörü oluşturur
 - EM-085: erişilebilirlik sözleşmesi — renk körü güvenli palet + renkten-bağımsız
   risk kodlaması + belge düzeyi genel klavye kısayolları (E8)
   - Koyu tema ve ham renk jetonları EM-075 tasarım sisteminde zaten vardı

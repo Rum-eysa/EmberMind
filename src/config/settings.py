@@ -535,6 +535,29 @@ class Config:
         os.getenv("API_ACCESS_RATE_LIMIT_WINDOW_SECONDS", "60")
     )
 
+    # EM-098: kimlik doğrulama — e-posta/parola + oturum süresi (Epic E10)
+    # Kullanıcı sisteme güvenli giriş yapmak ister; bugün her yüzey anonimdir
+    # (kayıtlara yalnızca serbest metin "updated_by" yazılır). Parola asla
+    # saklanmaz — tuzlu PBKDF2-HMAC-SHA256 özeti tutulur; oturum tokenı opak-
+    # tır ve yalnızca SHA-256 parmak izi kalıcıdır. Oturum üç yolla ölür: mutlak
+    # TTL, hareketsizlik (idle) zaman aşımı ve anında çıkış (revocation). Giriş
+    # hataları N denemeden sonra hesabı geçici kilitler; reddi mesajları
+    # birleşiktir (e-posta varlığı hiçbir zaman sızdırılmaz). Kalıcılık:
+    # users + user_sessions (V034).
+    AUTH_SESSION_TTL_MINUTES = int(os.getenv("AUTH_SESSION_TTL_MINUTES", "240"))
+    AUTH_IDLE_TIMEOUT_MINUTES = int(os.getenv("AUTH_IDLE_TIMEOUT_MINUTES", "30"))
+    AUTH_MAX_FAILED_LOGINS = int(os.getenv("AUTH_MAX_FAILED_LOGINS", "5"))
+    AUTH_LOCKOUT_MINUTES = int(os.getenv("AUTH_LOCKOUT_MINUTES", "15"))
+    AUTH_PBKDF2_ITERATIONS = int(os.getenv("AUTH_PBKDF2_ITERATIONS", "100000"))
+    AUTH_MIN_PASSWORD_LENGTH = int(os.getenv("AUTH_MIN_PASSWORD_LENGTH", "12"))
+    # Demo/bootstrap hesabi yalnizca kullanici tablosu BOS iken olusturulur.
+    AUTH_DEMO_BOOTSTRAP_EMAIL = os.getenv(
+        "AUTH_DEMO_BOOTSTRAP_EMAIL", "demo.operator@embermind.local"
+    )
+    AUTH_DEMO_BOOTSTRAP_PASSWORD = os.getenv(  # nosec B105 - demo default
+        "AUTH_DEMO_BOOTSTRAP_PASSWORD", "embermind-demo"
+    )
+
     # EM-095: API dokümantasyonu ve örnek istemci (Epic E9)
     # Entegratör API'yi hızla denemek ister; FastAPI zaten /docs (Swagger) ve
     # /openapi.json yayınlar, ancak şemanın bir kimlik metadata'sı (iletişim/
@@ -885,6 +908,17 @@ class TestingConfig(Config):
     API_ACCESS_KEYS = "test-external-key-alpha,test-external-key-beta"  # nosec B105
     API_ACCESS_RATE_LIMIT_REQUESTS = 1000
     API_ACCESS_RATE_LIMIT_WINDOW_SECONDS = 60.0
+    # EM-098: fixed session policy with a cheap PBKDF2 round count so login /
+    # session tests stay fast and deterministic; the demo bootstrap account is
+    # seeded by an explicit endpoint call in the tests, never implicitly.
+    AUTH_SESSION_TTL_MINUTES = 240
+    AUTH_IDLE_TIMEOUT_MINUTES = 30
+    AUTH_MAX_FAILED_LOGINS = 3
+    AUTH_LOCKOUT_MINUTES = 10
+    AUTH_PBKDF2_ITERATIONS = 1000
+    AUTH_MIN_PASSWORD_LENGTH = 8
+    AUTH_DEMO_BOOTSTRAP_EMAIL = "demo.operator@embermind.test"
+    AUTH_DEMO_BOOTSTRAP_PASSWORD = "test-demo-password"  # nosec B105
     # EM-095: fixed base URL so example-client snippets are deterministic in tests.
     API_DOCS_BASE_URL = "http://testserver"
     # EM-093: deterministic CAP sender + language for template tests.

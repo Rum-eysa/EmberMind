@@ -1,5 +1,6 @@
 """Persisted wildfire models."""
 from .audit_trail import AuditTrailEntry
+from .auth import User, UserSession
 from .capacity import CapacityAssumption
 from .capacity_audit import CapacityAssumptionAudit
 from .crossborder_notification import CrossborderNotification
@@ -76,7 +77,9 @@ __all__ = [
     "SpreadPerformanceRun",
     "SuppressionResource",
     "TopographyDataPoint",
+    "User",
     "UserPreference",
+    "UserSession",
     "WeatherDataPoint",
     "WebhookDelivery",
     "WebhookSubscription",

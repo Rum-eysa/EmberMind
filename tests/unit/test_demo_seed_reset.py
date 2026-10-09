@@ -152,6 +152,7 @@ def test_seed_demo_report_shape(test_db, demo_seed):
         "counts",
         "exposure",
         "synthetic_label",
+        "demo_account",
     }
     assert report["preset"] == "standart"
     assert "forecasts" in report["exposure"]

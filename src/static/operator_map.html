@@ -349,6 +349,17 @@
     #a11y-panel .kbd { font-family: monospace; border: 1px solid var(--border-color);
       border-radius: 4px; padding: 0 5px; background: var(--surface-color, #f4f4f4); }
     #a11y-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    /* EM-098: giriş/oturum paneli — token yalnızca sessionStorage'da, asla localStorage'da */
+    #auth-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                 border: 1px solid var(--border-color); border-radius: 6px;
+                 background: none; }
+    #auth-panel .auth-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #auth-panel .auth-user { font-size: var(--font-size-sm, 13px); margin-bottom: 2px; }
+    #auth-panel .auth-role { font-weight: 700; text-transform: lowercase; }
+    #auth-panel .auth-err { color: var(--risk-high, #d55e00); font-size: var(--font-size-xs); }
+    #auth-panel input { width: 100%; padding: 4px 6px; box-sizing: border-box;
+      border: 1px solid var(--border-color); border-radius: 6px;
+      background: var(--surface-color, #fff); color: inherit; }
     /* EM-084: mobil/tablet — dar ekranda panel tam genişlik, temel yazılar okunur kalır */
     @media (max-width: 640px) {
       #fieldview-panel { top: 56px; left: 6px; right: 6px; width: auto;
@@ -887,6 +898,9 @@
     <button type="button" id="a11y-open"
       title="EM-085 erişilebilirlik — renk körü güvenli risk kodlaması (renk+etiket+şekil+desen), tema ve genel klavye kısayolları">
       Erişilebilirlik</button>
+    <button type="button" id="auth-open"
+      title="EM-098 kimlik doğrulama — e-posta/parola girişi, oturum süresi (TTL + hareketsizlik) ve güvenli çıkış">
+      Giriş</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -1081,6 +1095,11 @@
   <div id="a11y-panel" class="panel" aria-live="polite">
     <h1>Erişilebilirlik ve Kısayollar</h1>
     <div id="a11y-body"></div>
+  </div>
+
+  <div id="auth-panel" class="panel" aria-live="polite">
+    <h1>Giriş ve Oturum</h1>
+    <div id="auth-body"></div>
   </div>
 
   <div id="timeline-panel" class="panel" aria-live="polite">
@@ -1473,6 +1492,11 @@
   let a11yConfig = null;             // /api/v1/accessibility/config yanıtı (kısayol/kodlama)
   let a11yPanelKeys = [];            // Alt+P ile gezilen operatör paneli anahtarları
   let a11yPanelIndex = -1;           // gezilen panelin sırası
+  // EM-098: kimlik doğrulama — Bearer oturum sessionStorage'da yaşar (sekme-özel).
+  let authPanelOpen = false;
+  let authConfig = null;             // /api/v1/auth/config yanıtı (TTL/idle/kilitleme)
+  let authToken = null;              // ham bearer token — yalnızca sessionStorage'da
+  let authSession = null;            // /api/v1/auth/me yanıtı (girişliyse dolu)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2330,6 +2354,109 @@
   }
   function renderA11yShortcut(s) {
     return `<li><span class="kbd">${escapeHtml(s.combo)}</span> ${escapeHtml(s.description || "")}</li>`;
+  }
+
+  // EM-098: kimlik doğrulama — e-posta/parola girişi, Bearer oturum, güvenli çıkış.
+  const AUTH_API = "/api/v1/auth";
+  const AUTH_TOKEN_KEY = "embermind.auth.token";
+
+  async function toggleAuthPanel() {
+    const panel = document.getElementById("auth-panel");
+    if (!panel) return;
+    if (authPanelOpen) { authPanelOpen = false; panel.style.display = "none"; return; }
+    authPanelOpen = true;
+    panel.style.display = "block";
+    await loadAuth();
+  }
+
+  async function loadAuth() {
+    const box = document.getElementById("auth-body");
+    if (!box) return;
+    panelLoading(box, "auth");
+    try {
+      authToken = sessionStorage.getItem(AUTH_TOKEN_KEY) || null;
+      if (!authConfig) {
+        const cfg = await fetch(`${AUTH_API}/config`);
+        authConfig = await cfg.json();
+      }
+      if (authToken) {
+        const me = await fetch(`${AUTH_API}/me`, { headers: { Authorization: `Bearer ${authToken}` } });
+        if (me.ok) authSession = await me.json();
+        else { authSession = null; if (me.status === 401) sessionStorage.removeItem(AUTH_TOKEN_KEY); }
+      } else {
+        authSession = null;
+      }
+      renderAuth(box);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("auth", "Kimlik doğrulama hizmeti yanıt vermedi: " + err.message);
+    }
+  }
+
+  function renderAuth(box) {
+    if (authSession && authSession.user) {
+      const u = authSession.user;
+      const exp = new Date(authSession.session.expires_at);
+      box.innerHTML =
+        `<div class="auth-user"><strong>${escapeHtml(u.display_name)}</strong>` +
+        ` <span class="auth-role">${escapeHtml(u.role)}</span></div>` +
+        `<div class="auth-meta">${escapeHtml(u.email)} · oturum bitişi ${escapeHtml(exp.toLocaleString())}` +
+        ` · hareketsizlik limiti ${authConfig ? authConfig.session.idle_timeout_minutes : "?"} dk</div>` +
+        `<div style="margin-top:8px"><button type="button" id="auth-logout">Güvenli çıkış</button></div>`;
+      const btn = document.getElementById("auth-logout");
+      if (btn) btn.addEventListener("click", authLogout);
+      return;
+    }
+    const s = authConfig ? authConfig.session : { ttl_minutes: "?", idle_timeout_minutes: "?" };
+    box.innerHTML =
+      `<div class="auth-meta">Oturum: mutlak ${escapeHtml(String(s.ttl_minutes))} dk` +
+      ` · hareketsizlik ${escapeHtml(String(s.idle_timeout_minutes))} dk ·` +
+      ` hatalı girişte hesap geçici kilitlenir</div>` +
+      `<form id="auth-login-form" style="margin-top:8px;display:flex;flex-direction:column;gap:6px">` +
+      `<input id="auth-email" type="email" placeholder="e-posta" autocomplete="username" required>` +
+      `<input id="auth-password" type="password" placeholder="parola" autocomplete="current-password" required>` +
+      `<button type="submit" class="btn">Giriş yap</button></form>`;
+    const form = document.getElementById("auth-login-form");
+    if (form) form.addEventListener("submit", authSubmit);
+  }
+
+  async function authSubmit(ev) {
+    ev.preventDefault();
+    const email = document.getElementById("auth-email").value;
+    const password = document.getElementById("auth-password").value;
+    const box = document.getElementById("auth-body");
+    try {
+      const res = await fetch(`${AUTH_API}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        const why = (j && j.detail && j.detail.error) || "giriş başarısız";
+        box.innerHTML =
+          `<div class="auth-err">Giriş reddedildi: ${escapeHtml(String(why))}</div>` +
+          `<div class="auth-meta">Reddi yanıtı birleşiktir — hesap varlığı hakkında bilgi verilmez.</div>`;
+        return;
+      }
+      authToken = j.token;
+      sessionStorage.setItem(AUTH_TOKEN_KEY, j.token);
+      await loadAuth();
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("auth", "Giriş isteği başarısız: " + err.message);
+    }
+  }
+
+  async function authLogout() {
+    try {
+      await fetch(`${AUTH_API}/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken || ""}` },
+      });
+    } catch (e) { /* sunucu ulaşılamazsa yerel temizlik yine yapılır */ }
+    sessionStorage.removeItem(AUTH_TOKEN_KEY);
+    authToken = null;
+    authSession = null;
+    await loadAuth();
   }
 
   // EM-054: kabul/ret geri bildirim döngüsü raporunu ac/kapa.
@@ -5804,6 +5931,11 @@
     await loadAccessibility();
     if (a11yConfig && a11yConfig.theme) a11yApplyTheme(a11yConfig.theme.default);
     bindGlobalShortcuts();
+
+    // EM-098: kimlik doğrulama — panel düğmesi + sessiz oturum geri yükleme.
+    const authBtn = document.getElementById("auth-open");
+    if (authBtn) authBtn.addEventListener("click", toggleAuthPanel);
+    await loadAuth();
 
     // EM-097: karar destek çerçevesi - öneri ekranında sorumluluk/versiyon şeridi
     // ve sentetik veri durumunda SENARYO VERİSİ rozeti (bir kez yüklenir).

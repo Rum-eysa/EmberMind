@@ -48,6 +48,7 @@ PANEL_KEYS = (
     "map_interaction",
     "field_view",
     "accessibility",
+    "auth",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -78,6 +79,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Erişilebilirlik kataloğu döndüğünde kısayollar ve risk kodlamaları burada listelenir.",
         "error": "Erişilebilirlik kataloğu alınamadı.",
         "error_action": "Bağlantınızı kontrol edip yeniden deneyin; sürerse tema/kısayol düğmelerini kullanın.",
+    },
+    "auth": {
+        "title": "Kimlik doğrulama",
+        "loading": "Oturum politikası yükleniyor…",
+        "empty": "Henüz oturum yok; e-posta ve parola ile giriş yapın.",
+        "error": "Kimlik doğrulama hizmeti yanıt vermedi.",
+        "error_action": "Bilgileri kontrol edip yeniden deneyin; hesap kilitlendiyse kilit süresinin dolmasını bekleyin.",
     },
     "exposure": {
         "title": "Tehdit altındaki yapılar",
