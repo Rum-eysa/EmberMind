@@ -789,6 +789,13 @@ class Config:
     MAP_SEARCH_MAX_RESULTS = int(os.getenv("MAP_SEARCH_MAX_RESULTS", "8"))
     MAP_MEASURE_MAX_POINTS = int(os.getenv("MAP_MEASURE_MAX_POINTS", "100"))
 
+    # EM-084: mobile/tablet field view (Epic E8). The proximity radius (km) within
+    # which active risk zones are surfaced to the team's phone, and the cap on how
+    # many nearest zones are shown. A read-only projection of EM-051 cards + EM-029
+    # risk; nothing here persists.
+    FIELD_VIEW_RADIUS_KM = float(os.getenv("FIELD_VIEW_RADIUS_KM", "25.0"))
+    FIELD_VIEW_MAX_ITEMS = int(os.getenv("FIELD_VIEW_MAX_ITEMS", "5"))
+
     # EM-066: cross-border shared situation view (Epic E7). FireEvent stores
     # only a coordinate, so each incident is attributed to TR (east) or GR
     # (west) by this pilot border longitude (deg East) - a deliberate
@@ -879,6 +886,10 @@ class TestingConfig(Config):
     MAP_DEFAULT_BASEMAP = "street"
     MAP_SEARCH_MAX_RESULTS = 8
     MAP_MEASURE_MAX_POINTS = 100
+    # EM-084: fixed field-view proximity knobs so the mobile projection tests are
+    # deterministic regardless of the ambient environment.
+    FIELD_VIEW_RADIUS_KM = 25.0
+    FIELD_VIEW_MAX_ITEMS = 5
 
 
 class ProductionConfig(Config):

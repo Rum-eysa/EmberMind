@@ -200,6 +200,25 @@ sorgusu her zaman ilk `coordinate` sonucunu üretir (canlı jeokodlayıcıya gid
 nokta ister, azami `MAP_MEASURE_MAX_POINTS` köye ve aralık doğrulamasına tabidir
 (ihlalde `422`). Kalıcılık yoktur (`persistence: none`).
 
+#### Mobil/Tablet Saha Görünümü (EM-084)
+```
+GET  /api/v1/field-view                 # telefondan okunur görev kartı + yakın risk bölgesi
+GET  /api/v1/field-view/config          # yarıçap/öğe sınırı + veri kaynakları
+```
+Saha ekip liderinin telefonda tek bakışta okuyacağı kompakt, **salt-okunur**
+görünüm; iki mevcut motoru birleştirir (yeni tablo yok, `persistence: none`):
+ekibin **EM-051 görev kartı(ları)** ve referes noktasına göre **en yakın EM-029
+aktif risk bölge(leri)**. Sorgu parametreleri: `event_key` (bilinmeyen olay →
+**404**), `resource_key` (kartları tek birime indirger), `latitude`/`longitude`
+(“buradan” ölçüm merkezini elle verir). Merkez verilmezse ekibin ilk görev
+kartının hedefi kullanılır; kart da yoksa görünüm **meşru biçimde boş** döner
+(hata değil — arayüz boş durumunu çizer). `nearby_risks` büyük-daire mesafesiyle
+artan sıralı, `FIELD_VIEW_RADIUS_KM` (vars. 25) yarıçapıyla süzülür ve
+`FIELD_VIEW_MAX_ITEMS` (vars. 5) ile sınırlanır; her satır `distance_km`,
+`bearing_deg` (kuzeyden 0–360°, çakışan noktada `null`), `peak_level` ve
+`peak_risk_index` taşır. Arayüz `operator_map.html` **Saha Görünümü** panelidir;
+`@media (max-width: 640px)` ile dar ekranda tam genişliğe çıkar.
+
 ### Proaktif Kaynak Konumlandırma (EM-052)
 ```
 GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri

@@ -1803,12 +1803,43 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   taranmaz)/bandit(-ll 0) yeşil; pytest **1507** (1462 + 45 yeni).
 - **Commit:** `feat(EM-080): ...` (bu dal).
 
+### EM-084 — Mobil/tablet saha görünümü: görev kartı + yakın risk (#84) — DONE
+- **Eksik analizi:** Saha ekip lideri karakosa dönmeden telefonundan görevini ve
+  yakın risk bölgesini okumak ister (kabul #84: "Saha ekibi görev kartını ve yakın
+  risk bölgesini telefonda okuyabilir"). Görev kartı (EM-051) ve risk indeksi
+  (EM-029) ayrı masaüstü yüzeylerde mevcut; ancak ikisini birleştiren,
+  yakınlığa-duyarlı tek kompakt görünüm **yoktu** (`field_view`/`saha görünümü`
+  kod tabanında yok; `operator_map.html`'de hiçbir `@media` sorgusu yoktu). E8
+  Should (sp3). Not: EM-085 (gerçek kullanıcı testi ister) ve EM-090/091 canlı
+  akış/REST zaten mevcut → EM-084 gerçek boşluk.
+- **Kapsam kararları:** Salt-okunur **projeksiyon** (`persistence none`, yeni
+  tablo/migration yok) — iki mevcut motoru yeniden kullanır: EM-051
+  `generate_task_cards` + EM-029 `compute_risk_index`. Referans noktası = elle
+  verilen koordinat, yoksa ilk kartın hedefi; kart ve konum yoksa görünüm **meşru
+  biçimde boş** döner (UI boş durumu) — yalnızca **bilinmeyen olay** hata (404).
+  Mesafe `auto_recompute.haversine_km` ile büyük-daire; yön `bearing_deg` ile
+  eklenir. Operatör paneli → `ui_states` `field_view` anahtarı + `@media` responsive.
+- **Uygulama:** `src/services/field_view.py`: `field_view` (kartlar + yarıçapla
+  süzülmüş, mesafeyle sıralı, `FIELD_VIEW_MAX_ITEMS` ile sınırlı yakın risk;
+  `reference.origin` = `coordinates`/`task_card_target`/`none`), `field_view_config`
+  (yarıçap/öğe aralıkları + kaynaklar + `risk_levels`), `FieldViewError`. Rota
+  `src/routes/field_view.py` (`GET /api/v1/field-view` + `/config`; 404
+  `detail.status=not_found`) + `fastapi_app` kaydı. `settings.py`
+  (`FIELD_VIEW_RADIUS_KM`/`FIELD_VIEW_MAX_ITEMS`, Config + TestingConfig) +
+  `.env.example`; `ui_states`'e `field_view` anahtarı. UI: `operator_map.html`
+  **Saha Görünümü** paneli (olay/kaynak/konum girdileri + görev kartı + yakın risk
+  rozetleri) + `#fieldview-panel .lv-*` rozetleri + operatör haritasındaki **ilk**
+  `@media (max-width: 640px)` responsive blok. 19 test (`test_field_view.py`).
+- **Kapılar:** black(temiz, 273)/mypy(Success, 181 dosya)/pylint(10.00)/bandit(-ll 0)
+  yeşil; pytest **1526** (1507 + 19 yeni).
+- **Commit:** `feat(EM-084): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1821,8 +1852,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 270 değişmez · mypy Success (179 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1507 passed**.
+- **Final kapılar:** black 273 değişmez · mypy Success (181 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1526 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

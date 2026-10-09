@@ -30,6 +30,7 @@ from src.routes.design_system import register_design_system_routes
 from src.routes.event_timeline import register_event_timeline_routes
 from src.routes.exposure import register_exposure_routes
 from src.routes.external_support import register_external_support_routes
+from src.routes.field_view import register_field_view_routes
 from src.routes.fwi import register_fwi_routes
 from src.routes.historical_fire import register_historical_fire_routes
 from src.routes.i18n import register_i18n_routes
@@ -461,6 +462,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_exposure_routes(api, database, settings)
     register_map_layer_routes(api, database, settings)
     register_map_interaction_routes(api, database, settings)
+    register_field_view_routes(api, database, settings)
     register_positioning_routes(api, database, settings)
     register_recommendation_routes(api, database, settings)
     register_recommendation_explain_routes(api, database, settings)

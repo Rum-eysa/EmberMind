@@ -305,6 +305,39 @@
     #maptool-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                    border: 1px solid var(--border-color); border-radius: 6px;
                    background: none; }
+    /* EM-084: saha görünümü — telefondan okunur kompakt görev kartı + yakın risk */
+    #fieldview-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 300px; max-height: 68vh; overflow-y: auto;
+      font-size: var(--font-size-sm); display: none;
+    }
+    #fieldview-panel h1 { margin-bottom: 4px; }
+    #fieldview-panel .subform { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    #fieldview-panel .subform input { font-size: var(--font-size-xs); width: 84px; }
+    #fieldview-panel select { font-size: var(--font-size-xs); max-width: 140px; }
+    #fieldview-panel .fv-card { border: 1px solid var(--border-color); border-radius: 8px;
+      padding: 6px 8px; margin: 6px 0; }
+    #fieldview-panel .fv-h { font-weight: 700; }
+    #fieldview-panel .fv-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #fieldview-panel .fv-risk { display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border-color); padding: 4px 0; }
+    #fieldview-panel .fv-dist { font-weight: 700; }
+    #fieldview-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #fieldview-panel .lv { border-radius: 3px; font-weight: 700; padding: 0 4px; font-size: var(--font-size-xxs, 10px); }
+    #fieldview-panel .lv-normal { background: #e8f5e9; color: #1b5e20; }
+    #fieldview-panel .lv-dikkat { background: #fff8e1; color: #f57f17; }
+    #fieldview-panel .lv-kritik-yakin { background: #fff3e0; color: #e65100; }
+    #fieldview-panel .lv-kritik { background: #ffebee; color: #b71c1c; }
+    #fieldview-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                     border: 1px solid var(--border-color); border-radius: 6px;
+                     background: none; }
+    /* EM-084: mobil/tablet — dar ekranda panel tam genişlik, temel yazılar okunur kalır */
+    @media (max-width: 640px) {
+      #fieldview-panel { top: 56px; left: 6px; right: 6px; width: auto;
+        max-height: 80vh; font-size: var(--font-size-base); }
+      #fieldview-panel .subform { flex-wrap: wrap; }
+      .panel { max-width: none; }
+    }
     /* EM-081: olay zaman çizelgesi — kronolojik akış, kategori filtresi */
     #timeline-panel {
       position: absolute; top: 70px; right: 284px; z-index: 1000;
@@ -830,6 +863,9 @@
     <button type="button" id="maptool-open"
       title="EM-080 harita aracı — sokak/uydu/arazi altlığı seç, yer adı veya koordinat ara, mesafe/alan ölç">
       Harita Aracı</button>
+    <button type="button" id="fieldview-open"
+      title="EM-084 saha görünümü — telefondan okunur görev kartı + konuma göre en yakın risk bölgesi">
+      Saha Görünümü</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -997,6 +1033,28 @@
       <button type="button" id="mt-clear">Temizle</button>
     </div>
     <div class="ro" id="mt-measure">Mesafe/alan için bir mod seçin, sonra haritaya tıklayın.</div>
+  </div>
+
+  <div id="fieldview-panel" class="panel" aria-live="polite">
+    <h1>Saha Görünümü <span id="fv-count" class="count"></span></h1>
+    <label class="evt">Olay
+      <select id="fv-event" aria-label="Saha görünümü olay filtresi">
+        <option value="">Tüm atanmış görevler</option>
+      </select>
+    </label>
+    <div class="subform">
+      <label>Kaynak
+        <input type="text" id="fv-resource" size="12" placeholder="resource_key">
+      </label>
+      <button type="button" id="fv-refresh">Yenile</button>
+    </div>
+    <div class="subform">
+      <label>Konum (enlem, boylam) — opsiyonel:
+        <input type="text" id="fv-lat" size="6" placeholder="37.03">
+        <input type="text" id="fv-lon" size="6" placeholder="27.43">
+      </label>
+    </div>
+    <div id="fv-body"></div>
   </div>
 
   <div id="timeline-panel" class="panel" aria-live="polite">
@@ -1381,6 +1439,9 @@
   let mtMarkers = null;              // ölçüm tepe işaretleri (L.LayerGroup)
   let mtShape = null;                // ölçüm poliline/poligon katmanı
   let mtSearchMarker = null;         // arama sonucu odak işareti
+  // EM-084: saha görünümü — telefondan okunur görev kartı + yakın risk bölgesi.
+  let fieldviewPanelOpen = false;
+  let fvConfig = null;               // /api/v1/field-view/config yanıtı (yarıçap/sınır)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -1519,6 +1580,7 @@
         }
       }
       populateExposureEvents();
+      populateFieldViewEvents();
     }
     if (key === "forecasts") {
       forecastAll = data;
@@ -1978,6 +2040,134 @@
       + ` · ${eta}${travel}${dist}${arrival}</div>`
       + '<div class="tc-meta">' + risk + ' · kabul: '
       + escapeHtml(c.accepted_at || "—") + by + '</div>'
+      + '</div>';
+  }
+
+  // EM-084: saha görünümü — telefondan okunur görev kartı + en yakın risk bölge(leri).
+  const FIELDVIEW_API = "/api/v1/field-view";
+  function populateFieldViewEvents() {
+    const sel = document.getElementById("fv-event");
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Tüm atanmış görevler</option>';
+    for (const ev of fireEvents) {
+      const opt = document.createElement("option");
+      opt.value = ev.event_key;
+      opt.textContent = ev.name || ev.event_key;
+      sel.appendChild(opt);
+    }
+    if (current) sel.value = current;
+  }
+  async function toggleFieldViewPanel() {
+    const panel = document.getElementById("fieldview-panel");
+    if (fieldviewPanelOpen) {
+      fieldviewPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    fieldviewPanelOpen = true;
+    panel.style.display = "block";
+    await loadFieldViewConfig();
+    loadFieldView();
+  }
+  async function loadFieldViewConfig() {
+    try {
+      const res = await fetch(`${FIELDVIEW_API}/config`);
+      if (!res.ok) return;
+      fvConfig = await res.json();
+    } catch (err) {
+      fvConfig = null;
+    }
+  }
+  async function loadFieldView() {
+    const box = document.getElementById("fv-body");
+    if (!box) return;
+    panelLoading(box, "field_view");
+    const params = new URLSearchParams();
+    const ev = (document.getElementById("fv-event") || {}).value || "";
+    const rk = ((document.getElementById("fv-resource") || {}).value || "").trim();
+    const lat = ((document.getElementById("fv-lat") || {}).value || "").trim();
+    const lon = ((document.getElementById("fv-lon") || {}).value || "").trim();
+    if (ev) params.set("event_key", ev);
+    if (rk) params.set("resource_key", rk);
+    if (lat !== "") params.set("latitude", lat);
+    if (lon !== "") params.set("longitude", lon);
+    const qs = params.toString();
+    try {
+      const res = await fetch(FIELDVIEW_API + (qs ? `?${qs}` : ""));
+      const j = await res.json();
+      if (!res.ok) {
+        box.innerHTML = panelErrorHtml("field_view",
+          (j && j.detail && j.detail.error) || "Saha görünümü alınamadı.");
+        return;
+      }
+      renderFieldView(j);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("field_view", "Saha görünümü alınamadı: " + err.message);
+      setStatus(`Saha görünümü alınamadı: ${err.message}`);
+    }
+  }
+  function renderFieldView(j) {
+    const box = document.getElementById("fv-body");
+    const countEl = document.getElementById("fv-count");
+    const cards = j.cards || [];
+    const risks = j.nearby_risks || [];
+    if (countEl) countEl.textContent = `(${cards.length})`;
+    if (!cards.length && !risks.length) {
+      panelEmpty(box, "field_view",
+        "Atanmış görev yok; bir kaynak/olay seçin veya konum girin.");
+      return;
+    }
+    const ref = j.reference || {};
+    const originLabel = ref.origin === "coordinates" ? "konumunuz"
+      : ref.origin === "task_card_target" ? "hedefiniz" : "—";
+    let html = '<div class="fv-meta">Merkez: ' + originLabel
+      + (ref.latitude != null
+        ? ` (${escapeHtml(ref.latitude)}, ${escapeHtml(ref.longitude)})` : "")
+      + ` · yarıçap ${escapeHtml(j.radius_km)} km</div>`;
+    html += '<div class="fv-h">Görev kartı</div>';
+    if (!cards.length) {
+      html += '<div class="empty">Bu ekip için atanmış görev yok.</div>';
+    } else {
+      for (const c of cards) html += renderFieldViewCard(c);
+    }
+    html += '<div class="fv-h">Yakın risk bölgeleri</div>';
+    if (!risks.length) {
+      html += '<div class="empty">Yarıçap içinde aktif risk bölgesi yok.</div>';
+    } else {
+      for (const r of risks) html += renderFieldViewRisk(r);
+    }
+    box.innerHTML = html;
+  }
+  function renderFieldViewCard(c) {
+    const t = c.target || {};
+    const rn = c.risk_note;
+    const eta = c.eta_minutes != null
+      ? `ETA ${escapeHtml(c.eta_minutes)} dk` : "ETA —";
+    const dist = c.distance_km != null ? ` · ${escapeHtml(c.distance_km)} km` : "";
+    const arrival = c.arrival_eta ? ` · varış ${escapeHtml(c.arrival_eta)}` : "";
+    const risk = rn
+      ? `<span class="lv lv-${escapeHtml(rn.level || "normal")}">${escapeHtml(rn.level || "-")}</span>`
+      : "risk notu yok";
+    return '<div class="fv-card">'
+      + '<div class="fv-h">' + escapeHtml(c.resource_name || c.resource_key)
+      + ' (' + escapeHtml(c.resource_type || "?") + ')</div>'
+      + '<div class="fv-meta">Hedef: ' + escapeHtml(t.name || "—")
+      + (t.latitude != null ? ` (${escapeHtml(t.latitude)}, ${escapeHtml(t.longitude)})` : "")
+      + ` · ${eta}${dist}${arrival}</div>`
+      + '<div class="fv-meta">' + risk + '</div>'
+      + '</div>';
+  }
+  function renderFieldViewRisk(r) {
+    const lv = r.peak_level || "normal";
+    const bearing = r.bearing_deg != null ? ` · ${escapeHtml(r.bearing_deg)}°` : "";
+    const idx = r.peak_risk_index != null ? ` risk ${escapeHtml(r.peak_risk_index)}` : "";
+    const horizon = r.peak_horizon_minutes != null
+      ? ` (T+${escapeHtml(r.peak_horizon_minutes)} dk)` : "";
+    return '<div class="fv-risk">'
+      + '<span><b>' + escapeHtml(r.name || r.event_key) + '</b>'
+      + `<span class="lv lv-${escapeHtml(lv)}">${escapeHtml(lv)}</span>${idx}${horizon}</span>`
+      + '<span class="fv-dist">' + escapeHtml(r.distance_km) + ' km' + bearing + '</span>'
       + '</div>';
   }
 
@@ -5438,6 +5628,14 @@
     });
     // Ölçüm modundayken haritaya tıklama noktayı toplar (EM-078 panelleriyle çakışmaz).
     map.on("click", measureClick);
+
+    // EM-084: saha görünümü — aç/kapa + olay/kaynak/konum denetimleri.
+    const fieldviewBtn = document.getElementById("fieldview-open");
+    if (fieldviewBtn) fieldviewBtn.addEventListener("click", toggleFieldViewPanel);
+    const fvRefresh = document.getElementById("fv-refresh");
+    if (fvRefresh) fvRefresh.addEventListener("click", loadFieldView);
+    const fvEventSel = document.getElementById("fv-event");
+    if (fvEventSel) fvEventSel.addEventListener("change", loadFieldView);
 
     // EM-097: karar destek çerçevesi - öneri ekranında sorumluluk/versiyon şeridi
     // ve sentetik veri durumunda SENARYO VERİSİ rozeti (bir kez yüklenir).

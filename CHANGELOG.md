@@ -32,6 +32,21 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     `MAP_MEASURE_MAX_POINTS` (`.env.example` dokümante)
   - UI: `operator_map.html` altlık seçici + arama kutusu + mesafe/alan ölçüm
     modu (haritaya tıklanan noktalar poligon/polilin olarak çizilir)
+- EM-084: mobil/tablet saha görünümü — telefondan okunur görev kartı + yakın risk (E8)
+  - Saha ekip lideri görevini ve yakın risk bölgesini karakosa dönmeden telefonda
+    okumak ister (kabul: “Saha ekibi görev kartını ve yakın risk bölgesini telefonda
+    okuyabilir”); görev kartı (EM-051) ve risk indeksi (EM-029) ayrı yüzeylerdeydi,
+    ama ikisini birleştiren yakındalık-duyarlı tek görünüm yoktu
+  - `src/services/field_view.py`: deterministik salt-okunur projeksiyon — ekibin
+    EM-051 görev kartı(ları) + referans noktasına göre büyük-daire mesafesiyle
+    sıralı, yarıçap/öğe sınırıyla süzülmüş en yakın EM-029 aktif risk bölge(leri);
+    merkez = elle verilen koordinat, yoksa ilk kartın hedefi; kalıcılık yok
+  - Uçlar: `GET /api/v1/field-view`, `GET /api/v1/field-view/config`
+    (bilinmeyen olay → 404; kart/konum yoksa meşru boş görünüm)
+  - Ayarlar: `FIELD_VIEW_RADIUS_KM` (vars. 25.0), `FIELD_VIEW_MAX_ITEMS` (vars. 5)
+    (`.env.example` dokümante)
+  - UI: `operator_map.html` **Saha Görünümü** paneli + `@media (max-width: 640px)`
+    responsive blok (operatör haritasındaki ilk medya sorgusu — dar ekranda tam genişlik)
 - EM-107: senaryo oynatma (replay) kontrolü — oynat / duraklat / hız çarpanı (E11)
   - Sunum akışını zamanla yönetilebilir kılmak için EM-105 kütüphanesindeki
     senaryoların kendi rüzgâr geçmişi adımları bir zaman çizelgesine (kare)

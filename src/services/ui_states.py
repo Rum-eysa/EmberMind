@@ -46,6 +46,7 @@ PANEL_KEYS = (
     "silent_zone_verification",
     "silent_zone_tuning",
     "map_interaction",
+    "field_view",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -62,6 +63,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Arama için bir yer adı yazın ya da 'enlem, boylam' girin; ölçüm için haritaya noktalar tıklayın.",
         "error": "Harita etkileşimi açılamadı.",
         "error_action": "Arama metnini/noktaları kontrol edip yeniden deneyin; sürerse bağlantıyı gözden geçirin.",
+    },
+    "field_view": {
+        "title": "Saha Görünümü (mobil/tablet)",
+        "loading": "Görev kartı ve yakın risk bölgeleri derleniyor…",
+        "empty": "Atanmış görev yok; bir kaynak/olay seçin veya konum girin.",
+        "error": "Saha görünümü alınamadı.",
+        "error_action": "Kaynak/olay seçimini ve konumu kontrol edip yeniden deneyin; sürerse bağlantıyı gözden geçirin.",
     },
     "exposure": {
         "title": "Tehdit altındaki yapılar",
