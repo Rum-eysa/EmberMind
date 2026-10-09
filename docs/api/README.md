@@ -1089,6 +1089,24 @@ ve `preset=library:<anahtar>` damgalı bir `ScenarioRun` denetim kaydı bırakı
 durumuna döner (tek yineleme, çift kayıt yok). Tüm çıktı `SENTETİK VERİ` etiketi
 ve atıf şeridiyle işaretlidir; `preview` hiçbir şey kalıcılaştırmaz.
 
+### Senaryo Oynatma Kontrolü (EM-107)
+```
+GET    /api/v1/scenarios/playback/config              # hız aralığı, kare aralığı, kontroller
+GET    /api/v1/scenarios/playback/{key}/frames        # senaryonun sıralı kare zaman çizelgesi
+GET    /api/v1/scenarios/playback/{key}/plan          # seçilen hız çarpanıyla duvar-saati çizelgesi
+GET    /api/v1/scenarios/playback/{key}/cursor        # geçen duvar süresinden mevcut kare + ilerleme
+```
+EM-105'in `replay`'i (geri sar = sil + yeniden tohumla) ile **karıştırılmamalıdır**:
+EM-107, başlatılmış bir senaryonun ekran zamanını sürer — **oynat / duraklat / hız
+çarpanı**. Kareler senaryonun kendi rüzgâr geçmişi adımlarından **okuma zamanı**
+türetilir (kalıcılık/yeni tablo yok; aynı `(seed, config)` → aynı kare sırası). İki
+saat ayrılır: **senaryo saati** (karenin `offset_hours`'ı) ve **duvar saati** (kareler
+arası gerçek bekleme = `PLAYBACK_FRAME_INTERVAL_SECONDS`); hız çarpanı duvar aralığını
+böler (`4x` → çeyrek bekleme), duraklatma istemcide geçen süreyi dondurur. `plan`
+hızlı-duvar çizelgesini, `cursor` geçen süreden `(current_index, finished, progress)`
+çözümünü döndürür. Hız çarpanı `(0, PLAYBACK_MAX_SPEED_FACTOR]` penceresine sıkıştırılır.
+Tüm çıktı `SENTETİK VERİ` etiketi ve atıf şeridiyle işaretlidir.
+
 ### Olay & Uyarı Webhook'ları (EM-094)
 ```
 GET    /api/v1/webhooks/config                         # geçerli olay tipleri, imza şeması, sınırlar

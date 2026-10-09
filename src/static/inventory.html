@@ -100,6 +100,31 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
         <div id="scen-list" class="em-stack"></div>
         <p class="em-muted" id="scen-result"></p>
       </div>
+
+      <div class="em-card">
+        <h2 class="em-card__title">Senaryo Oynatma Kontrolü
+          <span class="em-badge">EM-107</span></h2>
+        <p class="em-muted">Başlatılan senaryonun zaman çizelgesini yönet:
+          oynat / duraklat / hız çarpanı. Kareler rüzgâr geçmişi adımlarından
+          okuma zamanı türetilir (kalıcılık yok). Tümü <b>sentetik</b>.</p>
+        <div class="em-row" style="gap:var(--space-2);flex-wrap:wrap">
+          <select id="pb-scenario" class="em-input" aria-label="Senaryo"></select>
+          <button id="pb-play" class="em-btn em-btn--sm" type="button">Oynat</button>
+          <button id="pb-pause" class="em-btn em-btn--secondary em-btn--sm"
+                  type="button" disabled>Duraklat</button>
+          <button id="pb-reset" class="em-btn em-btn--secondary em-btn--sm"
+                  type="button">Başa al</button>
+          <label class="em-muted" for="pb-speed">Hız</label>
+          <select id="pb-speed" class="em-input" aria-label="Hız çarpanı"></select>
+        </div>
+        <div class="em-row" style="justify-content:space-between;margin-top:var(--space-2)">
+          <span class="em-muted">Kare <b id="pb-index">–</b> / <span id="pb-count">–</span></span>
+          <span class="em-muted" id="pb-time"></span>
+        </div>
+        <progress id="pb-progress" max="1" value="0" style="width:100%;margin-top:var(--space-1)"></progress>
+        <div id="pb-frame" class="kv" style="display:grid;gap:var(--space-1);margin-top:var(--space-2)"></div>
+        <p class="em-muted" id="pb-result"></p>
+      </div>
     </section>
 
     <section class="em-stack">
@@ -451,6 +476,118 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
     .addEventListener("click", onScenClick);
   loadLibrary().catch(err => {
     $("scen-result").textContent = `Kütüphane yüklenemedi: ${err.message}`;
+  });
+
+  // EM-107: senaryo oynatma kontrolü — oynat / duraklat / hız çarpanı.
+  const PB = "/api/v1/scenarios/playback";
+  let pbFrames = [];
+  let pbIndex = 0;
+  let pbInterval = 2.0; // 1x'te kare başına gerçek saniye (config'den)
+  let pbTimer = null;
+
+  function pbSpeed() { return parseFloat($("pb-speed").value) || 1.0; }
+
+  function pbRenderFrame() {
+    const f = pbFrames[pbIndex];
+    if (!f) return;
+    $("pb-index").textContent = f.index + 1;
+    $("pb-time").textContent =
+      `senaryo saati +${f.offset_hours} sa · ${f.scenario_time}`;
+    $("pb-progress").value = pbFrames.length > 1 ? f.index / (pbFrames.length - 1) : 1;
+    $("pb-frame").innerHTML = [
+      ["Rüzgâr hızı", `${f.wind_speed_kmh} km/sa`],
+      ["Rüzgâr yönü", `${f.wind_from_deg}°`],
+      ["Sıcaklık", `${f.air_temp_c} °C`],
+      ["Nem", `%${f.relative_humidity_pct}`],
+    ].map(([k, v]) =>
+      `<div class="em-row" style="justify-content:space-between">
+         <span class="em-muted">${k}</span><b>${v}</b></div>`).join("");
+  }
+
+  function pbStop() {
+    if (pbTimer) { clearInterval(pbTimer); pbTimer = null; }
+    $("pb-play").disabled = false;
+    $("pb-pause").disabled = true;
+  }
+
+  function pbScheduleTick() {
+    const wallMs = Math.max(120, (pbInterval / pbSpeed()) * 1000);
+    if (pbTimer) clearInterval(pbTimer);
+    pbTimer = setInterval(() => {
+      if (pbIndex >= pbFrames.length - 1) {
+        pbStop();
+        $("pb-result").textContent = "Oynatma bitti.";
+        return;
+      }
+      pbIndex += 1;
+      pbRenderFrame();
+    }, wallMs);
+  }
+
+  function pbPlay() {
+    if (!pbFrames.length) return;
+    if (pbIndex >= pbFrames.length - 1) pbIndex = 0;
+    pbRenderFrame();
+    $("pb-play").disabled = true;
+    $("pb-pause").disabled = false;
+    pbScheduleTick();
+    $("pb-result").textContent = `Oynatılıyor · ${pbSpeed()}x`;
+  }
+
+  function pbPause() {
+    pbStop();
+    $("pb-result").textContent = `Duraklatıldı · kare ${pbIndex + 1}`;
+  }
+
+  function pbReset() {
+    pbStop();
+    pbIndex = 0;
+    if (pbFrames.length) pbRenderFrame();
+    $("pb-result").textContent = "";
+  }
+
+  async function pbLoadFrames(key) {
+    pbStop();
+    const res = await fetch(`${PB}/${key}/frames`);
+    const body = await res.json();
+    if (!res.ok) {
+      $("pb-result").textContent = `Çizelge açılamadı: ${res.status}`;
+      return;
+    }
+    pbFrames = body.frames;
+    pbIndex = 0;
+    $("pb-count").textContent = body.frame_count;
+    pbRenderFrame();
+  }
+
+  async function pbInit() {
+    const res = await fetch(`${PB}/config`);
+    const cfg = await res.json();
+    if (!res.ok) {
+      $("pb-result").textContent = `Oynatma ayarları açılamadı: ${res.status}`;
+      return;
+    }
+    pbInterval = cfg.frame_interval_seconds || 2.0;
+    $("pb-scenario").innerHTML = (cfg.scenarios || []).map(s =>
+      `<option value="${s.key}">${s.title}</option>`).join("");
+    $("pb-speed").innerHTML = (cfg.speed_presets || [1]).map(v =>
+      `<option value="${v}" ${v === cfg.default_speed_factor ? "selected" : ""}>${v}x</option>`).join("");
+    if (cfg.scenarios && cfg.scenarios.length) {
+      await pbLoadFrames(cfg.scenarios[0].key);
+    }
+    $("pb-result").textContent = cfg.attribution;
+  }
+
+  $("pb-scenario").addEventListener("change", e => pbLoadFrames(e.target.value));
+  $("pb-play").addEventListener("click", pbPlay);
+  $("pb-pause").addEventListener("click", pbPause);
+  $("pb-reset").addEventListener("click", pbReset);
+  $("pb-speed").addEventListener("change", () => {
+    if (pbTimer) pbScheduleTick();
+    $("pb-result").textContent = `Hız: ${pbSpeed()}x`;
+  });
+  pbInit().catch(err => {
+    $("pb-result").textContent = `Oynatma başlatılamadı: ${err.message}`;
   });
 
   // EM-075 tema anahtarı (operatör tercihini panelle paylaşırlar).

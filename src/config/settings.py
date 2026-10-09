@@ -561,6 +561,19 @@ class Config:
     # senaryosunun yangın boylamı buradan gelir (demo bbox içine sıkıştırılır).
     SCENARIO_BORDER_LON = float(os.getenv("SCENARIO_BORDER_LON", "28.85"))
 
+    # EM-107: senaryo oynatma (replay) kontrolü (Epic E11)
+    # Sunum akışını zamanla yönetilebilir kılmak için: her kare belirli bir
+    # gerçek-zaman aralığında ilerler; hız çarpanı bu aralığı böler (4x → çeyrek
+    # bekleme). Kareler okuma zamanı EM-104/EM-105 verisinden türetilir; burada
+    # kalıcılık yok (yeni tablo gerekmez). Duraklatma istemci tarafı bir durak.
+    PLAYBACK_DEFAULT_SPEED_FACTOR = float(
+        os.getenv("PLAYBACK_DEFAULT_SPEED_FACTOR", "1.0")
+    )
+    PLAYBACK_MAX_SPEED_FACTOR = float(os.getenv("PLAYBACK_MAX_SPEED_FACTOR", "8.0"))
+    PLAYBACK_FRAME_INTERVAL_SECONDS = float(
+        os.getenv("PLAYBACK_FRAME_INTERVAL_SECONDS", "2.0")
+    )
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:
@@ -848,6 +861,11 @@ class TestingConfig(Config):
     # EM-105: fixed notional border longitude so the border scenario dataset is
     # byte-deterministic across activation/replay assertions.
     SCENARIO_BORDER_LON = 28.85
+    # EM-107: deterministic playback knobs (fixed speed/interval) so the frame
+    # timeline and wall-clock schedule are stable across tests.
+    PLAYBACK_DEFAULT_SPEED_FACTOR = 1.0
+    PLAYBACK_MAX_SPEED_FACTOR = 8.0
+    PLAYBACK_FRAME_INTERVAL_SECONDS = 2.0
 
 
 class ProductionConfig(Config):

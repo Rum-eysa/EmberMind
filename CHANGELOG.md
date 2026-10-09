@@ -18,6 +18,22 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-107: senaryo oynatma (replay) kontrolü — oynat / duraklat / hız çarpanı (E11)
+  - Sunum akışını zamanla yönetilebilir kılmak için EM-105 kütüphanesindeki
+    senaryoların kendi rüzgâr geçmişi adımları bir zaman çizelgesine (kare)
+    dönüştürülür; kareler **okuma zamanı** EM-104/EM-105 verisinden türetilir,
+    kalıcılık/yeni tablo yoktur (aynı `(seed, config)` → aynı kare sırası)
+  - İki saat ayrılır: **senaryo saati** (karenin simüle ettiği `offset_hours`)
+    ve **duvar saati** (kareler arası gerçek bekleme); hız çarpanı duvar
+    aralığını böler (`4x` → çeyrek bekleme), duraklatma istemci tarafı bir durak
+  - `src/services/scenario_playback.py`: `timeline_frames`, `playback_plan`,
+    `frame_at` (geçen duvar süresinden mevcut kare + ilerleme), `playback_config`
+  - Uçlar: `GET /api/v1/scenarios/playback/config`, `/…/{key}/frames`,
+    `/…/{key}/plan?speed_factor=`, `/…/{key}/cursor?elapsed_seconds=&speed_factor=`
+  - Ayarlar: `PLAYBACK_DEFAULT_SPEED_FACTOR`, `PLAYBACK_MAX_SPEED_FACTOR`,
+    `PLAYBACK_FRAME_INTERVAL_SECONDS` (`.env.example` dokümante)
+  - UI: `inventory.html` "Senaryo Oynatma Kontrolü" kartı (senaryo seç +
+    oynat/duraklat/başa al + hız seçici + kare göstergesi/ilerleme çubuğu)
 - EM-106: tek komutla demo veritabanı sıfırlama + seed (E11)
   - Demo sunucusu tekrar tekrar aynı temiz durumdan başlamak ister; önceki
     `demo_seed.py` yalnızca tablo oluşturup veriyi **yukarı-yazımlı** (upsert)

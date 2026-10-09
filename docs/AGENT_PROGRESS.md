@@ -1748,11 +1748,37 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
 - **Commit:** `feat(EM-106): ...` (bu dal).
 
 
+### EM-107 — Senaryo oynatma (replay) kontrolü (#196) — DONE
+- **Eksik analizi:** Sunum akışını zamanla yönetmek için oynat/duraklat/hız
+  çarpanı istenir (kabul: "Oynat/duraklat/hız çarpanı. Demo akışı zamanlamayla
+  yönetilebilir"). EM-105 `replay`'i geri sar (sil + yeniden tohumla) anlamına
+  gelir; **kare-tabanlı zaman ilerletme oynatma motoru yoktu** (grep
+  `playback|oynat|duraklat|hız çarpanı` yalnızca whatif/webhook eşleşmeleri verdi).
+  E11 Should (sp3).
+- **Kapsam kararları:** Operatör/koordikatör yüzü → servis + rota + `inventory.html`
+  UI kartı. Kalıcılık **yok** (kareler okuma zamanı EM-104/EM-105 verisinden türetilir;
+  yeni tablo/migration gerekmez); CLI değil panel olduğu için `ui_states` anahtarı
+  gerekmez (envanter ekranı, operatör haritası değil). İki saat ayrımı: senaryo
+  saati (`offset_hours`) ve duvar saati (`PLAYBACK_FRAME_INTERVAL_SECONDS`).
+- **Uygulama:** `src/services/scenario_playback.py`: `timeline_frames` (rüzgâr
+  geçmişi adımları → sıralı kareler), `playback_plan` (hız çarpanıyla duvar-saati
+  çizelgesi; hız `(0, PLAYBACK_MAX_SPEED_FACTOR]` penceresine sıkıştırılır),
+  `frame_at` (geçen duvar süresinden `current_index`/`finished`/`progress` —
+  duraklatma = geçen süreyi dondurur), `playback_config`. Rota
+  `src/routes/scenario_playback.py` (`config`/`frames`/`plan`/`cursor`) +
+  `fastapi_app` kaydı. Ayarlar `PLAYBACK_*` (settings + `.env.example`). UI:
+  `inventory.html` senaryo/hız seçici + oynat/duraklat/başa al + kare göstergesi +
+  ilerleme çubuğu. 23 test (`test_scenario_playback.py`).
+- **Kapılar:** black(temiz, 267)/mypy(Success, 177 dosya)/pylint(10.00)/bandit(-ll 0)
+  yeşil; pytest **1462** (1439 + 23 yeni).
+- **Commit:** `feat(EM-107): ...` (bu dal).
+
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1765,8 +1791,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 264 değişmez · mypy Success (175 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1439 passed**.
+- **Final kapılar:** black 267 değişmez · mypy Success (177 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1462 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
