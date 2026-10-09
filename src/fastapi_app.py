@@ -42,6 +42,7 @@ from src.routes.isolation_forest_anomaly import (
 )
 from src.routes.live import register_live_routes
 from src.routes.localization import register_localization_routes
+from src.routes.map_interaction import register_map_interaction_routes
 from src.routes.map_layers import register_map_layer_routes
 from src.routes.municipality_view import register_municipality_view_routes
 from src.routes.multi_fire import register_multi_fire_routes
@@ -459,6 +460,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_spread_routes(api, database, settings)
     register_exposure_routes(api, database, settings)
     register_map_layer_routes(api, database, settings)
+    register_map_interaction_routes(api, database, settings)
     register_positioning_routes(api, database, settings)
     register_recommendation_routes(api, database, settings)
     register_recommendation_explain_routes(api, database, settings)

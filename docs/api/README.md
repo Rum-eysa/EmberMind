@@ -184,6 +184,22 @@ kaynak rotaları (LineString, `T+dk` ETA etiketli) + konuşlanma noktaları (Poi
 ile ufuklar arasında gezilir (kümülatif gösterim seçeneği ile).
 Her yanıtta kaynak lisansı gereği `attribution` alanı döner (EM-013).
 
+#### Harita Etkileşimi — Altyapı, Arama ve Ölçüm (EM-080)
+```
+GET  /api/v1/map/config              # altlık kataloğu + arama/ölçüm sınırları
+GET  /api/v1/map/search?q=           # yer adı VEYA "enlem, boylam" koordinat araması
+POST /api/v1/map/measure/distance    # polilin boyunca büyük-daire mesafesi (km)
+POST /api/v1/map/measure/area        # çokgen jeodezik alanı (ha / km²)
+```
+Üç salt-okunur operatör aracı; hepsi deterministik ve çevrimdışıdır:
+`config` sokak/uydu/arazi altlıklarını (kutu URL'si + atıf + azami yakınlaştırma)
+ve varsayılan altlığı (`MAP_DEFAULT_BASEMAP`) döner. `search` kodla gelen küratörlü
+Ege gazetteer'ı üzerinde vurgu/harf-duyarsız olmayan eşleşme yapar; ham koordinat
+sorgusu her zaman ilk `coordinate` sonucunu üretir (canlı jeokodlayıcıya gidilmez).
+`measure/*` girdisi `[enlem, boylam]` noktalarıdır; mesafe en az 2, alan en az 3
+nokta ister, azami `MAP_MEASURE_MAX_POINTS` köye ve aralık doğrulamasına tabidir
+(ihlalde `422`). Kalıcılık yoktur (`persistence: none`).
+
 ### Proaktif Kaynak Konumlandırma (EM-052)
 ```
 GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri

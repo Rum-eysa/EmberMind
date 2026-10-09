@@ -1773,12 +1773,42 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1462** (1439 + 23 yeni).
 - **Commit:** `feat(EM-107): ...` (bu dal).
 
+### EM-080 — Harita etkileşimi: altlık + yer/koordinat arama + ölçüm (#80) — DONE
+- **Eksik analizi:** Operatör bir yangını "çevresiyle" değerlendirmek için aynı
+  haritada üç şeye ihtiyaç duyar (kabul: sokak/uydu/arazi altlıkları arası geçiş;
+  yer adı **ve** ham koordinat araması; mesafe/alan ölçüm aracı). Operatör
+  haritasında tek sabit OSM kutu katmanı vardı; altlık seçimi, arama ve ölçüm yoktu.
+  E8 Should.
+- **Kapsam kararları:** Salt-okunur, deterministik ve **çevrimdışı** araçlar →
+  servis + rota + `operator_map.html` UI. Kalıcılık **yok** (`persistence none`):
+  gazetteer kodla gelir, koordinatlar operatör tarafından yazılır, ölçümler
+  geçicidir — yeni tablo/migration gerekmez. Canlı jeokodlayıcıya **bilinçli olarak
+  gidilmez** (demo çevrimdışı koşar ve deterministik kalmalıdır; tersine-jeokod
+  ikisini de sağlayamazdı). Country etikyeti EM-066 sınır-boylamı sezgisi değil,
+  gazetteer'da yetkili etikettir (iki özellik dürüst kalır).
+- **Uygulama:** `src/services/map_interaction.py`: `BASEMAPS` kataloğu (URL +
+  atıf + `max_zoom`), `default_basemap` (bilinmeyen→`MapInteractionError`),
+  `parse_coordinate` (işaretli ondalık `enlem, boylam`, aralık doğrulaması),
+  `search_places` (vurgu/harf duyarsız alt-dize + tam-ad önce + koordinat öncü
+  sonuç + `MAP_SEARCH_MAX_RESULTS` kırpma), `measure_distance` (haversine polilin),
+  `measure_area` (küresel çokgen alan → ha/km², halka otomatik kapanır),
+  `map_interaction_config`. `format_coordinates` (EM-063) ile koordinat gösterimi.
+  Rota `src/routes/map_interaction.py` (config/search/measure) + `fastapi_app`
+  kaydı + `ui_states`'e `map_interaction` anahtarı. Ayarlar `MAP_*`
+  (settings + TestingConfig + `.env.example`). UI: `operator_map.html` altlık
+  seçici + arama kutusu + mesafe/alan ölçüm modu (tıklanan noktalar çizilir).
+  45 test (`test_map_interaction.py`).
+- **Kapılar:** black(temiz, 270)/mypy(Success, 179 dosya)/pylint(`pylint src/`
+  10.00 — not: `--recursive` olmadığından services/routes alt paketleri CI'da
+  taranmaz)/bandit(-ll 0) yeşil; pytest **1507** (1462 + 45 yeni).
+- **Commit:** `feat(EM-080): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1791,8 +1821,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 267 değişmez · mypy Success (177 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1462 passed**.
+- **Final kapılar:** black 270 değişmez · mypy Success (179 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1507 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

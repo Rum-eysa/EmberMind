@@ -18,6 +18,20 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-080: harita etkileşimi — altlık seçimi + yer/koordinat araması + mesafe/alan ölçümü (E8)
+  - Operatör haritası tek sabit OSM kutu katmanına kilitliydi; altlık geçişi, arama
+    ve ölçüm yoktu (kabul: sokak/uydu/arazi altlıkları; yer adı **ve** koordinat
+    araması; mesafe/alan ölçüm aracı)
+  - `src/services/map_interaction.py`: deterministik, çevrimdışı salt-okunur
+    temel — altlık kataloğu (kutu URL'si + atıf + azami yakınlaştırma), küratörlü
+    Ege gazetteer'ı (kodla gelir) + koordinat ayrıştırıcısı (`enlem, boylam`),
+    WGS-84 jeodezik ölçüm (haversine mesafe, küresel çokgen alan); kalıcılık yok
+  - Uçlar: `GET /api/v1/map/config`, `GET /api/v1/map/search?q=`,
+    `POST /api/v1/map/measure/distance`, `POST /api/v1/map/measure/area`
+  - Ayarlar: `MAP_DEFAULT_BASEMAP`, `MAP_SEARCH_MAX_RESULTS`,
+    `MAP_MEASURE_MAX_POINTS` (`.env.example` dokümante)
+  - UI: `operator_map.html` altlık seçici + arama kutusu + mesafe/alan ölçüm
+    modu (haritaya tıklanan noktalar poligon/polilin olarak çizilir)
 - EM-107: senaryo oynatma (replay) kontrolü — oynat / duraklat / hız çarpanı (E11)
   - Sunum akışını zamanla yönetilebilir kılmak için EM-105 kütüphanesindeki
     senaryoların kendi rüzgâr geçmişi adımları bir zaman çizelgesine (kare)

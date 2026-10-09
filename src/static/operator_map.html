@@ -275,6 +275,36 @@
     #silent-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                    border: 1px solid var(--border-color); border-radius: 6px;
                    background: none; }
+    /* EM-080: harita aracı — altlık seçimi, yer/koordinat arama, mesafe/alan ölçüm */
+    #maptool-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 268px; max-height: 58vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #maptool-panel h1 { margin-bottom: 4px; }
+    #maptool-panel .evt { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+    #maptool-panel select { flex: 1; min-width: 0; font-size: var(--font-size-xs); }
+    #maptool-panel .subform { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    #maptool-panel .subform input { font-size: var(--font-size-xs); }
+    #maptool-panel .item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 2px;
+      border-bottom: 1px solid var(--border-color); cursor: pointer;
+    }
+    #maptool-panel .item:hover { background: rgba(97,97,97,.10); }
+    #maptool-panel .item.sel { background: rgba(97,97,97,.18); }
+    #maptool-panel .nm { font-weight: 600; }
+    #maptool-panel .tag { color: var(--text-secondary); font-size: var(--font-size-xxs, 10px); }
+    #maptool-panel .t2 { color: var(--text-secondary); }
+    #maptool-panel .head2 { font-weight: 700; margin-top: 8px; }
+    #maptool-panel .acts { display: flex; gap: 6px; margin: 4px 0; }
+    #maptool-panel .acts button { font-size: var(--font-size-xs); cursor: pointer;
+      padding: 2px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #maptool-panel .acts button.active { background: #bf360c; color: #fff; border-color: #bf360c; }
+    #maptool-panel .ro { color: var(--text-secondary); margin-top: 4px; }
+    #maptool-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #maptool-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
     /* EM-081: olay zaman çizelgesi — kronolojik akış, kategori filtresi */
     #timeline-panel {
       position: absolute; top: 70px; right: 284px; z-index: 1000;
@@ -797,6 +827,9 @@
     <button type="button" id="szt-open"
       title="EM-044 sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı eşik (z-skoru) ve minimum sessizlik süresi arayüzden ayarlanır; her değişiklik denetim kaydına yazılır; varsayılana dönme seçeneği vardır">
       Sessiz Bölge Ayarı</button>
+    <button type="button" id="maptool-open"
+      title="EM-080 harita aracı — sokak/uydu/arazi altlığı seç, yer adı veya koordinat ara, mesafe/alan ölç">
+      Harita Aracı</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -941,6 +974,29 @@
       </select>
     </label>
     <div id="silent-list"></div>
+  </div>
+
+  <div id="maptool-panel" class="panel" aria-live="polite">
+    <h1>Harita Aracı</h1>
+    <label class="evt">Altlık
+      <select id="mt-basemap" aria-label="Harita altlığı seçimi">
+        <option value="street">Sokak</option>
+      </select>
+    </label>
+    <div class="subform">
+      <label>Ara (yer adı veya "enlem, boylam"):
+        <input type="text" id="mt-query" size="22" placeholder="ör. Bodrum veya 37.03, 27.43">
+      </label>
+      <button type="button" id="mt-search">Ara</button>
+    </div>
+    <div id="mt-results"></div>
+    <div class="head2">Ölçüm aracı</div>
+    <div class="acts">
+      <button type="button" id="mt-mode-distance">Mesafe</button>
+      <button type="button" id="mt-mode-area">Alan</button>
+      <button type="button" id="mt-clear">Temizle</button>
+    </div>
+    <div class="ro" id="mt-measure">Mesafe/alan için bir mod seçin, sonra haritaya tıklayın.</div>
   </div>
 
   <div id="timeline-panel" class="panel" aria-live="polite">
@@ -1316,6 +1372,15 @@
   // EM-044: sessiz bölge hassasiyet/eşik ayarı — panel durumu + config (sınırlar/varsayılanlar).
   let sztPanelOpen = false;
   let sztConfig = null;
+  // EM-080: harita altlığı seçimi + yer/koordinat arama + mesafe/alan ölçüm aracı.
+  let maptoolPanelOpen = false;
+  let mtConfig = null;               // /api/v1/map/config yanıtı (altlıklar + sınırlar)
+  let mtBasemapLayer = baseTiles;    // aktif altlık katmanı (başlangıç: sokak/OSM)
+  let mtMode = null;                 // null | "distance" | "area" — ölçüm modu
+  let mtPoints = [];                 // ölçüm için toplanan [enlem, boylam] noktaları
+  let mtMarkers = null;              // ölçüm tepe işaretleri (L.LayerGroup)
+  let mtShape = null;                // ölçüm poliline/poligon katmanı
+  let mtSearchMarker = null;         // arama sonucu odak işareti
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2796,6 +2861,169 @@
       `<b>${escapeHtml(region.region_name || "sessiz bölge")}</b><br>`
       + `Güven: ${escapeHtml(region.confidence_label)} (${escapeHtml(region.confidence)})`);
     silentHighlight.openPopup();
+  }
+
+  // EM-080: harita altlığı seçimi + yer/koordinat arama + mesafe/alan ölçüm aracı.
+  const MAPTOOL_API = "/api/v1/map";
+  async function toggleMapToolPanel() {
+    const panel = document.getElementById("maptool-panel");
+    if (maptoolPanelOpen) {
+      maptoolPanelOpen = false;
+      panel.style.display = "none";
+      exitMeasure();
+      return;
+    }
+    maptoolPanelOpen = true;
+    panel.style.display = "block";
+    await loadMapConfig();
+  }
+  async function loadMapConfig() {
+    const sel = document.getElementById("mt-basemap");
+    try {
+      const res = await fetch(`${MAPTOOL_API}/config`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      mtConfig = await res.json();
+      if (sel && mtConfig.basemaps) {
+        sel.innerHTML = "";
+        for (const b of mtConfig.basemaps) {
+          const opt = document.createElement("option");
+          opt.value = b.key;
+          opt.textContent = b.label;
+          if (b.key === mtConfig.default_basemap) opt.selected = true;
+          sel.appendChild(opt);
+        }
+      }
+    } catch (err) {
+      setStatus(`Harita aracı durumu alınamadı: ${err.message}`);
+    }
+  }
+  // Altlık değişimi: eski katmanı kaldır, kataloğun URL/attribution/zoom'unu kur.
+  function setBasemap(key) {
+    const b = (mtConfig && mtConfig.basemaps || []).find(x => x.key === key);
+    if (!b) return;
+    if (mtBasemapLayer) map.removeLayer(mtBasemapLayer);
+    mtBasemapLayer = L.tileLayer(b.url, {
+      maxZoom: b.max_zoom, attribution: b.attribution,
+    }).addTo(map);
+  }
+  // Yer adı ya da koordinat araması: sonucu listeler, seçince haritaya odaklar.
+  async function runMapSearch() {
+    const q = (document.getElementById("mt-query").value || "").trim();
+    const box = document.getElementById("mt-results");
+    if (!q) { panelEmpty(box, "map_interaction"); return; }
+    panelLoading(box, "map_interaction");
+    try {
+      const res = await fetch(`${MAPTOOL_API}/search?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      renderMapSearch(await res.json());
+    } catch (err) {
+      if (box) box.innerHTML = panelErrorHtml("map_interaction", err.message);
+    }
+  }
+  function renderMapSearch(data) {
+    const box = document.getElementById("mt-results");
+    box.innerHTML = "";
+    const results = data.results || [];
+    if (!results.length) { panelEmpty(box, "map_interaction", "Eşleşen yer/koordinat yok."); return; }
+    for (const r of results) {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.tabIndex = 0;
+      const badge = r.match === "coordinate" ? "koord" : escapeHtml(r.country || "");
+      row.innerHTML = `<span><b class="nm">${escapeHtml(r.name)}</b>`
+        + ` <span class="tag">${badge}</span><br>`
+        + `<span class="t2">${escapeHtml(r.display)}</span></span>`;
+      const focus = () => focusSearchResult(r, row);
+      row.addEventListener("click", focus);
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); focus(); }
+      });
+      box.appendChild(row);
+    }
+  }
+  function focusSearchResult(r, row) {
+    for (const el of document.querySelectorAll("#maptool-panel .item.sel")) {
+      el.classList.remove("sel");
+    }
+    if (row) row.classList.add("sel");
+    const ll = [r.latitude, r.longitude];
+    map.setView(ll, Math.max(map.getZoom(), 11));
+    if (mtSearchMarker) map.removeLayer(mtSearchMarker);
+    mtSearchMarker = L.circleMarker(ll, {
+      radius: 9, color: "#0d47a1", weight: 2, fillColor: "#42a5f5", fillOpacity: 0.8,
+    }).addTo(map);
+    mtSearchMarker.bindPopup(`<b>${escapeHtml(r.name)}</b><br>${escapeHtml(r.display)}`);
+    mtSearchMarker.openPopup();
+  }
+  // Ölçüm aracı: haritaya tıklanan noktalar üzerinden jeodezik mesafe/alan.
+  function enterMeasure(mode) {
+    mtMode = mode;
+    mtPoints = [];
+    if (mtMarkers) { map.removeLayer(mtMarkers); mtMarkers = null; }
+    if (mtShape) { map.removeLayer(mtShape); mtShape = null; }
+    document.getElementById("mt-mode-distance").classList.toggle("active", mode === "distance");
+    document.getElementById("mt-mode-area").classList.toggle("active", mode === "area");
+    const hint = document.getElementById("mt-measure");
+    if (hint) {
+      hint.textContent = mode === "distance"
+        ? "Mesafe: haritada en az 2 noktaya tıklayın."
+        : "Alan: haritada en az 3 köşeye tıklayın.";
+    }
+  }
+  function exitMeasure() {
+    mtMode = null;
+    mtPoints = [];
+    if (mtMarkers) { map.removeLayer(mtMarkers); mtMarkers = null; }
+    if (mtShape) { map.removeLayer(mtShape); mtShape = null; }
+    const d = document.getElementById("mt-mode-distance");
+    const a = document.getElementById("mt-mode-area");
+    if (d) d.classList.remove("active");
+    if (a) a.classList.remove("active");
+  }
+  // Aktif ölçüm modundayken haritaya tıklanan noktayı toplar ve ölçümü yeniler.
+  function measureClick(ev) {
+    if (!mtMode || !maptoolPanelOpen) return;
+    mtPoints.push([ev.latlng.lat, ev.latlng.lng]);
+    if (!mtMarkers) mtMarkers = L.layerGroup().addTo(map);
+    L.circleMarker(ev.latlng, {
+      radius: 5, color: "#bf360c", weight: 2, fillColor: "#ff7043", fillOpacity: 0.9,
+    }).addTo(mtMarkers);
+    if (mtShape) { map.removeLayer(mtShape); mtShape = null; }
+    if (mtMode === "area" && mtPoints.length >= 3) {
+      mtShape = L.polygon(mtPoints, {
+        color: "#bf360c", weight: 2, dashArray: "4 3",
+        fillColor: "#ff7043", fillOpacity: 0.15,
+      }).addTo(map);
+    } else if (mtPoints.length >= 2) {
+      mtShape = L.polyline(mtPoints, { color: "#bf360c", weight: 2, dashArray: "4 3" }).addTo(map);
+    }
+    postMeasure();
+  }
+  async function postMeasure() {
+    const box = document.getElementById("mt-measure");
+    if (!box) return;
+    const min = mtMode === "area" ? 3 : 2;
+    if (mtPoints.length < min) {
+      box.textContent = mtMode === "area"
+        ? `Alan için en az ${min} köşe gerekli (${mtPoints.length} tıklandı).`
+        : `Mesafe için en az ${min} nokta gerekli (${mtPoints.length} tıklandı).`;
+      return;
+    }
+    const path = mtMode === "area" ? "measure/area" : "measure/distance";
+    try {
+      const res = await fetch(`${MAPTOOL_API}/${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points: mtPoints }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      box.textContent = d.mode === "area"
+        ? `Alan: ${d.area_ha} ha · ${d.area_km2} km² (${mtPoints.length} köşe)`
+        : `Mesafe: ${d.distance_km} km (${mtPoints.length} nokta)`;
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("map_interaction", err.message);
+    }
   }
 
   // EM-081: olay zaman çizelgesi — canlı akış + kabul edilen öneri tek kronolojik akışta.
@@ -5184,6 +5412,32 @@
     if (sztBtn) sztBtn.addEventListener("click", toggleSZTPanel);
     const sztRefresh = document.getElementById("szt-refresh");
     if (sztRefresh) sztRefresh.addEventListener("click", loadSZT);
+
+    // EM-080: harita aracı — altlık seçici + arama + ölçüm modu düğmeleri.
+    const maptoolBtn = document.getElementById("maptool-open");
+    if (maptoolBtn) maptoolBtn.addEventListener("click", toggleMapToolPanel);
+    const mtBasemapSel = document.getElementById("mt-basemap");
+    if (mtBasemapSel) mtBasemapSel.addEventListener("change", e => setBasemap(e.target.value));
+    const mtSearchBtn = document.getElementById("mt-search");
+    if (mtSearchBtn) mtSearchBtn.addEventListener("click", runMapSearch);
+    const mtQuery = document.getElementById("mt-query");
+    if (mtQuery) mtQuery.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); runMapSearch(); }
+    });
+    const mtDistBtn = document.getElementById("mt-mode-distance");
+    if (mtDistBtn) mtDistBtn.addEventListener("click", () => enterMeasure("distance"));
+    const mtAreaBtn = document.getElementById("mt-mode-area");
+    if (mtAreaBtn) mtAreaBtn.addEventListener("click", () => enterMeasure("area"));
+    const mtClearBtn = document.getElementById("mt-clear");
+    if (mtClearBtn) mtClearBtn.addEventListener("click", () => {
+      const keepMode = mtMode;
+      exitMeasure();
+      if (keepMode) enterMeasure(keepMode);
+      const box = document.getElementById("mt-measure");
+      if (box) box.innerHTML = "";
+    });
+    // Ölçüm modundayken haritaya tıklama noktayı toplar (EM-078 panelleriyle çakışmaz).
+    map.on("click", measureClick);
 
     // EM-097: karar destek çerçevesi - öneri ekranında sorumluluk/versiyon şeridi
     // ve sentetik veri durumunda SENARYO VERİSİ rozeti (bir kez yüklenir).

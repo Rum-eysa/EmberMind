@@ -781,6 +781,14 @@ class Config:
     DISPLAY_TIMEZONE = os.getenv("DISPLAY_TIMEZONE", "Europe/Istanbul")
     DISPLAY_COORDINATE_FORMAT = os.getenv("DISPLAY_COORDINATE_FORMAT", "decimal")
 
+    # EM-080: operator map interaction (Epic E8). The basemap the map opens on
+    # (street/satellite/terrain), the cap on place/coordinate search results and
+    # the ceiling on measurement vertices. Read-only tools: the gazetteer ships
+    # with the code and measurements are ephemeral, so nothing here persists.
+    MAP_DEFAULT_BASEMAP = os.getenv("MAP_DEFAULT_BASEMAP", "street")
+    MAP_SEARCH_MAX_RESULTS = int(os.getenv("MAP_SEARCH_MAX_RESULTS", "8"))
+    MAP_MEASURE_MAX_POINTS = int(os.getenv("MAP_MEASURE_MAX_POINTS", "100"))
+
     # EM-066: cross-border shared situation view (Epic E7). FireEvent stores
     # only a coordinate, so each incident is attributed to TR (east) or GR
     # (west) by this pilot border longitude (deg East) - a deliberate
@@ -866,6 +874,11 @@ class TestingConfig(Config):
     PLAYBACK_DEFAULT_SPEED_FACTOR = 1.0
     PLAYBACK_MAX_SPEED_FACTOR = 8.0
     PLAYBACK_FRAME_INTERVAL_SECONDS = 2.0
+    # EM-080: fixed map-interaction knobs so basemap/search/measurement tests are
+    # deterministic regardless of the ambient environment.
+    MAP_DEFAULT_BASEMAP = "street"
+    MAP_SEARCH_MAX_RESULTS = 8
+    MAP_MEASURE_MAX_POINTS = 100
 
 
 class ProductionConfig(Config):

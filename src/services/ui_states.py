@@ -45,6 +45,7 @@ PANEL_KEYS = (
     "silent_region_alert",
     "silent_zone_verification",
     "silent_zone_tuning",
+    "map_interaction",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -54,6 +55,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Bu katmanda gösterilecek kayıt yok.",
         "error": "Katman yüklenemedi.",
         "error_action": "Bağlantınızı kontrol edin ve yeniden deneyin.",
+    },
+    "map_interaction": {
+        "title": "Harita altlığı, arama ve ölçüm",
+        "loading": "Altlıklar ve arama hazırlandığında…",
+        "empty": "Arama için bir yer adı yazın ya da 'enlem, boylam' girin; ölçüm için haritaya noktalar tıklayın.",
+        "error": "Harita etkileşimi açılamadı.",
+        "error_action": "Arama metnini/noktaları kontrol edip yeniden deneyin; sürerse bağlantıyı gözden geçirin.",
     },
     "exposure": {
         "title": "Tehdit altındaki yapılar",
