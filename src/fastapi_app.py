@@ -57,6 +57,7 @@ from src.routes.recommendation_impact import register_recommendation_impact_rout
 from src.routes.risk_index import register_risk_index_routes
 from src.routes.risk_panel import register_risk_panel_routes
 from src.routes.road_network import register_road_network_routes
+from src.routes.scenario_library import register_scenario_library_routes
 from src.routes.scenario_share import register_scenario_share_routes
 from src.routes.share_policy import register_share_policy_routes
 from src.routes.shift_handover import register_shift_handover_routes
@@ -503,6 +504,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_whatif_history_routes(api, database, settings)
     register_perf_budget_routes(api, database, settings)
     register_synthetic_routes(api, database, settings)
+    register_scenario_library_routes(api, database, settings)
     register_live_routes(api, database, settings)
 
     @api.get("/health", tags=["system"])

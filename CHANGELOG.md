@@ -18,6 +18,32 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     (deterministik), yalnızca yinelenen iş kaldırılır
 
 ### Added
+- EM-105: hazır senaryo kütüphanesi — tek tıkla adlandırılmış, deterministik demo
+  senaryoları ve geri sarma (E11)
+  - Demo sunucusu, **adlı** bir senaryoyu tek tıkla başlatmak ve sunumun her
+    tekrarda aynı yeniden üretilebilir durumdan başlaması için geri sarmak ister
+    (kabul: "hazır senaryolar; tek tıkla etkinleştirme; deterministik oynatma") —
+    EM-104 ham üreteci (seed + config → etiketli veri) vermişti; ancak seçili
+    arketipleri hazırlayan **kürasyonlu kütüphane / tek tıkla etkinleştirme /
+    geri sar** yüzeyi hiç **yoktu**
+  - `src/services/scenario_library.py` (katalog kod sabitidir; yeni tablo yok):
+    üç arketip — `kiyi-ruzgar-donusu` (kıyı + geniş açılı rüzgâr dönüşü),
+    `kirsal-sessiz-bolge` (çoklu iletişim kesintisi/sessiz bölge, kıt kaynak),
+    `sinir-bolgesi` (notional sınır hattına sabitlenmiş hızlı yangın; boylam
+    `SCENARIO_BORDER_LON` düğmesinden gelir ve demo bbox içine sıkıştırılır);
+    `catalog`/`get_scenario`, `preview` (dataset kurulur, kalıcılık yok),
+    `activate` (EM-104 satırlarını yaz + `ScenarioRun` `preset=library:<anahtar>`),
+    `replay` (etiketi sil + aynı veriyi yeniden tohumla → aynı hash),
+    `activated_runs` (kütüphane etkinleştirmeleri), `library_config`; her senaryo
+    sabit `(seed, config)` olduğundan **deterministik**: aynı etiket + aynı hash
+  - `src/routes/scenario_library.py`: `GET /api/v1/scenarios/library`,
+    `GET /api/v1/scenarios/library/runs`, `GET /api/v1/scenarios/library/{key}`,
+    `POST /api/v1/scenarios/library/{key}/activate`,
+    `POST /api/v1/scenarios/library/{key}/replay`
+  - `src/config/settings.py`: `SCENARIO_BORDER_LON` (varsayılan `28.85`;
+    `testing` sabitler); `.env.example` anahtarı dokümanlar;
+    `src/static/inventory.html`: koordinatör ekranına "Hazır Senaryo Kütüphanesi"
+    kartı (Başlat / Geri sar + atıf şeridi) eklendi
 - EM-093: belediye panosu / trafik / kamu uyarı entegrasyon şablonu — mevcut
   EM-094 imzalı webhook'unu yeni donanım gerekmeden downstream sistemlere bağlayan
   tüketicici tarafı şablonları + imza doğrulama örneği (E9)

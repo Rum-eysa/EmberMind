@@ -1696,12 +1696,40 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yeşil; pytest **1410** (1382 + 28 yeni).
 - **Commit:** `feat(EM-093): ...` (bu dal).
 
+### EM-105 — Hazır senaryo kütüphanesi (#194) — DONE
+- **Eksik analizi:** Demo sunucusu, **adlı** bir senaryoyu tek tıkla başlatmak ve
+  her tekrarda aynı yeniden üretilebilir durumdan başlaması için geri sarmak ister
+  (kabul: "hazır senaryolar; tek tıkla etkinleştirme; deterministik oynatma").
+  EM-104 ham üreteci (seed + config → etiketli dataset) mevcut; ancak arketipleri
+  kürasyonlu biçimde sunan **kütüphane / tek tıkla activate / replay** yüzeyi hiç
+  **yoktu** (`scenario_library`/`activate`/`replay` kod tabanında yok). E11 Must
+  (sp5). Not: E10 kalanları (EM-098..102) gerçek oturum/kimlik ister → kapsam dışı;
+  E12–E16 altyapı/deploy/demo/süreç → kapsam dışı.
+- **Kapsam kararları:** kütüphane katalogu **kod sabitidir** (EM-104 `PRESETS`
+  gibi) → **yeni tablo/migration yok**; kalıcı artefaktlar yalnızca EM-104
+  satırları + her başlatma için bir `ScenarioRun` (`preset=library:<anahtar>`).
+  `sinir-bolgesi` boylamı tek ayar düğmesinden (`SCENARIO_BORDER_LON`) gelir ve
+  demo bbox içine sıkıştırılır. UI **koordinatör** ekranında (`inventory.html`),
+  operatör paneli olmadığı için `ui_states` anahtarı **yok** (EM-104 ile tutarlı).
+- **Uygulama:** Servis `scenario_library.py`: `catalog`/`get_scenario` (3 arketip:
+  `kiyi-ruzgar-donusu`/`kirsal-sessiz-bolge`/`sinir-bolgesi`), `preview` (dataset
+  kurulur, kalıcılık yok), `materialize_config`/`_border_lon`, `activate`
+  (persist + `record_run`), `replay` (`cleanup_scenario` + yeniden tohum → aynı
+  hash), `activated_runs`, `library_config`. Rota `scenario_library.py`: `GET
+  /api/v1/scenarios/library` (+ `/runs`, `/{key}`, `/{key}/activate`,
+  `/{key}/replay`); `settings.py` (`SCENARIO_BORDER_LON`, TestingConfig sabiti) +
+  `.env.example`; `fastapi_app` kaydı; `inventory.html` "Hazır Senaryo
+  Kütüphanesi" kartı (Başlat/Geri sar + atıf). 21 test.
+- **Kapılar:** black(temiz, 263)/mypy(Success, 175 dosya)/pylint(10.00)/bandit(-ll 0)
+  yeşil; pytest **1431** (1410 + 21 yeni).
+- **Commit:** `feat(EM-105): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -1714,8 +1742,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 260 değişmez · mypy Success (173 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1410 passed**.
+- **Final kapılar:** black 263 değişmez · mypy Success (175 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1431 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

@@ -90,6 +90,16 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
           <span id="csv-result" class="em-muted"></span>
         </div>
       </div>
+
+      <div class="em-card">
+        <h2 class="em-card__title">Hazır Senaryo Kütüphanesi
+          <span class="em-badge">EM-105</span></h2>
+        <p class="em-muted">Demo sunucusu için arketip senaryolar: tek tıkla
+          başlat (kalıcı satırlar + <code>ScenarioRun</code>) ve geri sar
+          (aynı seed/config → aynı etiket/hash). Tümü <b>sentetik</b>.</p>
+        <div id="scen-list" class="em-stack"></div>
+        <p class="em-muted" id="scen-result"></p>
+      </div>
     </section>
 
     <section class="em-stack">
@@ -381,6 +391,67 @@ EKIP-10,ekip,37.03,28.35,müsait,25"></textarea>
   $("resource-form").addEventListener("submit", save);
   $("cancel-edit").addEventListener("click", resetForm);
   $("csv-import").addEventListener("click", importCsv);
+
+  // EM-105: hazır senaryo kütüphanesi — tek tıkla başlat / geri sar.
+  const LIB = "/api/v1/scenarios/library";
+
+  function scenRowHtml(s) {
+    return `<div class="em-card">
+      <div class="em-row" style="justify-content:space-between">
+        <b>${s.title}</b>
+        <span class="em-badge em-badge--info">${s.archetype}</span>
+      </div>
+      <p class="em-muted">${s.description}</p>
+      <div class="em-row">
+        <button class="em-btn em-btn--sm" type="button"
+                data-scen-activate="${s.key}">Başlat</button>
+        <button class="em-btn em-btn--secondary em-btn--sm" type="button"
+                data-scen-replay="${s.key}">Geri sar</button>
+        <span class="em-muted">seed ${s.seed}</span>
+      </div></div>`;
+  }
+
+  async function loadLibrary() {
+    const res = await fetch(LIB);
+    const body = await res.json();
+    if (!res.ok) {
+      $("scen-result").textContent = `Kütüphane açılamadı: ${res.status}`;
+      return;
+    }
+    document.getElementById("scen-list").innerHTML =
+      body.scenarios.map(scenRowHtml).join("");
+    $("scen-result").textContent = body.attribution;
+  }
+
+  async function runScenario(action, key) {
+    const res = await fetch(`${LIB}/${key}/${action}`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) {
+      $("scen-result").textContent =
+        `${key} ${action} başarısız: ${body.detail?.error || res.status}`;
+      return;
+    }
+    const s = body.scenario;
+    const extra = action === "replay"
+      ? ` · geri sarılan: ${JSON.stringify(body.rewound)}` : "";
+    $("scen-result").textContent =
+      `${s.title} → ${s.scenario_tag} · hash ${String(s.result_hash).slice(0, 12)}`
+      + ` · satır ${JSON.stringify(s.persisted_counts)}${extra}`;
+    await refreshList(); // EM-104 satırları envanter kapasitesini besler
+  }
+
+  async function onScenClick(event) {
+    const act = event.target.dataset.scenActivate;
+    const rep = event.target.dataset.scenReplay;
+    if (act) await runScenario("activate", act);
+    else if (rep) await runScenario("replay", rep);
+  }
+
+  document.getElementById("scen-list")
+    .addEventListener("click", onScenClick);
+  loadLibrary().catch(err => {
+    $("scen-result").textContent = `Kütüphane yüklenemedi: ${err.message}`;
+  });
 
   // EM-075 tema anahtarı (operatör tercihini panelle paylaşırlar).
   const storedTheme = localStorage.getItem("embermind-theme");

@@ -1069,6 +1069,26 @@ bölge, hava noktası, üs + envanter varlığı) ve aynı tohumda tekrar çalı
 idempotent'tir; `DELETE` ile etiket bazlı geri alınabilir. Demo:
 `python scripts/demo_api.py --seed 42 --preset firtina`.
 
+### Hazır Senaryo Kütüphanesi (EM-105)
+```
+GET    /api/v1/scenarios/library                # kürasyonlu senaryo kataloğu + garantiler
+GET    /api/v1/scenarios/library/runs           # kütüphane etkinleştirme denetim kayıtları
+GET    /api/v1/scenarios/library/{key}          # tek senaryo önizlemesi (dataset kurulur, yazılmaz)
+POST   /api/v1/scenarios/library/{key}/activate # tek tıkla başlat (EM-104 satırlarını yaz)
+POST   /api/v1/scenarios/library/{key}/replay   # geri sar: etiketi sil + aynı veriyi yeniden tohumla
+```
+EM-104 üretecinin üzerine **adlı, arketip** demo senaryoları koyar; kütüphane
+katalogu kod sabitidir (yeni tablo gerekmez). Üç arketip: `kiyi-ruzgar-donusu`
+(kıyı + geniş açılı rüzgâr dönüşü), `kirsal-sessiz-bolge` (çoklu sessiz bölge,
+kıt kaynak), `sinir-bolgesi` (notional sınır hattına sabitlenmiş hızlı yangın —
+boylam `SCENARIO_BORDER_LON`'dan gelir ve demo bbox içine sıkıştırılır). Her
+senaryo sabit `(seed, config)` aldığı için **deterministik**tir: daima aynı
+`scenario_tag` ve `result_hash`. `activate` EM-104 operasyonel satırlarını yazar
+ve `preset=library:<anahtar>` damgalı bir `ScenarioRun` denetim kaydı bırakır;
+`replay` etiketi temizleyip aynı veriyi yeniden tohumladığından sunum aynı başlangıç
+durumuna döner (tek yineleme, çift kayıt yok). Tüm çıktı `SENTETİK VERİ` etiketi
+ve atıf şeridiyle işaretlidir; `preview` hiçbir şey kalıcılaştırmaz.
+
 ### Olay & Uyarı Webhook'ları (EM-094)
 ```
 GET    /api/v1/webhooks/config                         # geçerli olay tipleri, imza şeması, sınırlar

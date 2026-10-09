@@ -554,6 +554,13 @@ class Config:
     )
     INTEGRATION_ALERT_LANGUAGE = os.getenv("INTEGRATION_ALERT_LANGUAGE", "tr")
 
+    # EM-105: hazır senaryo kütüphanesi (Epic E11)
+    # Demo sunucusu, EM-104 üreteci üzerinde sabit (seed, config) çiftleriyle
+    # hazırlanmış arketip senaryoları tek tıkla başlatmak / geri sarmak ister.
+    # Kütüphane kod sabitidir (yeni tablo yok); yalnızca ``sinir-bolgesi``
+    # senaryosunun yangın boylamı buradan gelir (demo bbox içine sıkıştırılır).
+    SCENARIO_BORDER_LON = float(os.getenv("SCENARIO_BORDER_LON", "28.85"))
+
     # EM-037: yüksek öncelikli sessiz bölge risk kesişimi (Epic E4)
     # Sessizlik güveni (EM-078) ile aktif yangınların yayılım tahmin poligonlarının
     # (EM-015) bölge kutusunu kapsama oranı okuma zamanı çarpılır (kalıcılık:
@@ -838,6 +845,9 @@ class TestingConfig(Config):
     # EM-093: deterministic CAP sender + language for template tests.
     INTEGRATION_CAP_SENDER = "it.embermind.test"
     INTEGRATION_ALERT_LANGUAGE = "tr"
+    # EM-105: fixed notional border longitude so the border scenario dataset is
+    # byte-deterministic across activation/replay assertions.
+    SCENARIO_BORDER_LON = 28.85
 
 
 class ProductionConfig(Config):
