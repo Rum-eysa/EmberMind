@@ -283,6 +283,28 @@ yok); açıldığında `POST /recommendations/decisions` → `decide`, `/release
 koruması dışındadır. Servis `src/services/authorization.py`, arayüz
 `operator_map.html` rol rozeti + İzleyici için düğme kısıtıdır.
 
+#### Kullanıcı ve Rol Yönetimi (EM-101)
+```
+GET  /api/v1/users/manage/config          # rol/ülke kataloğu + denetim alanı + kalıcılık
+GET  /api/v1/users/manage?country=        # yönetilen hesaplar (ops. ülke filtresi; digest yok)
+POST /api/v1/users/manage                 # hesap ekler (rol + ülke kapsamı atanır)
+PATCH /api/v1/users/manage/{id}           # kısmi düzenleme: display_name / role / country
+POST /api/v1/users/manage/{id}/active     # devre dışı bırakma / etkinleştirme
+```
+Epic E10'un hesap yönetim yüzeyi: EM-099 `manage_users` yetkisini *tanımlıyordu*,
+burası o yetkiyi *kullanır*. Parola/rol/tekrar doğrulaması EM-098 `create_user`a
+devredilir (aynı redler); `users.country` (**V035**) rol kadar kalıcı tek bir
+nitelik olarak saklanır (`TR`/`GR`; `None` = küresel/asksız hesap). Her
+ekle/düzenle/etkinleştir/devre-dışı-bırakma mutasyonu EM-096 **değiştirilemez**
+denetim defterine `user_management` alanıyla önce→sonra anlık görüntüsüyle yazılır
+(kabul: "tüm işlemler denetim kaydına yazılır"). Yazımlar `authorize_action` ile
+`manage_users` üzerinden kapılanır; `AUTHZ_ENFORCEMENT_ENABLED` **varsayılan
+kapalı**: kapalıyken beyan edilen serbest metin `actor` ile ilerler, açıkken
+oturumsuz→**401**, yetkisiz rol→**403** ve denetim faili *kanıtlanmış* oturum
+e-postası olur (sahte aktör reddedilir). Kalıcılık: `users.country` (V035) +
+`audit_trail` (V030). Servis `src/services/user_management.py`, arayüz
+`operator_map.html` kullanıcı/rol yönetimi panelidir.
+
 ### Proaktif Kaynak Konumlandırma (EM-052)
 ```
 GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri

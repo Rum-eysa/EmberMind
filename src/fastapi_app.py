@@ -91,6 +91,7 @@ from src.routes.support_request_draft import (
 from src.routes.synthetic import register_synthetic_routes
 from src.routes.task_instruction import register_task_instruction_routes
 from src.routes.ui_states import register_ui_state_routes
+from src.routes.user_management import register_user_management_routes
 from src.routes.user_preferences import register_user_preference_routes
 from src.routes.webhook import register_webhook_routes
 from src.routes.whatif import register_whatif_routes
@@ -486,6 +487,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_api_docs_routes(api, database, settings)
     register_auth_routes(api, database, settings)
     register_authorization_routes(api, database, settings)
+    register_user_management_routes(api, database, settings)
     register_ui_state_routes(api, database, settings)
     register_event_timeline_routes(api, database, settings)
     register_multi_fire_routes(api, database, settings)

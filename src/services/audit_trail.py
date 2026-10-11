@@ -37,6 +37,7 @@ AUDIT_DOMAINS: tuple[str, ...] = (
     "scenario",  # what-if / synthetic scenario governance
     "share_policy",  # country data-sharing policy edits (EM-070)
     "webhook",  # outbound integration subscription changes (EM-094)
+    "user_management",  # account add / edit / role / deactivate (EM-101)
     "general",  # any other governance-relevant action
 )
 

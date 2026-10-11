@@ -1970,19 +1970,53 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   (1615 + 29 yeni).
 - **Commit:** `feat(EM-099): ...` (bu dal).
 
+### EM-101 — Kullanıcı ve rol yönetimi (#190) — DONE
+- **Boşluk analizi:** EM-098 hesapları oluşturuyor, EM-099 `manage_users`
+  yetkisini *tanımlıyordu*; fakat bu yetkiyi **kullanan** bir yüzey yoktu —
+  hesapları ekle/düzenle/devre-dışı-bırak, rol+ülke ata ve bunu **hesap
+  verebilir** kıl. E10 Should (sp3, #190). Kabul: "kullanıcı ekleme, düzenleme,
+  devre dışı bırakma; rol atama ve ülke bazlı yetki; tüm işlemler denetim
+  kaydına yazılır". `user_management`/`users.country` kod tabanında yoktu →
+  gerçek, mükerrer-olmayan kod boşluğu.
+- **Kapsam kararları:** Kalıcılık **var** — `users.country` (**V035**, `TR`/`GR`;
+  `None`=küresel) + EM-096 değiştirilemez `audit_trail` (V030, yeni
+  `user_management` alanı). Doğrulama EM-098 `create_user`a devredilir (aynı
+  redler). **Geriye-uyumlu dürüst varsayılan:** yazımlar EM-099 `manage_users`
+  ile `authorize_action` üzerinden kapılanır; `AUTHZ_ENFORCEMENT_ENABLED`
+  Config+TestingConfig'te **kapalı** → 1644 anonim test aynen geçer; kapalıyken
+  beyan edilen serbest `actor`, açıkken oturumsuz→401 / yetkisiz rol→403 ve
+  denetim faili *kanıtlanmış* oturum e-postası (sahte aktör reddedilir). Ülke
+  kalıbı EM-070'den (`COUNTRIES`/`COUNTRY_LABELS`).
+- **Uygulama:** `src/models/auth.py` `country` kolonu + `as_dict`;
+  `V035__user_country_scope.sql`. `src/services/user_management.py`
+  (`add_managed_user`/`edit_managed_user`/`set_user_active`/`list_managed_users`/
+  `user_management_config`; her mutasyon `_audit` ile önce→sonra anlık
+  görüntüsü yazar). Rota `src/routes/user_management.py`
+  (`/users/manage/config`+`GET`+`POST`+`PATCH/{id}`+`POST/{id}/active`,
+  `with database.session()` kalıbı, `model_fields_set` ile kısmi düzenleme) +
+  `fastapi_app` kaydı. `settings.py` `USER_MANAGEMENT_DEFAULT_COUNTRY` +
+  `.env.example` + `ui_states.py` `user_management` panel anahtarı. UI:
+  `operator_map.html` `toggleUserMgmtPanel`/`loadUserMgmt`/`renderUserMgmt`/
+  `umAdd`/`umEdit`/`umSetActive` (ekleme formu + satır bazlı rol/ülke seçici +
+  Devre dışı/Etkinleştir, bearer + 401/403 eleme). 25 test
+  (`test_user_management.py`).
+- **Kapılar:** black(temiz)/mypy(Success)/pylint(10.00)/bandit(-ll 0) yeşil;
+  pytest **1669** (1644 + 25 yeni).
+- **Commit:** `feat(EM-101): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187), EM-099 (#188) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187), EM-099 (#188), EM-101 (#190) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
 - **BLOCKED:** bu turda yok. Kapsam dışı bırakılanlar (yukarıdaki eleme):
   insan/altyapı isteyen epikler (E12 deploy, E13 E2E, E14 demo) — not: E10 auth
-  tarafı kodlanabilir kısmıyla EM-098 (#187) olarak tamamlandı (SSO/rol uygulaması
-  EM-099/EM-101'e bırakıldı);
+  tarafı kodlanabilir kısmıyla EM-098 (#187) olarak tamamlandı (rol uygulaması
+  EM-099 (#188), hesap yönetimi EM-101 (#190)); SSO/dış kimlik sağlayıcısı hâlâ
   ve tek oturuma sığmayan devasa ML epikleri (E4, E7) — Mock ile "bitti"
   göstermeme kuralı gereği girilmedi.
 - **Varsayımlar:** (1) görev listesi issue başlığına değil kod boşluğuna göre

@@ -350,7 +350,7 @@
       border-radius: 4px; padding: 0 5px; background: var(--surface-color, #f4f4f4); }
     #a11y-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     /* EM-098: giriş/oturum paneli — token yalnızca sessionStorage'da, asla localStorage'da */
-    #auth-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+    #auth-open, #user-mgmt-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                  border: 1px solid var(--border-color); border-radius: 6px;
                  background: none; }
     #auth-panel .auth-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
@@ -360,6 +360,21 @@
     #auth-panel input { width: 100%; padding: 4px 6px; box-sizing: border-box;
       border: 1px solid var(--border-color); border-radius: 6px;
       background: var(--surface-color, #fff); color: inherit; }
+    /* EM-101: kullanici ve rol yonetimi — hesap listesi, rol/ulke, ekle/duzenle */
+    #user-mgmt-panel .um-row { border-bottom: 1px solid var(--border-color);
+      padding: 4px 0; display: flex; flex-direction: column; gap: 3px; }
+    #user-mgmt-panel .um-name { font-weight: 700; }
+    #user-mgmt-panel .um-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-inactive { opacity: 0.55; }
+    #user-mgmt-panel .um-badge { border: 1px solid var(--border-color); border-radius: 4px;
+      padding: 0 5px; font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    #user-mgmt-panel select, #user-mgmt-panel input { padding: 2px 5px;
+      border: 1px solid var(--border-color); border-radius: 5px;
+      background: var(--surface-color, #fff); color: inherit; font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-err { color: var(--risk-high, #d55e00); font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-subform { margin-top: 8px; display: flex; flex-direction: column;
+      gap: 5px; }
     /* EM-084: mobil/tablet — dar ekranda panel tam genişlik, temel yazılar okunur kalır */
     @media (max-width: 640px) {
       #fieldview-panel { top: 56px; left: 6px; right: 6px; width: auto;
@@ -901,6 +916,9 @@
     <button type="button" id="auth-open"
       title="EM-098 kimlik doğrulama — e-posta/parola girişi, oturum süresi (TTL + hareketsizlik) ve güvenli çıkış">
       Giriş</button>
+    <button type="button" id="user-mgmt-open"
+      title="EM-101 kullanıcı ve rol yönetimi — hesap ekle/düzenle/devre dışı bırak, rol atama ve ülke kapsami; her işlem denetim kaydına yazılır">
+      Kullanıcı Yönetimi</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -1100,6 +1118,11 @@
   <div id="auth-panel" class="panel" aria-live="polite">
     <h1>Giriş ve Oturum</h1>
     <div id="auth-body"></div>
+  </div>
+
+  <div id="user-mgmt-panel" class="panel" aria-live="polite">
+    <h1>Kullanıcı ve Rol Yönetimi</h1>
+    <div id="user-mgmt-body"></div>
   </div>
 
   <div id="timeline-panel" class="panel" aria-live="polite">
@@ -1499,6 +1522,10 @@
   let authSession = null;            // /api/v1/auth/me yanıtı (girişliyse dolu)
   // EM-099: rol tabanlı yetkilendirme — /api/v1/authz/effective yanıtı.
   let authPerms = null;              // {enforced, authenticated, role, can_decide,...}
+  // EM-101: kullanici ve rol yonetimi — /api/v1/users/manage yanitlari.
+  let userMgmtPanelOpen = false;
+  let userMgmtConfig = null;         // /api/v1/users/manage/config (rol/ulke kataloğu)
+  let userMgmtList = null;           // /api/v1/users/manage yanıtı (hesaplar)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -2529,6 +2556,167 @@
     authToken = null;
     authSession = null;
     await loadAuth();
+  }
+
+  // EM-101: kullanici ve rol yonetimi — ekle/duzenle/devre birak + rol + ulke.
+  const UM_API = "/api/v1/users/manage";
+
+  function umHeaders(withBody) {
+    const h = withBody ? { "Content-Type": "application/json" } : {};
+    if (authToken) h.Authorization = `Bearer ${authToken}`;
+    return h;
+  }
+
+  function umError(j, res) {
+    const why = (j && j.detail && j.detail.error) || `istek başarısız (${res.status})`;
+    return String(why);
+  }
+
+  async function toggleUserMgmtPanel() {
+    const panel = document.getElementById("user-mgmt-panel");
+    if (!panel) return;
+    if (userMgmtPanelOpen) { userMgmtPanelOpen = false; panel.style.display = "none"; return; }
+    userMgmtPanelOpen = true;
+    panel.style.display = "block";
+    await loadUserMgmt();
+  }
+
+  async function loadUserMgmt() {
+    const box = document.getElementById("user-mgmt-body");
+    if (!box) return;
+    panelLoading(box, "user_management");
+    try {
+      if (!userMgmtConfig) {
+        const cfg = await fetch(`${UM_API}/config`);
+        userMgmtConfig = cfg.ok ? await cfg.json() : null;
+      }
+      const res = await fetch(UM_API, { headers: umHeaders(false) });
+      userMgmtList = res.ok ? await res.json() : null;
+      renderUserMgmt(box);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("user_management", "Kullanıcı yönetimi açılamadı: " + err.message);
+    }
+  }
+
+  function renderUserMgmt(box) {
+    const roles = userMgmtConfig ? userMgmtConfig.roles : ["operator"];
+    const countries = userMgmtConfig ? userMgmtConfig.countries : [];
+    const labels = (userMgmtConfig && userMgmtConfig.country_labels) || {};
+    const users = userMgmtList ? userMgmtList.users : [];
+    const enforced = Boolean(authPerms && authPerms.enforced);
+    let html = "";
+    html += enforced
+      ? `<div class="um-meta">Yetki uygulaması AÇIK (EM-099). Yönetim izni olmayan rol 403 alır; işlem sahibi kanıtlanmış oturumdan yazılır.</div>`
+      : `<div class="um-meta">Yetki uygulaması KAPALI — işlemler aşağıdaki operatör etiketiyle ('actor') EM-096 denetim defterine yazılır.</div>`;
+    // Add-account form.
+    const roleOpts = roles.map((r) => `<option value="${r}">${r}</option>`).join("");
+    const countryOpts = `<option value="">global</option>` +
+      countries.map((c) => `<option value="${c}">${escapeHtml(labels[c] || c)}</option>`).join("");
+    const defaultActor = (authSession && authSession.user && authSession.user.email) || "";
+    html += `<form id="um-add-form" class="um-subform">` +
+      `<div class="um-meta"><b>Yeni hesap</b></div>` +
+      `<input id="um-email" type="email" placeholder="e-posta" required>` +
+      `<input id="um-password" type="password" placeholder="parola" autocomplete="new-password" required>` +
+      `<input id="um-name" type="text" placeholder="görünen ad" required>` +
+      `<div class="um-actions"><select id="um-role">${roleOpts}</select>` +
+      `<select id="um-country">${countryOpts}</select>` +
+      `<input id="um-actor" type="text" placeholder="işlem sahibi (actor)" value="${escapeHtml(defaultActor)}">` +
+      `<button type="submit" class="btn">Ekle</button></div>` +
+      `<div id="um-add-msg"></div></form>`;
+    // Managed account list.
+    html += `<div id="um-list" style="margin-top:8px">`;
+    if (!users.length) {
+      html += `<div class="empty">Yönetilen hesap yok.</div>`;
+    }
+    users.forEach((u) => {
+      const inactiveCls = u.is_active ? "" : " um-inactive";
+      const rowRole = roles.map((r) =>
+        `<option value="${r}"${r === u.role ? " selected" : ""}>${r}</option>`).join("");
+      const rowCountry = `<option value=""${u.country ? "" : " selected"}>global</option>` +
+        countries.map((c) =>
+          `<option value="${c}"${c === u.country ? " selected" : ""}>${escapeHtml(labels[c] || c)}</option>`).join("");
+      html += `<div class="um-row${inactiveCls}" data-id="${u.id}">` +
+        `<div class="um-name">${escapeHtml(String(u.display_name))} ` +
+        `<span class="um-badge">${escapeHtml(String(u.role))}</span>` +
+        `<span class="um-badge">${escapeHtml(u.country ? (labels[u.country] || u.country) : "global")}</span>` +
+        `<span class="um-badge">${u.is_active ? "etkin" : "devre dışı"}</span></div>` +
+        `<div class="um-meta">${escapeHtml(String(u.email))}</div>` +
+        `<div class="um-actions">` +
+        `<select class="um-f-role">${rowRole}</select>` +
+        `<select class="um-f-country">${rowCountry}</select>` +
+        `<button type="button" class="btn um-save">Kaydet</button>` +
+        `<button type="button" class="btn um-toggle">${u.is_active ? "Devre dışı bırak" : "Etkinleştir"}</button>` +
+        `</div><div class="um-row-msg"></div></div>`;
+    });
+    html += `</div>`;
+    html += `<div class="um-meta" style="margin-top:6px">Kaynak: ${escapeHtml(String(userMgmtList ? userMgmtList.persistence : ""))}</div>`;
+    box.innerHTML = html;
+    const form = document.getElementById("um-add-form");
+    if (form) form.addEventListener("submit", umAdd);
+    box.querySelectorAll(".um-row").forEach((row) => {
+      const id = row.getAttribute("data-id");
+      const saveBtn = row.querySelector(".um-save");
+      const toggleBtn = row.querySelector(".um-toggle");
+      if (saveBtn) saveBtn.addEventListener("click", () => umEdit(id, row));
+      if (toggleBtn) toggleBtn.addEventListener("click", () => {
+        const active = toggleBtn.textContent.indexOf("Etkin") === 0;
+        umSetActive(id, !active, row);
+      });
+    });
+  }
+
+  async function umAdd(ev) {
+    ev.preventDefault();
+    const msg = document.getElementById("um-add-msg");
+    const body = {
+      email: document.getElementById("um-email").value,
+      password: document.getElementById("um-password").value,
+      display_name: document.getElementById("um-name").value,
+      role: document.getElementById("um-role").value,
+      country: document.getElementById("um-country").value,
+      actor: document.getElementById("um-actor").value || null,
+    };
+    try {
+      const res = await fetch(UM_API, { method: "POST", headers: umHeaders(true), body: JSON.stringify(body) });
+      const j = await res.json();
+      if (!res.ok) { msg.innerHTML = `<div class="um-err">${escapeHtml(umError(j, res))}</div>`; return; }
+      await loadUserMgmt();
+    } catch (err) {
+      msg.innerHTML = `<div class="um-err">İstek başarısız: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  async function umEdit(id, row) {
+    const msg = row.querySelector(".um-row-msg");
+    const body = {
+      role: row.querySelector(".um-f-role").value,
+      country: row.querySelector(".um-f-country").value,
+      actor: (document.getElementById("um-actor") || {}).value || null,
+    };
+    try {
+      const res = await fetch(`${UM_API}/${id}`, { method: "PATCH", headers: umHeaders(true), body: JSON.stringify(body) });
+      const j = await res.json();
+      if (!res.ok) { msg.innerHTML = `<div class="um-err">${escapeHtml(umError(j, res))}</div>`; return; }
+      await loadUserMgmt();
+    } catch (err) {
+      msg.innerHTML = `<div class="um-err">İstek başarısız: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  async function umSetActive(id, nextActive, row) {
+    const msg = row.querySelector(".um-row-msg");
+    try {
+      const res = await fetch(`${UM_API}/${id}/active`, {
+        method: "POST",
+        headers: umHeaders(true),
+        body: JSON.stringify({ is_active: nextActive, actor: (document.getElementById("um-actor") || {}).value || null }),
+      });
+      const j = await res.json();
+      if (!res.ok) { msg.innerHTML = `<div class="um-err">${escapeHtml(umError(j, res))}</div>`; return; }
+      await loadUserMgmt();
+    } catch (err) {
+      msg.innerHTML = `<div class="um-err">İstek başarısız: ${escapeHtml(err.message)}</div>`;
+    }
   }
 
   // EM-054: kabul/ret geri bildirim döngüsü raporunu ac/kapa.
@@ -6008,6 +6196,10 @@
     const authBtn = document.getElementById("auth-open");
     if (authBtn) authBtn.addEventListener("click", toggleAuthPanel);
     await loadAuth();
+
+    // EM-101: kullanici ve rol yonetimi — panel dugmesi (talep uzerine yuklenir).
+    const userMgmtBtn = document.getElementById("user-mgmt-open");
+    if (userMgmtBtn) userMgmtBtn.addEventListener("click", toggleUserMgmtPanel);
 
     // EM-097: karar destek çerçevesi - öneri ekranında sorumluluk/versiyon şeridi
     // ve sentetik veri durumunda SENARYO VERİSİ rozeti (bir kez yüklenir).

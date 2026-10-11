@@ -50,6 +50,7 @@ PANEL_KEYS = (
     "accessibility",
     "auth",
     "authorization",
+    "user_management",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -94,6 +95,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Giriş yapıldığında rolünüz ve yetkileriniz burada listelenir.",
         "error": "Yetkilendirme hizmeti yanıt vermedi.",
         "error_action": "Bağlantınızı kontrol edip yeniden deneyin; yetkiniz yoksa karar düğmeleri pasif kalır.",
+    },
+    "user_management": {
+        "title": "Kullanıcı ve rol yönetimi",
+        "loading": "Hesaplar, roller ve ülke kapsamları yükleniyor…",
+        "empty": "Yönetilen hesap yok; yeni bir hesap ekleyin.",
+        "error": "Kullanıcı yönetimi hizmeti yanıt vermedi.",
+        "error_action": "Bağlantınızı kontrol edip yeniden deneyin; yetkiniz yoksa (İzleyici/Saha) işlemler pasif kalır.",
     },
     "exposure": {
         "title": "Tehdit altındaki yapılar",

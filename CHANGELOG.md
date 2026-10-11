@@ -58,6 +58,30 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     uygulaması (otomatik `release-completed` süpürmesi bilinçli olarak korumasız)
   - UI: `operator_map.html` rol rozeti + İzleyici için kabul/düzenle/ret
     düğmelerinin ön-alımla grileştirilmesi + bearer gönderimi + 401/403 eleme
+- EM-101: kullanıcı ve rol yönetimi — ekleme/düzenleme/devre dışı bırakma + rol
+  atama ve ülke bazlı yetki + her işlemin denetim kaydına yazılması (E10)
+  - EM-098 hesapları oluşturuyor, EM-099 `manage_users` yetkisini tanımlıyordu;
+    ancak bu yetkiyi *kullanan* bir yüzey yoktu — hesapları yönetecek (ekle/
+    düzenle/devre dışı bırak), rol ve ülke atayacak ve bunu **hesap verebilir**
+    kılacak bir akış eksikti (kabul: "kullanıcı ekleme, düzenleme, devre dışı
+    bırakma; rol atama ve ülke bazlı yetki; tüm işlemler denetim kaydına yazılır")
+  - `src/models/auth.py` + `V035__user_country_scope.sql`: `users.country`
+    (TR/GR; `None` = küresel/asksız hesap) — rol kadar kalıcı ve denetlenebilir
+    tek bir nitelik olarak hesapla birlikte saklanır
+  - `src/services/user_management.py`: parola/rol/tekrar doğrulamasını EM-098
+    `create_user`a devreder (aynı redler); ekle/düzenle/etkinleştir/
+    devre dışı bırak; her mutasyon EM-096 **değiştirilemez** denetim defterine
+    `user_management` alanıyla önce→sonra anlık görüntüsüyle yazılır
+  - **Geriye-uyumlu, dürüst varsayılan:** yazımlar EM-099 `manage_users` ile
+    `authorize_action` üzerinden kapılanır; `AUTHZ_ENFORCEMENT_ENABLED` kapalıyken
+    (Config/TestingConfig varsayılanı) beyan edilen serbest metin `actor` ile
+    ilerler, açıkken oturumsuz→401, yetkisiz rol→403 ve denetim faili *kanıtlanmış*
+    oturum e-postası olur (sahte aktör reddedilir)
+  - Uçlar: `GET /api/v1/users/manage/config`, `GET /users/manage?country=`,
+    `POST /users/manage`, `PATCH /users/manage/{id}`, `POST /users/manage/{id}/active`
+  - UI: `operator_map.html` kullanıcı/rol yönetimi paneli (ekleme formu + satır
+    bazında rol/ülke seçici + Kaydet + Devre dışı/Etkinleştir; bearer gönderimi,
+    401/403 eleme, uygulanan/kapalı yetki notu)
 - EM-085: erişilebilirlik sözleşmesi — renk körü güvenli palet + renkten-bağımsız
   risk kodlaması + belge düzeyi genel klavye kısayolları (E8)
   - Koyu tema ve ham renk jetonları EM-075 tasarım sisteminde zaten vardı

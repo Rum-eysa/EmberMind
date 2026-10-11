@@ -40,6 +40,10 @@ class User(BaseModel):
     # Salted PBKDF2-HMAC-SHA256 digest: "iterations$salt_hex$hash_hex".
     password_digest = Column(String(512), nullable=False)
     role = Column(String(32), nullable=False, default=DEFAULT_ROLE)
+    # EM-101: the country this account is scoped to (TR / GR); ``None`` means a
+    # global (unscoped) account. Stored alongside the role so "rol atama ve ülke
+    # bazlı yetki" is one durable, auditable attribute per account.
+    country = Column(String(2), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     failed_login_count = Column(Integer, nullable=False, default=0)
     locked_until = Column(DateTime, nullable=True)
@@ -53,6 +57,7 @@ class User(BaseModel):
             "email": self.email,
             "display_name": self.display_name,
             "role": self.role,
+            "country": self.country,
             "is_active": bool(self.is_active),
             "locked_until": to_utc_iso(self.locked_until)
             if self.locked_until

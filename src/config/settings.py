@@ -575,6 +575,16 @@ class Config:
         "on",
     )
 
+    # EM-101: Kullanici ve rol yonetimi (Epic E10)
+    # EM-098 kisiyi, EM-099 rolu ekledi ama hesaplarin yonetilecegi bir admin
+    # yuzeyi yoktu. EM-101 ekle/duzenle/devre birak + rol atama + ULKE KAPSAMI
+    # (users.country, V035) ekler; her islem EM-096 defterine yazilir. Bu ayar,
+    # yaratilirken acik ulke verilmezse uygulanacak varsayilan kapsamdır; bos
+    # birakilirsa (varsayilan) hesap global/kapsamsiz olusturulur.
+    USER_MANAGEMENT_DEFAULT_COUNTRY = (
+        os.getenv("USER_MANAGEMENT_DEFAULT_COUNTRY", "").strip().upper()
+    )
+
     # EM-095: API dokümantasyonu ve örnek istemci (Epic E9)
     # Entegratör API'yi hızla denemek ister; FastAPI zaten /docs (Swagger) ve
     # /openapi.json yayınlar, ancak şemanın bir kimlik metadata'sı (iletişim/
@@ -939,6 +949,9 @@ class TestingConfig(Config):
     # EM-099: enforcement stays OFF so the whole existing anonymous decision
     # surface keeps passing; the EM-099 tests flip it on their own settings stub.
     AUTHZ_ENFORCEMENT_ENABLED = False
+    # EM-101: no implicit country scope so created accounts are global unless a
+    # test passes one explicitly; the managed surface is otherwise always on.
+    USER_MANAGEMENT_DEFAULT_COUNTRY = ""
     # EM-095: fixed base URL so example-client snippets are deterministic in tests.
     API_DOCS_BASE_URL = "http://testserver"
     # EM-093: deterministic CAP sender + language for template tests.
