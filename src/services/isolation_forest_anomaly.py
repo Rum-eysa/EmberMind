@@ -263,7 +263,9 @@ def _resolve_and_score(
     multiplier = _sigma_multiplier(settings, sigma)
 
     cells = monitoring_cells(settings)
-    cells = cells[: _max_cells(settings)]
+    # monitoring_cells() already caps the lattice at ANOMALY_MAX_CELLS; slicing
+    # again here would be dead work, and filtering first is what keeps a
+    # region_key outside the first `cap` cells reachable.
     wanted = region_key.strip() if region_key else None
     if wanted:
         cells = [c for c in cells if c.region_key == wanted]

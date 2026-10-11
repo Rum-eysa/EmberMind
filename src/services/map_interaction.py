@@ -377,7 +377,7 @@ def measure_distance(points: Any, settings: Any = None) -> dict[str, Any]:
     """Total great-circle distance (km) along an ordered polyline of points."""
     max_points = _max_points(settings)
     coords = _validated_points(points, MIN_DISTANCE_POINTS, max_points)
-    segments = [
+    segments: list[dict[str, Any]] = [
         {
             "from": list(coords[i]),
             "to": list(coords[i + 1]),
@@ -385,9 +385,9 @@ def measure_distance(points: Any, settings: Any = None) -> dict[str, Any]:
         }
         for i in range(len(coords) - 1)
     ]
-    total_km = sum(
-        _haversine_km(coords[i], coords[i + 1]) for i in range(len(coords) - 1)
-    )
+    # Sum the per-segment legs once: recomputing _haversine_km here would walk
+    # the polyline twice for the same answer.
+    total_km = sum(seg["distance_km"] for seg in segments)
     return {
         "mode": "distance",
         "points": [list(c) for c in coords],
