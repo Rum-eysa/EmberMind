@@ -585,6 +585,19 @@ class Config:
         os.getenv("USER_MANAGEMENT_DEFAULT_COUNTRY", "").strip().upper()
     )
 
+    # EM-100: Veri gizligi ve guvenlik temelleri (Epic E10)
+    # Uygunluk denetimi kod/ayar ozelligidir; gizlilik-tasarim (bolge/hucre bazli,
+    # kisi bazli degil) canli ORM metadata'sindan dogrulanir, gizli anahtarlar
+    # yalnizca ortam/settings'ten okunur (deger asla raporlanmaz). TLS
+    # sonlandirma bir yayinlama (E12) isidir; uygulama yalnizca ters vekilin
+    # ihtiyac duydugu dugmeleri sunar. Kalicilik: none (salt okuma projeksiyonu).
+    SECURITY_TRUST_PROXY_SSL_HEADER = os.getenv(
+        "SECURITY_TRUST_PROXY_SSL_HEADER", "false"
+    ).lower() in ("1", "true", "yes", "on")
+    SECURITY_SESSION_COOKIE_SECURE = os.getenv(
+        "SECURITY_SESSION_COOKIE_SECURE", "false"
+    ).lower() in ("1", "true", "yes", "on")
+
     # EM-095: API dokümantasyonu ve örnek istemci (Epic E9)
     # Entegratör API'yi hızla denemek ister; FastAPI zaten /docs (Swagger) ve
     # /openapi.json yayınlar, ancak şemanın bir kimlik metadata'sı (iletişim/
@@ -952,6 +965,10 @@ class TestingConfig(Config):
     # EM-101: no implicit country scope so created accounts are global unless a
     # test passes one explicitly; the managed surface is otherwise always on.
     USER_MANAGEMENT_DEFAULT_COUNTRY = ""
+    # EM-100: transport knobs default OFF in tests too (TLS is deployment/E12);
+    # the conformance tests assert posture off and flip them on a local stub.
+    SECURITY_TRUST_PROXY_SSL_HEADER = False
+    SECURITY_SESSION_COOKIE_SECURE = False
     # EM-095: fixed base URL so example-client snippets are deterministic in tests.
     API_DOCS_BASE_URL = "http://testserver"
     # EM-093: deterministic CAP sender + language for template tests.

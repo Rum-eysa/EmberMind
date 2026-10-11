@@ -66,6 +66,7 @@ from src.routes.scenario_editor import register_scenario_editor_routes
 from src.routes.scenario_library import register_scenario_library_routes
 from src.routes.scenario_playback import register_scenario_playback_routes
 from src.routes.scenario_share import register_scenario_share_routes
+from src.routes.security_privacy import register_security_privacy_routes
 from src.routes.share_policy import register_share_policy_routes
 from src.routes.shift_handover import register_shift_handover_routes
 from src.routes.silent_detection_performance import (
@@ -488,6 +489,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_auth_routes(api, database, settings)
     register_authorization_routes(api, database, settings)
     register_user_management_routes(api, database, settings)
+    register_security_privacy_routes(api, database, settings)
     register_ui_state_routes(api, database, settings)
     register_event_timeline_routes(api, database, settings)
     register_multi_fire_routes(api, database, settings)

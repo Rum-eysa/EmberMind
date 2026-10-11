@@ -51,6 +51,7 @@ PANEL_KEYS = (
     "auth",
     "authorization",
     "user_management",
+    "security_privacy",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -102,6 +103,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Yönetilen hesap yok; yeni bir hesap ekleyin.",
         "error": "Kullanıcı yönetimi hizmeti yanıt vermedi.",
         "error_action": "Bağlantınızı kontrol edip yeniden deneyin; yetkiniz yoksa (İzleyici/Saha) işlemler pasif kalır.",
+    },
+    "security_privacy": {
+        "title": "Güvenlik ve Gizlilik Uygunluğu",
+        "loading": "Gizlilik-tasarım denetimi ve (maskelenmiş) gizli-anahtar durumu derleniyor…",
+        "empty": "Uygunluk raporu döndüğünde kişisel-veri taraması, sır hijyeni ve aktarım duruşu burada listelenir.",
+        "error": "Güvenlik/gizlilik uygunluk hizmeti yanıt vermedi.",
+        "error_action": "Bağlantınızı kontrol edip yeniden deneyin; TLS sonlandırma ve sır yönetimi yayınlama (E12) sorumluluğudur.",
     },
     "exposure": {
         "title": "Tehdit altındaki yapılar",

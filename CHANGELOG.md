@@ -82,6 +82,34 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - UI: `operator_map.html` kullanıcı/rol yönetimi paneli (ekleme formu + satır
     bazında rol/ülke seçici + Kaydet + Devre dışı/Etkinleştir; bearer gönderimi,
     401/403 eleme, uygulanan/kapalı yetki notu)
+- EM-100: veri gizliliği ve güvenlik temelleri — kodlanabilir uygunluk dilimi
+  (privacy-by-design denetimi + gizli-anahtar hijyeni + dürüst aktarım duruşu) (E10)
+  - E10'un kimlik/yetki tarafı (EM-098/099/101) tamamdı; kabul ölçütündeki
+    "TLS aktarımda + sırlar env/secret-manager'da + KVKK/GDPR gizlilik-tasarım:
+    kişi değil bölge bazlı" garantilerinin **doğrulanabilir** bir yüzeyi yoktu —
+    iddia edilen değil *denetlenen* bir uygunluk görünümü eksikti
+  - `src/services/security_privacy.py` (`persistence: none` — salt okuma zamanı
+    projeksiyonu): **gizlilik-tasarım** denetimi canlı SQLAlchemy metadata'sından
+    yapılır — her gözlem/alan tablosunun hücre/bölge/koordinat/ülke ile
+    anahtarlandığı *ve* kişisel-veri sütunu taşımadığı sütün sütün doğrulanır
+    (iddia edilmez, gerçek şema incelenir); hesap/hesap-verirliği tabloları
+    (`users`, `user_sessions`, `audit_trail`, `recommendation_decisions` ve
+    benzerleri — yedi tablo) personel kimliği olduğu için EM-098/EM-096
+    gereği ayrı kategoride şeffafça listelenir
+  - **Gizli-anahtar hijyeni:** sırlar yalnızca ortam/settings'ten okunur; rapor
+    her gizli-anahtar ayarının durumunu (`not_set`/`configured`/
+    `insecure_default`) **değeri asla return etmeden** bildirir (yalnızca
+    uzunluk); bilinen güvensiz varsayılanlar (`dev-secret` vb.) yakalanır
+  - **Dürüst aktarım duruşu:** TLS sonlandırma bir yayınlama (E12) işidir;
+    uygulama TLS'i kendisi sağlıyormuş gibi **yapmaz**, yalnızca TLS-sonlandıran
+    ters vekilin düğmelerini sunar (`SECURITY_TRUST_PROXY_SSL_HEADER`,
+    `SECURITY_SESSION_COOKIE_SECURE`; ikisi de Config+TestingConfig'te varsayılan
+    kapalı → 1688 mevcut test aynen geçer)
+  - Uçlar: `GET /api/v1/security-privacy` (birleşik uygunluk raporu:
+    `overall PASS/ACTION_REQUIRED` + kişisel-veri bulguları engel listesi),
+    `GET /api/v1/security-privacy/config` (katalog + kapsam notu)
+  - UI: `operator_map.html` güvenlik/gizlilik uygunluk kartı (gizlilik-tasarım
+    hükmü + maskelenmiş sırlar durumu + aktarım duruşu ve E12 kapsam notu)
 - EM-085: erişilebilirlik sözleşmesi — renk körü güvenli palet + renkten-bağımsız
   risk kodlaması + belge düzeyi genel klavye kısayolları (E8)
   - Koyu tema ve ham renk jetonları EM-075 tasarım sisteminde zaten vardı

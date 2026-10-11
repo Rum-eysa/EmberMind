@@ -305,6 +305,28 @@ e-postası olur (sahte aktör reddedilir). Kalıcılık: `users.country` (V035) 
 `audit_trail` (V030). Servis `src/services/user_management.py`, arayüz
 `operator_map.html` kullanıcı/rol yönetimi panelidir.
 
+#### Güvenlik ve Gizlilik Uygunluğu (EM-100)
+```
+GET  /api/v1/security-privacy          # birleşik uygunluk raporu (gizlilik + sır + aktarım)
+GET  /api/v1/security-privacy/config   # hesap/sır kataloğu + ayar düğmeleri + kapsam notu
+```
+Epic E10'un **doğrulanabilir** uygunluk dilimi: kabul ölçütündeki
+"KVKK/GDPR privacy-by-design (bölge/hücre bazlı, kişi bazlı değil)" ve
+"sırlar env/secret-manager'da" garantileri iddia edilmez, *denetlenir*.
+Gizlilik-tasarım hükmü canlı SQLAlchemy metadata'sinden üretilir (`persistence:
+none`): her gözlem/alan tablosunun koordinat/hücre/bölge/ülke anahtarı taşıdığı
+ve kişisel-veri sütunu (e-posta/telefon/TCKN/adres...) barındırmadığı süt süt
+kontrol edilir; hesap/hesap-verirliği tabloları (`users`, `audit_trail` vb.)
+personel kimliği olduğundan EM-098/EM-096 gereği ayrı listelenir. Kişisel-veri
+bulgusu bulunursa `overall=ACTION_REQUIRED` + `blockers` döner. Gizli-anahtar
+hijyeni raporu her sırrın durumunu (`not_set`/`configured`/`insecure_default`)
+**değeri asla return etmeden** bildirir. TLS sonlandırma dürüstçe **E12
+(yayınlama)** sorumluluğu olarak raporlanır; uygulama yalnızca TLS-sonlandıran
+ters vekilin düğmelerini sunar: `SECURITY_TRUST_PROXY_SSL_HEADER` ve
+`SECURITY_SESSION_COOKIE_SECURE` (ikisi de varsayılan kapalı). Servis
+`src/services/security_privacy.py`, arayüz `operator_map.html`
+güvenlik/gizlilik uygunluk kartıdır.
+
 ### Proaktif Kaynak Konumlandırma (EM-052)
 ```
 GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri

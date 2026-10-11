@@ -350,7 +350,7 @@
       border-radius: 4px; padding: 0 5px; background: var(--surface-color, #f4f4f4); }
     #a11y-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     /* EM-098: giriş/oturum paneli — token yalnızca sessionStorage'da, asla localStorage'da */
-    #auth-open, #user-mgmt-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+    #auth-open, #user-mgmt-open, #security-privacy-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
                  border: 1px solid var(--border-color); border-radius: 6px;
                  background: none; }
     #auth-panel .auth-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
@@ -375,6 +375,22 @@
     #user-mgmt-panel .um-err { color: var(--risk-high, #d55e00); font-size: var(--font-size-xs); }
     #user-mgmt-panel .um-subform { margin-top: 8px; display: flex; flex-direction: column;
       gap: 5px; }
+    /* EM-100: güvenlik/gizlilik uygunluk karti — privacy-by-design + sır hijyeni + aktarım */
+    #security-privacy-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 320px; max-height: 68vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #security-privacy-panel .sp-section { border-bottom: 1px solid var(--border-color);
+      padding: 6px 0; display: flex; flex-direction: column; gap: 3px; }
+    #security-privacy-panel .sp-title { font-weight: 700; }
+    #security-privacy-panel .sp-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #security-privacy-panel .sp-badge { border: 1px solid var(--border-color); border-radius: 4px;
+      padding: 0 6px; font-size: var(--font-size-xs); align-self: flex-start; }
+    #security-privacy-panel .sp-pass { color: #1b7f37; }
+    #security-privacy-panel .sp-warn { color: var(--risk-high, #d55e00); }
+    #security-privacy-panel .sp-secret-row { display: flex; justify-content: space-between;
+      gap: 8px; font-size: var(--font-size-xs); }
     /* EM-084: mobil/tablet — dar ekranda panel tam genişlik, temel yazılar okunur kalır */
     @media (max-width: 640px) {
       #fieldview-panel { top: 56px; left: 6px; right: 6px; width: auto;
@@ -919,6 +935,9 @@
     <button type="button" id="user-mgmt-open"
       title="EM-101 kullanıcı ve rol yönetimi — hesap ekle/düzenle/devre dışı bırak, rol atama ve ülke kapsami; her işlem denetim kaydına yazılır">
       Kullanıcı Yönetimi</button>
+    <button type="button" id="security-privacy-open"
+      title="EM-100 güvenlik ve gizlilik uygunluğu — gizlilik-tasarım (bölge/hücre bazlı, kişisel veri yok) denetimi, maskelenmiş gizli-anahtar durumu ve dürüst TLS/aktarım duruşu">
+      Güvenlik &amp; Gizlilik</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
@@ -1123,6 +1142,11 @@
   <div id="user-mgmt-panel" class="panel" aria-live="polite">
     <h1>Kullanıcı ve Rol Yönetimi</h1>
     <div id="user-mgmt-body"></div>
+  </div>
+
+  <div id="security-privacy-panel" class="panel" aria-live="polite">
+    <h1>Güvenlik ve Gizlilik Uygunluğu</h1>
+    <div id="security-privacy-body"></div>
   </div>
 
   <div id="timeline-panel" class="panel" aria-live="polite">
@@ -1524,6 +1548,8 @@
   let authPerms = null;              // {enforced, authenticated, role, can_decide,...}
   // EM-101: kullanici ve rol yonetimi — /api/v1/users/manage yanitlari.
   let userMgmtPanelOpen = false;
+  // EM-100: guvenlik/gizlilik uygunlugu — /api/v1/security-privacy (persistence: none).
+  let securityPrivacyPanelOpen = false;
   let userMgmtConfig = null;         // /api/v1/users/manage/config (rol/ulke kataloğu)
   let userMgmtList = null;           // /api/v1/users/manage yanıtı (hesaplar)
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
@@ -1769,6 +1795,89 @@
       frame.innerHTML = '<div class="ds-notice">Karar destek çerçevesi'
         + ' yüklenemedi: ' + escapeHtml(err.message) + '</div>';
     }
+  }
+
+  // EM-100: guvenlik/gizlilik uygunluk karti — privacy-by-design + sır hijyeni + aktarım.
+  async function toggleSecurityPrivacyPanel() {
+    const panel = document.getElementById("security-privacy-panel");
+    if (!panel) return;
+    if (securityPrivacyPanelOpen) {
+      securityPrivacyPanelOpen = false;
+      panel.style.display = "none";
+      return;
+    }
+    securityPrivacyPanelOpen = true;
+    panel.style.display = "block";
+    await loadSecurityPrivacy();
+  }
+
+  async function loadSecurityPrivacy() {
+    const box = document.getElementById("security-privacy-body");
+    if (!box) return;
+    panelLoading(box, "security_privacy");
+    try {
+      const res = await fetch("/api/v1/security-privacy");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      renderSecurityPrivacy(box, j);
+    } catch (err) {
+      box.innerHTML = panelErrorHtml("security_privacy", err.message);
+    }
+  }
+
+  function spBadge(verdict) {
+    const okCls = (verdict === "PASS" || verdict === "OK") ? "sp-pass" : "sp-warn";
+    return `<span class="sp-badge ${okCls}">${escapeHtml(verdict)}</span>`;
+  }
+
+  function renderSecurityPrivacy(box, j) {
+    const pr = j.privacy_by_design || {};
+    const sh = j.secret_hygiene || {};
+    const ts = j.transport_security || {};
+    let html = "";
+    // Overall verdict.
+    html += `<div class="sp-section"><div class="sp-title">Genel uygunluk ${spBadge(j.overall)}</div>`;
+    html += `<div class="sp-meta">${escapeHtml(j.attribution || "")}</div></div>`;
+    // Privacy by design.
+    html += `<div class="sp-section"><div class="sp-title">Gizlilik-tasarım ${spBadge(pr.verdict)}</div>`;
+    html += `<div class="sp-meta">${pr.domain_tables || 0} gözlem/alan tablosu tarandı; `
+      + `${pr.geo_keyed_count || 0} tanesi hücre/bölge/koordinat ile anahtarlı.</div>`;
+    const findings = pr.personal_data_findings || [];
+    if (findings.length) {
+      html += `<div class="sp-warn">Bulgular: ` + findings.map((f) =>
+        `${escapeHtml(f.table)}→${escapeHtml(f.columns)}`).join(", ") + `</div>`;
+    } else {
+      html += `<div class="sp-meta">Alan tablolarında kişisel-veri sütunu bulunmadı (KVKK/GDPR: kişi bazlı değil, bölge/hücre bazlı).</div>`;
+    }
+    const acct = pr.account_tables || [];
+    if (acct.length) {
+      html += `<div class="sp-meta">Hesap tabloları (personel girişi/denetimi, EM-098/EM-096): `
+        + acct.map((t) => escapeHtml(t)).join(", ") + `</div>`;
+    }
+    html += `</div>`;
+    // Secret hygiene.
+    html += `<div class="sp-section"><div class="sp-title">Gizli-anahtar hijyeni ${spBadge(sh.verdict)}</div>`;
+    html += `<div class="sp-meta">Değerler asla gösterilmez — yalnızca durum. Kaynak koduna gömülü sır: ${sh.hardcoded_secrets_in_source || 0}.</div>`;
+    (sh.secrets || []).forEach((s) => {
+      const stateLabel = s.state === "configured" ? "yapılandırıldı"
+        : (s.state === "insecure_default" ? "GÜVENSİZ VARSAYILAN" : "ayarlanmadı");
+      const cls = s.state === "configured" ? "sp-pass" : "sp-warn";
+      html += `<div class="sp-secret-row"><span>${escapeHtml(s.setting)}</span>`
+        + `<span class="${cls}">${escapeHtml(stateLabel)}${s.is_set ? ` (len ${s.value_length})` : ""}</span></div>`;
+    });
+    if ((sh.insecure_default_settings || []).length) {
+      html += `<div class="sp-warn">Üretime geçmeden şu varsayılanları değiştirin: `
+        + sh.insecure_default_settings.map((x) => escapeHtml(x)).join(", ") + `</div>`;
+    }
+    html += `</div>`;
+    // Transport security (honest).
+    html += `<div class="sp-section"><div class="sp-title">Aktarım güvenliği</div>`;
+    html += `<div class="sp-meta">TLS sonlandırma: ${escapeHtml(ts.tls_terminated_by || "—")} · uygulama TLS sağlıyor mu: ${ts.app_provides_tls ? "evet" : "hayır"}.</div>`;
+    html += `<div class="sp-meta">ters-vekil SSL başlığı: ${ts.trust_proxy_ssl_header ? "AÇIK" : "kapalı"} · oturum çerezi Secure: ${ts.session_cookie_secure ? "AÇIK" : "kapalı"}.</div>`;
+    html += `<div class="sp-meta">${escapeHtml(ts.note || "")}</div>`;
+    html += `</div>`;
+    html += `<div class="sp-meta" style="margin-top:6px">${escapeHtml(pr.note || "")}</div>`;
+    box.innerHTML = html;
   }
 
   // EM-052: önerilen konuşlanma listesi + seçilen rotaya otomatik odaklama.
@@ -6200,6 +6309,10 @@
     // EM-101: kullanici ve rol yonetimi — panel dugmesi (talep uzerine yuklenir).
     const userMgmtBtn = document.getElementById("user-mgmt-open");
     if (userMgmtBtn) userMgmtBtn.addEventListener("click", toggleUserMgmtPanel);
+
+    // EM-100: guvenlik/gizlilik uygunlugu — panel dugmesi (talep uzerine yuklenir).
+    const securityPrivacyBtn = document.getElementById("security-privacy-open");
+    if (securityPrivacyBtn) securityPrivacyBtn.addEventListener("click", toggleSecurityPrivacyPanel);
 
     // EM-097: karar destek çerçevesi - öneri ekranında sorumluluk/versiyon şeridi
     // ve sentetik veri durumunda SENARYO VERİSİ rozeti (bir kez yüklenir).
