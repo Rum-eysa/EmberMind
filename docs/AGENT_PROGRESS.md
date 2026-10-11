@@ -1937,12 +1937,45 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   `demo_account` rapor-anahtarı testi güncellendi).
 - **Commit:** `feat(EM-098): ...` (bu dal).
 
+### EM-099 — Rol tabanlı yetkilendirme (#188) — DONE
+- **Boşluk analizi:** EM-098 *kim* olduğunu çözüyordu ama hiçbir yetki
+  **uygulamıyordu**. Rol `users` üzerinde duruyor, karar uçları
+  (kabul/ret/düzenle/serbest bırakış) kimin ne yapabildiğine bakmıyordu. E10
+  Should (sp5). Kabul: "roller Operatör/Koordinatör/Saha/İzleyici/Yönetici;
+  İzleyici öneriyi kabul edemez". EM-098/099 dokümanı uygulamayı açıkça buraya
+  ertelemişti → gerçek, mükerrer-olmayan kod boşluğu.
+- **Kapsam kararları:** **Kalıcılık yok** (`persistence: none`) — rol zaten
+  V034'te. EM-092 "saf karar katmanı + yalnızca açıkken uygula" sözleşmesi
+  kopyalanır: `authorize_action` durum sözlüğü döner, rota durumu HTTP'ye
+  eşler. **Geriye-uyumlu dürüst varsayılan:** `AUTHZ_ENFORCEMENT_ENABLED`
+  Config+TestingConfig'te **kapalı** → 1615 anonim karar testi aynen geçer;
+  kapalıyken yetki `disabled` raporlanır (sahte güvenlik yok). Otomatik
+  `release-completed` süpürmesi planlı görev olduğundan **bilinçli** bearer
+  koruması dışı (bearer istemek zamanlanmış görevi kırardı).
+- **Uygulama:** `src/services/authorization.py` (izin sözlüğü
+  view/decide/release/manage_users, `ROLE_PERMISSIONS` matrisi — İzleyici
+  yalnız `view`, `ACTION_PERMISSION`, `authorize_action`/`whoami_permissions`/
+  `authorization_config`; EM-098 `parse_bearer`+`current_user` yeniden kullanılır).
+  Rota `src/routes/authorization.py` (`/authz/config`+`/permissions`+`/effective`,
+  `with database.session()` kalıbı — `Session` bağımlılığı DEĞİL) + `fastapi_app`
+  kaydı. `recommendation_decision.py` `_enforce` yardımcı → decide/release için
+  401/403. `settings.py` `AUTHZ_ENFORCEMENT_ENABLED` + `.env.example` +
+  `ui_states.py` `authorization` panel anahtarı. UI: `operator_map.html`
+  `loadAuthorization`/`authzCannotDecide`/`applyAuthorization` (rol rozeti +
+  İzleyici düğme kısıtı, `#positioning-list` — yanlış `positioning-proposals`
+  düzeltildi) + karar/release fetch'lerine bearer + 401/403 eleme. 29 test
+  (`test_authorization.py`).
+- **Kapılar:** black(temiz)/mypy(Success — `base` sözlüğüne `dict[str, Any]`
+  anotasyonu eklendi)/pylint(10.00)/bandit(-ll 0) yeşil; pytest **1644**
+  (1615 + 29 yeni).
+- **Commit:** `feat(EM-099): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187), EM-099 (#188) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).

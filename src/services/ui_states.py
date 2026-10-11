@@ -49,6 +49,7 @@ PANEL_KEYS = (
     "field_view",
     "accessibility",
     "auth",
+    "authorization",
 )
 
 PANEL_STATES: dict[str, dict[str, str]] = {
@@ -86,6 +87,13 @@ PANEL_STATES: dict[str, dict[str, str]] = {
         "empty": "Henüz oturum yok; e-posta ve parola ile giriş yapın.",
         "error": "Kimlik doğrulama hizmeti yanıt vermedi.",
         "error_action": "Bilgileri kontrol edip yeniden deneyin; hesap kilitlendiyse kilit süresinin dolmasını bekleyin.",
+    },
+    "authorization": {
+        "title": "Rol tabanlı yetkilendirme",
+        "loading": "Rol/yetki matrisi yükleniyor…",
+        "empty": "Giriş yapıldığında rolünüz ve yetkileriniz burada listelenir.",
+        "error": "Yetkilendirme hizmeti yanıt vermedi.",
+        "error_action": "Bağlantınızı kontrol edip yeniden deneyin; yetkiniz yoksa karar düğmeleri pasif kalır.",
     },
     "exposure": {
         "title": "Tehdit altındaki yapılar",

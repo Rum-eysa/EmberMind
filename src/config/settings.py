@@ -558,6 +558,23 @@ class Config:
         "AUTH_DEMO_BOOTSTRAP_PASSWORD", "embermind-demo"
     )
 
+    # EM-099: Rol tabanli yetkilendirme (Epic E10)
+    # EM-098 kisiyi ekledi ama rolunu HIC KULLANMADI; her yaz ucu serbest metin
+    # "decided_by" etiketine guvendi. EM-099, EM-098 rollerinin (operator/
+    # coordinator/field/viewer/admin) uzerinde yetki uygulamasi ekler: kabul
+    # ozelligi "Izleyici oneri kabul edemez". Uygulama varsayilan KAPALIDIR —
+    # kapaliyken mevcut anonim karar yuzeyi (ve tum testler) geriye donuk uyumlu
+    # calisir; ACIKKEN oturumu olmayan 401, rolü yetkisiz 403 alir. Kalicilik:
+    # none (rol zaten users.role'da, V034).
+    AUTHZ_ENFORCEMENT_ENABLED = os.getenv(
+        "AUTHZ_ENFORCEMENT_ENABLED", "false"
+    ).lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
     # EM-095: API dokümantasyonu ve örnek istemci (Epic E9)
     # Entegratör API'yi hızla denemek ister; FastAPI zaten /docs (Swagger) ve
     # /openapi.json yayınlar, ancak şemanın bir kimlik metadata'sı (iletişim/
@@ -919,6 +936,9 @@ class TestingConfig(Config):
     AUTH_MIN_PASSWORD_LENGTH = 8
     AUTH_DEMO_BOOTSTRAP_EMAIL = "demo.operator@embermind.test"
     AUTH_DEMO_BOOTSTRAP_PASSWORD = "test-demo-password"  # nosec B105
+    # EM-099: enforcement stays OFF so the whole existing anonymous decision
+    # surface keeps passing; the EM-099 tests flip it on their own settings stub.
+    AUTHZ_ENFORCEMENT_ENABLED = False
     # EM-095: fixed base URL so example-client snippets are deterministic in tests.
     API_DOCS_BASE_URL = "http://testserver"
     # EM-093: deterministic CAP sender + language for template tests.

@@ -1497,6 +1497,8 @@
   let authConfig = null;             // /api/v1/auth/config yanıtı (TTL/idle/kilitleme)
   let authToken = null;              // ham bearer token — yalnızca sessionStorage'da
   let authSession = null;            // /api/v1/auth/me yanıtı (girişliyse dolu)
+  // EM-099: rol tabanlı yetkilendirme — /api/v1/authz/effective yanıtı.
+  let authPerms = null;              // {enforced, authenticated, role, can_decide,...}
   // EM-079: panel yükleme/boş/hata durumları + bağlantı-kesildi bandı kataloğu.
   const UI_STATES = { panels: {}, connection: null };  // /api/v1/ui-states'ten dolar
 
@@ -1817,6 +1819,8 @@
       });
       box.appendChild(row);
     }
+    // EM-099: karar düğmelerini rol yetkisine göre hemen kisitla.
+    applyAuthorization();
     // EM-050: kısıt ihlali nedeniyle üretilmeyen öneriler + elenme nedenleri.
     const rejBox = document.createElement("div");
     rejBox.id = "positioning-rejected";
@@ -1930,10 +1934,22 @@
     };
     try {
       const res = await fetch("/api/v1/recommendations/decisions", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+        method: "POST",
+        headers: Object.assign(
+          { "Content-Type": "application/json" },
+          authToken ? { Authorization: `Bearer ${authToken}` } : {}
+        ),
+        body: JSON.stringify(body),
       });
       const j = await res.json();
-      if (!res.ok) { setStatus("Karar kaydedilemedi: " + (j.detail && j.detail.error ? j.detail.error : res.status)); return; }
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 401) {
+          setStatus("Karar reddedildi (EM-099): bu rol için yetki yok / oturum gerekli.");
+          return;
+        }
+        setStatus("Karar kaydedilemedi: " + (j.detail && j.detail.error ? j.detail.error : res.status));
+        return;
+      }
       const label = action === "accept" ? "Kabul" : action === "edit" ? "Duzenle-Kabul" : "Ret";
       const after = j.resource_status_after || "";
       setStatus(`Karar kaydedildi (${label}) — ${p.name || p.resource_key}: ${after}`);
@@ -2001,11 +2017,22 @@
   async function releaseAssignment(resourceKey, eventKey) {
     try {
       const res = await fetch("/api/v1/recommendations/decisions/release", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: Object.assign(
+          { "Content-Type": "application/json" },
+          authToken ? { Authorization: `Bearer ${authToken}` } : {}
+        ),
         body: JSON.stringify({ resource_key: resourceKey, event_key: eventKey }),
       });
       const j = await res.json();
-      if (!res.ok) { setStatus("Musaite alinamadi: " + (j.detail && j.detail.error ? j.detail.error : res.status)); return; }
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 401) {
+          setStatus("Musaite reddedildi (EM-099): bu rol için yetki yok / oturum gerekli.");
+          return;
+        }
+        setStatus("Musaite alinamadi: " + (j.detail && j.detail.error ? j.detail.error : res.status));
+        return;
+      }
       setStatus(j.released ? (`Kaynak musaite alindi: ${resourceKey}`) : (`Kaynak zaten musaitti: ${resourceKey}`));
       loadAssignments();
       reloadPositioning();
@@ -2386,21 +2413,66 @@
       } else {
         authSession = null;
       }
+      await loadAuthorization();
       renderAuth(box);
     } catch (err) {
       box.innerHTML = panelErrorHtml("auth", "Kimlik doğrulama hizmeti yanıt vermedi: " + err.message);
     }
   }
 
+  // EM-099: giris yapildiysa rolun efektif yetkilerini getir (UI dügme kisiti).
+  async function loadAuthorization() {
+    try {
+      const res = await fetch("/api/v1/authz/effective", {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      });
+      authPerms = res.ok ? await res.json() : null;
+    } catch (err) {
+      authPerms = null;
+    }
+    applyAuthorization();
+  }
+
+  // EM-099: uygulandigi ve izleyici oldugu durumda karar dügmelerini pasif kıl.
+  function authzCannotDecide() {
+    // Yalnızca uygulama ACIK + kimlik dogrulanmıs + karar yetkisi YOKSA kisitla.
+    return Boolean(authPerms && authPerms.enforced && authPerms.authenticated
+      && authPerms.can_decide === false);
+  }
+
+  function applyAuthorization() {
+    const box = document.getElementById("positioning-list");
+    if (!box) return;
+    const blocked = authzCannotDecide();
+    box.querySelectorAll(".db-accept, .db-edit, .db-reject").forEach((btn) => {
+      btn.disabled = blocked;
+      btn.title = blocked
+        ? "Rolünüz öneri kararı vermeye yetkili değil (EM-099)"
+        : "";
+    });
+  }
+
   function renderAuth(box) {
     if (authSession && authSession.user) {
       const u = authSession.user;
       const exp = new Date(authSession.session.expires_at);
+      let authzLine = "";
+      if (authPerms && authPerms.authenticated) {
+        const perms = (authPerms.permissions || []).join(", ") || "—";
+        const mode = authPerms.enforced ? "uygulanıyor" : "yalnızca görüntüleme (kapalı)";
+        authzLine =
+          `<div class="auth-meta">Yetki (EM-099): rol <b>${escapeHtml(String(authPerms.role))}</b>` +
+          ` · yetkiler: ${escapeHtml(perms)} · durum: ${escapeHtml(mode)}</div>` +
+          (authPerms.enforced && authPerms.can_decide === false
+            ? `<div class="auth-err">Bu rol öneri kararı veremez (Kabul/Düzenle/Reddet pasif).</div>`
+            : "");
+      }
       box.innerHTML =
         `<div class="auth-user"><strong>${escapeHtml(u.display_name)}</strong>` +
         ` <span class="auth-role">${escapeHtml(u.role)}</span></div>` +
         `<div class="auth-meta">${escapeHtml(u.email)} · oturum bitişi ${escapeHtml(exp.toLocaleString())}` +
         ` · hareketsizlik limiti ${authConfig ? authConfig.session.idle_timeout_minutes : "?"} dk</div>` +
+        authzLine +
         `<div style="margin-top:8px"><button type="button" id="auth-logout">Güvenli çıkış</button></div>`;
       const btn = document.getElementById("auth-logout");
       if (btn) btn.addEventListener("click", authLogout);

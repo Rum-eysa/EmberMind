@@ -20,6 +20,7 @@ from src.routes.api_access import register_api_access_routes
 from src.routes.api_docs import register_api_docs_routes
 from src.routes.audit_trail import register_audit_trail_routes
 from src.routes.auth import register_auth_routes
+from src.routes.authorization import register_authorization_routes
 from src.routes.capacity import register_capacity_routes
 from src.routes.crossborder import register_crossborder_routes
 from src.routes.crossborder_notification import (
@@ -484,6 +485,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
     register_api_access_routes(api, database, settings)
     register_api_docs_routes(api, database, settings)
     register_auth_routes(api, database, settings)
+    register_authorization_routes(api, database, settings)
     register_ui_state_routes(api, database, settings)
     register_event_timeline_routes(api, database, settings)
     register_multi_fire_routes(api, database, settings)

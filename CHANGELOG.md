@@ -40,6 +40,24 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     istekler arasında kayboluyordu
   - UI: `operator_map.html` giriş/oturum kartı (oturumda kim + çıkış);
     `demo_seed.py` boş kurulumda demo operatörü oluşturur
+- EM-099: rol tabanlı yetkilendirme — EM-098 oturumları üzerinde RBAC (E10)
+  - EM-098 kişi *kim* olduğunu çözüyordu ama hiçbir yetki *uygulamıyordu*: rol
+    `users` üzerinde duruyor, karar uçları (kabul/ret/düzenle/serbest bırakış)
+    ise kimin ne yapabildiğine bakmıyordu (kabul: "roller Operatör/Koordinatör/
+    Saha/İzleyici/Yönetici; İzleyici öneriyi kabul edemez")
+  - `src/services/authorization.py` (`persistence: none` — rol zaten V034
+    `users` üzerinde): izin sözlüğü (`view`/`decide`/`release`/`manage_users`) +
+    rol×izin matrisi (**İzleyici yalnızca `view`** → kabulü üretemez) + eylem→
+    izin sözlüğü; saf karar katmanı `authorize_action`
+  - **Geriye-uyumlu, dürüst varsayılan:** `AUTHZ_ENFORCEMENT_ENABLED` varsayılan
+    kapalı — kapalıyken karar ucu eskisi gibi çalışır ve yetki `disabled` olarak
+    **dürüstçe** raporlanır (sahte güvenlik yok); açıldığında 401 (oturum yok) /
+    403 (rol yetkisiz) uygulanır
+  - Uçlar: `GET /api/v1/authz/config`, `/permissions`, `/effective`;
+    `POST /recommendations/decisions` → `decide`, `/release` → `release`
+    uygulaması (otomatik `release-completed` süpürmesi bilinçli olarak korumasız)
+  - UI: `operator_map.html` rol rozeti + İzleyici için kabul/düzenle/ret
+    düğmelerinin ön-alımla grileştirilmesi + bearer gönderimi + 401/403 eleme
 - EM-085: erişilebilirlik sözleşmesi — renk körü güvenli palet + renkten-bağımsız
   risk kodlaması + belge düzeyi genel klavye kısayolları (E8)
   - Koyu tema ve ham renk jetonları EM-075 tasarım sisteminde zaten vardı

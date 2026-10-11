@@ -7,11 +7,17 @@ decision is written to the audit trail.
 """
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from src.database import Database
 from src.models.recommendation import DECISION_ACTIONS
+from src.services.authorization import (
+    STATUS_FORBIDDEN,
+    STATUS_UNAUTHORIZED,
+    authorize_action,
+)
 from src.services.recommendation_decision import (
     ConflictError,
     DecisionError,
@@ -62,8 +68,40 @@ def _http_error(exc: DecisionError) -> HTTPException:
     )
 
 
+def _enforce(
+    session: Session,
+    settings: Any,
+    authorization: str | None,
+    permission: str,
+) -> None:
+    """EM-099: require the caller's role to hold a permission before a write.
+
+    A no-op when enforcement is switched off (the legacy free-text path is
+    preserved); otherwise a missing/invalid session is ``401`` and a role that
+    lacks the permission is ``403`` (e.g. a viewer cannot accept a proposal).
+    """
+    decision = authorize_action(session, settings, authorization, permission)
+    if decision["status"] == STATUS_UNAUTHORIZED:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "status": "error",
+                "error": decision.get("reason", "authentication required"),
+            },
+        )
+    if decision["status"] == STATUS_FORBIDDEN:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "status": "forbidden",
+                "error": f"rol '{decision.get('role')}' '{permission}' "
+                "yetkisine sahip degil",
+            },
+        )
+
+
 def register_recommendation_routes(
-    api: FastAPI, database: Database, _settings: Any
+    api: FastAPI, database: Database, settings: Any
 ) -> None:
     """Attach the EM-047 recommendation-decision endpoints."""
 
@@ -86,10 +124,19 @@ def register_recommendation_routes(
         }
 
     @api.post("/api/v1/recommendations/decisions", tags=["recommendations"])
-    def decision_record(req: DecisionRequest) -> dict[str, Any]:
-        """Record an accept/edit/reject decision and apply its status effect."""
+    def decision_record(
+        req: DecisionRequest,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        """Record an accept/edit/reject decision and apply its status effect.
+
+        EM-099: when role enforcement is switched on the caller's bearer session
+        must hold the ``decide`` permission (a viewer is refused with ``403``)
+        before any decision is written.
+        """
         try:
             with database.session() as session:
+                _enforce(session, settings, authorization, "decide")
                 result = record_decision(
                     session,
                     resource_key=req.resource_key,
@@ -145,10 +192,17 @@ def register_recommendation_routes(
                 raise _http_error(exc) from exc
 
     @api.post("/api/v1/recommendations/decisions/release", tags=["recommendations"])
-    def decision_release(req: ReleaseRequest) -> dict[str, Any]:
-        """Free a committed unit back to ``available`` (EM-053 task completion)."""
+    def decision_release(
+        req: ReleaseRequest,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        """Free a committed unit back to ``available`` (EM-053 task completion).
+
+        EM-099: releasing needs the ``release`` permission when enforcement is on.
+        """
         try:
             with database.session() as session:
+                _enforce(session, settings, authorization, "release")
                 result = release_assignment(
                     session,
                     resource_key=req.resource_key,

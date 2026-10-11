@@ -264,6 +264,25 @@ dönülür ama **yetki uygulama EM-099'un işidir**. Kalıcılık: `users` +
 `user_sessions` (V034). Arayüz `operator_map.html` giriş/oturum kartıdır;
 `demo_seed.py` boş kurulumda ayarlardan parolalı demo operatörü oluşturur.
 
+#### Rol Tabanlı Yetkilendirme (EM-099)
+```
+GET  /api/v1/authz/config       # rol×izin matrisi + eylem→izin sözlüğü + uygulama anahtarı
+GET  /api/v1/authz/permissions  # izin ve rol katalogları
+GET  /api/v1/authz/effective    # bearer'ın rolü + etkin izinleri ( arayüz kısıtı için)
+```
+Epic E10'un yetki katmanı: EM-098 *kim* olduğunu çözüyordu, burası *ne yapabilir*
+diye sorar. Rol zaten `users` üzerinde durduğundan **kalıcılık yoktur**
+(`persistence: none`) — yalnızca okunur ve kontrol edilir. İzinler
+`view`/`decide`/`release`/`manage_users`; rol×izin matrisinde **İzleyici yalnızca
+`view`** alır, dolayısıyla öneriyi kabul edemez (kabul ölçütü). Uygulama
+**varsayılan kapalıdır** (`AUTHZ_ENFORCEMENT_ENABLED=false`): kapalıyken karar ucu
+eskisi gibi çalışır ve yetki `disabled` olarak dürüstçe raporlanır (sahte güvenlik
+yok); açıldığında `POST /recommendations/decisions` → `decide`, `/release` →
+`release` için **401** (oturum yok) / **403** (rol yetkisiz) uygulanır. Otomatik
+`release-completed` süpürmesi planlı bir görev olduğundan bilinçli olarak bearer
+koruması dışındadır. Servis `src/services/authorization.py`, arayüz
+`operator_map.html` rol rozeti + İzleyici için düğme kısıtıdır.
+
 ### Proaktif Kaynak Konumlandırma (EM-052)
 ```
 GET /api/v1/positioning/proposals   # bir olaya en yakın müsait kaynakların rota+ETA önerileri
