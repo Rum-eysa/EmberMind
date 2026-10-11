@@ -94,8 +94,8 @@ def _clamp_count(value: Any, default: int) -> int:
 
 def _active_events(session: Session, limit: int) -> list[FireEvent]:
     """Active fire events, most urgent first then oldest-starting first."""
-    rows = session.scalars(select(FireEvent)).all()
-    active = [row for row in rows if str(row.status) == "active"]
+    rows = session.scalars(select(FireEvent).where(FireEvent.status == "active")).all()
+    active = list(rows)
     active.sort(key=lambda r: (-_rank(r.severity), str(r.started_at), r.event_key))
     return active[:limit]
 

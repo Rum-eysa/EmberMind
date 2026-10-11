@@ -5,6 +5,17 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Performance
+- Kod hantallığı taraması — tam tabloyu Python'a çekip burada süzmek yerine
+  filtre/sayım/limit SQL'e indirildi (çıktı birebir aynı, testler kilitli)
+  - `_active_events` (EM-089 vardiya devri, EM-082 çoklu yangın): `fire_events`
+    tablosunun tamamı okunup `status == "active"` Python tarafında filtreleniyordu;
+    kapanmış olaylar da panel başına bir kez taşınıyordu → `WHERE status = 'active'`
+    artık SQL içinde
+  - `list_notes` (EM-089): tüm not satırları sayfalamak için belleğe alınıyordu;
+    `total_matching` artık `COUNT(*)`, sayfa artık `LIMIT` ile SQL'den geliyor —
+    birikimli not defteri büyüdükçe panel maliyeti sabit kalıyor
+  - `feedback_summary` (EM-041): dört sayı için değişmez doğrulama defterinin tamamı
+    okunuyordu → `GROUP BY status` + `COUNT(DISTINCT region_id)` toplama sorgusu
 - EM-042 sessiz bölge performans değerlendirmesi — sentetik senaryo tekrar-okuması
   için istek-kapsamlı sinyal ara belleği
   - `evaluate_detection`/`/api/v1/silent-detection-performance` her okumada hücre

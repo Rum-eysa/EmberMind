@@ -26,7 +26,7 @@ rather than being silently dropped.
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.models.event_notes import EventNote
@@ -139,10 +139,12 @@ def list_notes(
     query = select(EventNote).order_by(EventNote.id.desc())
     if event_key:
         query = query.where(EventNote.event_key == event_key)
-    rows = list(session.scalars(query).all())
-    total = len(rows)
     resolved = cap if limit is None else _clamp_count(limit, cap)
-    page = rows[: max(1, min(resolved, cap))]
+    page_size = max(1, min(resolved, cap))
+    # Count and page in SQL: the panel badge stays honest without materialising
+    # every note the operator has ever written.
+    total = int(session.scalar(select(func.count()).select_from(query.subquery())) or 0)
+    page = list(session.scalars(query.limit(page_size)).all())
     return {
         "panel": "event_notes",
         "filter": {"event_key": event_key},
@@ -176,9 +178,13 @@ def delete_note(session: Session, note_id: int) -> dict[str, Any]:
 
 
 def _active_events(session: Session) -> list[FireEvent]:
-    """Active incidents, most severe first then oldest-start, for the summary."""
-    rows = list(session.scalars(select(FireEvent)).all())
-    active = [row for row in rows if str(row.status) == "active"]
+    """Active incidents, oldest-start first (ties broken by event_key).
+
+    The ``status`` predicate runs in SQL so the whole ``fire_events`` history is
+    never pulled into Python just to drop the closed incidents again.
+    """
+    rows = session.scalars(select(FireEvent).where(FireEvent.status == "active")).all()
+    active = list(rows)
     active.sort(key=lambda r: (str(r.started_at), str(r.event_key)))
     return active
 

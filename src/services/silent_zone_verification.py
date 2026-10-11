@@ -215,27 +215,40 @@ def feedback_summary(session: Session) -> dict[str, Any]:
     in ``under_review`` are counted but never treated as a real outcome, so the
     rate only reflects confirmed truth.
     """
-    rows = session.scalars(select(SilentZoneVerification)).all()
     by_status = {code: 0 for code in VERIFICATION_STATUSES}
-    for row in rows:
-        code = str(row.status)
-        by_status[code] = by_status.get(code, 0) + 1
+    # Aggregate in SQL: this ledger only ever grows, so the summary must not read
+    # every verdict row into Python to compute four numbers.
+    counts = session.execute(
+        select(SilentZoneVerification.status, func.count()).group_by(
+            SilentZoneVerification.status
+        )
+    ).all()
+    total_verifications = 0
+    for code, count in counts:
+        key = str(code)
+        by_status[key] = by_status.get(key, 0) + int(count)
+        total_verifications += int(count)
 
     decisive = by_status["verified"] + by_status["false_alarm"]
     false_alarm_rate = (
         round(by_status["false_alarm"] / decisive, 4) if decisive else None
     )
-    adjudicated_regions = {
-        int(row.region_id) for row in rows if row.status in _DECISIVE_STATUSES
-    }
+    adjudicated_region_count = int(
+        session.scalar(
+            select(func.count(func.distinct(SilentZoneVerification.region_id))).where(
+                SilentZoneVerification.status.in_(_DECISIVE_STATUSES)
+            )
+        )
+        or 0
+    )
 
     return {
-        "total_verifications": len(rows),
+        "total_verifications": total_verifications,
         "by_status": by_status,
         "status_labels": dict(VERIFICATION_LABELS),
         "decisive_verifications": decisive,
         "under_review_verifications": by_status["under_review"],
-        "adjudicated_region_count": len(adjudicated_regions),
+        "adjudicated_region_count": adjudicated_region_count,
         "false_alarm_rate": false_alarm_rate,
     }
 
