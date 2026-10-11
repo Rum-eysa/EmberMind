@@ -4,6 +4,26 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 
 ## [Unreleased]
 
+### Tests
+- EM-122: yayılım motoru referans senaryoları — yakıt × rüzgâr × eğim kırılımları
+  tolerans dahilinde kilitlendi (E13)
+  - `tests/unit/test_spread_reference_scenarios.py`: 10 sabit referans senaryo
+    (S1–S10); kısa çimen, yüksek çimen, maki, ibreli döküntü, kesim artığı ve
+    kısa iğneli döküntü yakıt modelleri farklı rüzgâr/eğim kombinasyonlarıyla
+    deneniyor — kabul ölçütü "en az 5 senaryo"nun iki katı
+  - Her senaryoda `base/head` hızı (±0,001 m/dk), rüzgâr/eğim faktörleri
+    (±0,0001), reaksiyon yoğunluğu (±binde 1), yönelme açısı (±0,05°) ve
+    60 dakikalık risk bölgesi alanı/ilk köşe noktası (±binde 1 / ±0,01 m)
+    karşılaştırılıyor; `pytest.approx` bantları sayesinde motorun iç yuvarlama
+    kararları kırılganlaşmadan küçük regresyonlar yakalanıyor
+  - Fizik kuralları ayrı ayrı test: rüzgârsız+düz → yön `None` ve dairesel
+    bölge, rüzgârsız+dik → yukarı (aspect+180) yön, kuzesten fırtına → 180°,
+    nem yayınma eşiğinin üstünde (FM1 %12) → hız ve alan tam sıfır, poligon
+    boş; her senaryo iki kez koşulup aynı sonucu veriyor (determinizm)
+  - Rothermel motorunda daha önce yalnız **tek** altın değer testi vardı
+    (`test_reference_scenario_golden_values`); "en az 5 senaryo" gereksinimi
+    bu testle tek senaryo olarak karşılanıyordu
+
 ### Performance
 - Kod hantallığı taraması — tam tabloyu Python'a çekip burada süzmek yerine
   filtre/sayım/limit SQL'e indirildi (çıktı birebir aynı, testler kilitli)

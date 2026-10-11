@@ -2041,11 +2041,55 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
 - **Commit:** `feat(EM-100): ...` (bu dal).
 
 
+### Kod hantallığı taraması (#—) — DONE (tur dışı bakım)
+
+- Kullanıcı isteği: işlemler yeşil ise hantallaşmış kod kısımlarını ve CI'da
+  "takılan" görünen çalışmaları gözden geçir.
+- **CI:** `008c982`, `f2d99e5`, `3a134d8` çalıştırmaları beklendi; uzun
+  `in_progress` süreleri runner kuyruğu/gecikmesiydi, hata değildi — üçü de
+  **success** ile bitti. Takılan/failed job yok.
+- **Bulgu sınıflandırması:** üç servis üzerinden "tam tabloyu Python'a çek +
+  burada süzmek" kalıbı (`shift_handover._active_events`,
+  `shift_handover.list_notes`, `silent_zone_verification.feedback_summary`,
+  `multi_fire._active_events`) → `WHERE` / `COUNT(*)` / `LIMIT` /
+  `GROUP BY` / `COUNT(DISTINCT …)` ile SQL'e indirildi; payload birebir aynı
+  (test sayısı değişmedi). Önceki turda: çift `haversine` toplamı, ölü
+  hücre yeniden-dilimlemesi kaldırıldı (`f2d99e5`).
+- **Bilinçli atlananlar:** `firms.cluster_observations` O(n²) birleş-bul
+  (bölme/sıra koruma riski), `webhook_delivery._matching_subscriptions`
+  (CSV ayrıştırma, `max_subscriptions` ile sınırlı), kapasite/`audit_trail`/
+  `auth` (zaten SQL'de toplanıyor), segment eşleştirmeli `range(len())`
+  döngüleri (meşru).
+- **Kapılar:** black(temiz 297)/mypy(Success — 195 dosya)/pylint(10.00)/
+  bandit(-ll 0)/pytest **1688** — commit `3a134d8`.
+
+### EM-122 — Yayılım motoru referans senaryoları (yakıt×eğim×rüzgâr) (#211) — DONE
+
+- **Eksik:** Rothermel motorunda (`src/services/spread.py`, EM-015) tek bir
+  altın değer testi (`test_reference_scenario_golden_values`) vardı; kabul
+  ölçütü "en az 5 referans senaryo, çıktılar tolerans dahilinde" idi.
+- **Kapsam:** yalnız test — motor/kod değişmedi. Altın değerler motorun
+  kendisinden bir kez üretildi (geçici scratch script ile), sonra scratch
+  dosyaları silinip tablo teste gömüldü.
+- **Uygulama:** `tests/unit/test_spread_reference_scenarios.py` — 10 senaryo
+  (FM1/FM3/FM4/FM6/FM8/FM10 × rüzgâr 0–60 km/sa × eğim 0–25° × nem 6–25 %),
+  `pytest.approx` bantları: hız ±0.001, faktörler ±0.0001, yoğunluk bağıl
+  0.001, yön ±0.05°, 60 dk alan bağıl 0.01 / ilk köşe ±0.01 m. Ayrı
+  değişmezlik testleri: durgin+düz → `direction is None` + dairesel poligon,
+  durgin+dik → aspect+180 (yukarı yön), kuzes fırtınası → 180°, nem FM1 yayınma
+  eşiğinin (%12) üstünde → hız/alan 0 ve boş poligon, senaryo başına
+  çift-koşum determinizmi, rüzgâr/eğim/nem monotonlukları.
+- **Kapılar:** black(temiz 299)/mypy(Success — 195 dosya)/pylint(10.00)/
+  bandit(-ll 0)/pytest **1736** (1688 + 48 yeni). CI `pull_request` çağrısı
+  `pytest tests` ile otomatik koşuyor (kabul: "testler CI'da çalışır").
+- **Commit:** `test(EM-122): ...` (bu dal).
+
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187), EM-099 (#188), EM-101 (#190), EM-100 (#189) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187), EM-099 (#188), EM-101 (#190), EM-100 (#189), EM-122 (#211) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -2063,8 +2107,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 277 değişmez · mypy Success (184 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1552 passed**.
+- **Final kapılar:** black 299 değişmez · mypy Success (195 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1736 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
