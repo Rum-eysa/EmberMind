@@ -5,6 +5,17 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Fixed
+- Operatör haritası üst barı (`#horizon-bar`) estetik/düzen düzeltmesi (kullanıcı
+  talebi): bar **`left:50% + translateX(-50%)` ile ortalanmış mutlak** konumdaydı ve
+  ~35 kontrolü tek satıra sığdırmaya çalıştığı için iki uçtan ekran dışına taşıyor,
+  bir kısmı kesiliyordu. Kök-çözüm: (1) bar artık **tam genişlikte, sola hizalı**
+  (`left:12px; right:12px`) ve `flex-wrap` ile dar ekranda düzgün sarıyor — taşma/
+  kesilme yok. (2) ~23 panel-açma butonu tek **"Paneller ▾"** `<details>` açılır
+  menüsüne toplandı (iki sütunlu grid, scroll'lu); Ufuk kontrolleri + What-If +
+  rozetler + Ses üstte görünür kaldı. (3) Menüden panel seçilince menü otomatik
+  kapanıyor (`operator_map_init.js` içine işlev-kapsamlı delege dinleyici; HTML
+  işaret dili saf kalır, split-monolit testi geçmeye devam eder). Tüm `id`'ler
+  (`horizon-slider`, `*-open`) korundu → JS bağlayıcıları ve testler kırılmadı.
 - Kod kalitesi denetimi (Aşama 2, tur dışı bakım) — paylaşılan duyarlı/erişilebilir katman:
   - `tokens.css` içine tek `--focus-ring` jetonu eklendi; `components.css` sonuna
     **sayfalar-arası ortak** iki kural kondu: (1) `table { max-width:100% }` ve

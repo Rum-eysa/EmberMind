@@ -35,6 +35,13 @@
         if (whatifEnabled) { closeWhatif(); } else { openWhatif(); }
       });
     }
+    // EM-toolbar: "Paneller" açılır menüsünde bir panel seçilince menüyü kapat.
+    const panelsMenu = document.getElementById("panels-menu");
+    if (panelsMenu) {
+      panelsMenu.addEventListener("click", (e) => {
+        if (e.target.closest("button")) panelsMenu.open = false;
+      });
+    }
     for (const id of ["whatif-dir", "whatif-speed", "whatif-temp", "whatif-humidity"]) {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", scheduleWhatif);

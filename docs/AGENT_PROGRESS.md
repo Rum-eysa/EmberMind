@@ -2206,6 +2206,18 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   artık-kullanılmayan import temizlendi (datetime, SilentRegion, safe_record_update,
   manual_fire_event helper'ları, spatial_db, SpreadError). Kanıt: app importu
   temiz, mypy 197 Success, 1799 integration testi birebir geçiyor → davranış-nötr.
+- **Tur dışı UI düzeltmesi — operatör haritası üst barı (bu commit):** Kullanıcı
+  talebiyle `#horizon-bar` yeniden düzenlendi. Kök neden: bar `left:50% +
+  translateX(-50%)` ile ortalanmış mutlak konumda + ~35 kontrol tek satırda → iki
+  uçtan taşıyor, kesiliyordu. Çözüm (davranış-nötr, yalnız görsel): (1) bar tam
+  genişlik/sola hizalı + `flex-wrap`; (2) ~23 panel-açma butonu tek `#panels-menu`
+  `<details>` (saf CSS açılır menü, satır-ici JS yok) içine toplandı — Ufuk/
+  What-If/rozet/Ses üstte kaldı; (3) seçimde menü kapanması `operator_map_init.js`
+  `init()` içine işlev-kapsamlı delege dinleyici eklendi (üst-seviye bildirim
+  değil → split-monolit "duplicate top-level" testi geçer). Tüm `id`'ler korundu.
+  Kanıt: design_system 15 test + tam 1799 pytest geçti; canlı `/ui` doğrulandı
+  (`panels-menu` var, horizon-bar artik `translateX` yok). Python degmedi →
+  black(298)/mypy(197)/pylint(10.00)/bandit(-ll 0) aynen yesil.
 - **Bilinçli ertelenen (onay kapsamı dışında bırakılanlar):** tam hex/px token
   göçü (renk token'ları tema-bağımlı → dark-mode'da literal ile aynı değil,
   güvenli otomasyon yok), z-index skalasının 28 literal'e bağlanması (görsel
