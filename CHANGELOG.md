@@ -5,6 +5,32 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Tests
+- EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)
+  - `tests/unit/test_risk_index_boundaries.py`: 49 test; `classify_risk`
+    bantlarının **yarım açık** anlamı (üst sınır üst banta aittir) 0.6 / 0.9 /
+    1.2 üçünün de tam üzerinde ve altında (`±1e-9`) doğrulanıyor; `inf` ve
+    `None` girdileri `kritik` kalıyor
+  - Eşikler yapılandırmaya bağlı: 0.4/0.8/1.5 ile yeniden ayarlanmış bantlarda
+    aynı değerin sınıfı değişiyor — operatör eşiği kaydırınca indeksin
+    nasıl kaydığı test edildi
+  - Sıfır/aşırı kapasite: kapasite 0 + talep > 0 → `risk_index` `None` ve
+    `kritik` (tüm talep boşluk sayılıyor); kapasite 0 + talep 0 → 0.0 `normal`;
+    1 ha/ saat yerine `0.0004` varsayımı 3 ondalık yuvarlama yüzünden **fiilen
+    sıfır** kapasiteye çöküyor (0.004 ise ölçülebilir: 3000.0) — bu hassasiyet
+    tabanı ilk kez kilitli; 1e9 ha/saat varsayımı 1e6 ha'lık olayı `normal`'e
+    düşürüyor
+  - Aşırı büyüklükler taşmıyor: 1e9 ha'lık poligonun 30 dk talebi 2e9 ha/saat,
+    oran `math.isfinite` ile doğrulanıyor ve endpoint 200 dönüyor
+  - Kapasite değişiminin indekse etkisi (kabul ölçütü): sabit 12 ha/saat talep
+    için 1–20 ekip → risk = 6/ekip, bant geçişleri 5 ekip (1.2 →
+    `kritik`) ve 10 ekip (0.6 → `dikkat`) üzerinden; tek bir ekibin
+    boşaltılması 0.6 → 0.545 (`dikkat` → `normal`); iki ekibin meşgulluğu
+    0.75 → 1.0 (`dikkat` → `kritik-yakin`); `update_assumptions` ile birim
+    değerin 2.0→4.0 olması indeksi yarıya indiriyor, 1.0 olması `kritik`'e
+    taşıyor; tüm ekip bakıma alınınca indeks ölçülemez oluyor
+  - Mevcut `test_risk_index.py` EM-029 payload/timeline akışını kapsıyordu; bu
+    dilim yalnız sayısal sınırlar ve kapasite müdahalesiyle indekse olan
+    etkisine odaklanıyor (çakışan senaryo tekrarlanmadı)
 - EM-122: yayılım motoru referans senaryoları — yakıt × rüzgâr × eğim kırılımları
   tolerans dahilinde kilitlendi (E13)
   - `tests/unit/test_spread_reference_scenarios.py`: 10 sabit referans senaryo

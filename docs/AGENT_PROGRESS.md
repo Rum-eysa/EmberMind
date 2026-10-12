@@ -2084,12 +2084,33 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   `pytest tests` ile otomatik koşuyor (kabul: "testler CI'da çalışır").
 - **Commit:** `test(EM-122): ...` (bu dal).
 
+### EM-123 — Risk/kapasite hesabı sınır değer testleri (#212) — DONE
+
+- **Eksik:** `test_risk_index.py` payload/timeline akışını kapsıyordu ama sınır
+  değerler tek yönlü örneklerle (0.59/0.6/0.89/0.9/1.19/1.2) doğrulanıyordu;
+  `±ε` iki taraflı sınır, `inf`, aşırı büyük talep/kapasite, yuvarlama
+  hassasiyet tabanı ve "kapasite değişirse indeks ne olur" (parametrik) yoktu.
+- **Kapsam:** yalnız test; `risk_index.py`/`capacity.py` kodu değişmedi.
+- **Uygulama:** `tests/unit/test_risk_index_boundaries.py` (49 test) —
+  yarım-açık bant semantiği (0.6/0.9/1.2 her iki yönde `±1e-9`, `inf`/`None`
+  → `kritik`), yapılandırılmış bantlar (0.4/0.8/1.5) ile sınıf kayması,
+  sıfır kapasite (talep>0 → `None`+`kritik`, talep=0 → 0.0+`normal`),
+  0.0004 ha/sa varsayımının 3 ondalık yuvarlamada sıfıra çökmesi (0.004 →
+  ölçülebilir 3000.0), 1e9 ha poligon → 2e9 ha/sa talep `isfinite` + endpoint
+  200, 1e9 ha/sa birim → 0.002 `normal`; kapasite değişimi: 1–20 ekip →
+  risk = 6/ekip monoton azalan + tam 1.2/0.6 bant geçişleri, ekip boşaltma
+  (0.6→0.545 `dikkat`→`normal`), 2 ekip meşgul (0.75→1.0), `update_assumptions`
+  2.0→4.0 (yarıya) ve →1.0 (`kritik`), tümünü bakıma alma (ölçülemez).
+- **Kapılar:** black(temiz 300)/mypy(Success — 195 dosya)/pylint(10.00)/
+  bandit(-ll 0)/pytest **1785** (1736 + 49 yeni).
+- **Commit:** `test(EM-123): ...` (bu dal).
+
 
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
   EM-030 (#30), EM-032 (#32), EM-056 (#56), EM-060 (#60), EM-061 (#61),
-  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187), EM-099 (#188), EM-101 (#190), EM-100 (#189), EM-122 (#211) — her biri kendi commit'i ile
+  EM-033 (#33), EM-057 (#57), EM-059 (#59), EM-062 (#62), EM-047 (#47), EM-046 (#46), EM-049 (#49), EM-048 (#48), EM-053 (#53), EM-051 (#51), EM-050 (#50), EM-045 (#45), EM-054 (#54), EM-063 (#63), EM-064 (#64), EM-065 (#65), EM-066 (#66), EM-067 (#67), EM-068 (#68), EM-070 (#70), EM-069 (#69), EM-071 (#71), EM-078 (#78), EM-079 (#79), EM-081 (#81), EM-082 (#82), EM-083 (#83), EM-086 (#86), EM-087 (#87), EM-088 (#88), EM-089 (#89), EM-034 (#34), EM-094 (#94), EM-096 (#96), EM-035 (#35), EM-037 (#37), EM-038 (#38), EM-042 (#42), EM-040 (#40), EM-041 (#41), EM-043 (#43), EM-044 (#44), EM-036 (#36), EM-097 (#186), EM-092 (#92), EM-095 (#95), EM-093 (#93), EM-105 (#194), EM-106 (#195), EM-107 (#196), EM-080 (#80), EM-084 (#84), EM-108 (#197), EM-085 (#85), EM-098 (#187), EM-099 (#188), EM-101 (#190), EM-100 (#189), EM-122 (#211), EM-123 (#212) — her biri kendi commit'i ile
   `agent/task-automation` dalına push edildi; ilgili issue'lara
   özet yorum bırakıldı, hiçbiri **kapatılmadı**. EM-055 önceki oturumdan
   alınıp tamamlandı (#55).
@@ -2107,8 +2128,8 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   gerçek CPU süresi yerine rüzgâr ucu `compute_ms`'i telemetriye beslenir;
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
-- **Final kapılar:** black 299 değişmez · mypy Success (195 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1736 passed**.
+- **Final kapılar:** black 300 değişmez · mypy Success (195 dosya) · pylint 10.00/10 ·
+  bandit 0 · pytest **1785 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini
