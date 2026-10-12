@@ -66,6 +66,27 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - 15 bağlı UI-wiring testi artık HTML+script'leri **tek mantıksal birim**
     olarak okuyor (`tests/ui_bundle.py::operator_map_bundle`); assert'ler
     değişmedi, yalnız kaynak birleştirildi (davranış testi değil, wiring koruması).
+- Kod kalitesi denetimi (Aşama 2, A-6 backend — `create_fastapi_app` parçalama,
+  adım 1/core-data): projenin kendi `register_*_routes` kalıbına uygun olarak
+  çekirdek veri domain'i (fires + weather + topography + land-cover) factory'den
+  ayrıştırıldı:
+  - `src/routes/core_data.py` yeni modülü: 12 Pydantic yanıt modeli
+    (`FireClusterResponse`..`LandCoverSyncResponse`) + `register_core_data_routes
+    (api, database, settings)` içine 9 route (GET-list + POST-sync). Model ve
+    route gövdeleri **verbatim** taşındı; aynı route'lar **aynı kayıt sırasında**
+    tek çağrıyla ekleniyor.
+  - `fastapi_app.py`: model bloğu + inline route bloğu kaldırıldı (866 satır,
+    ~302 azalma); `register_core_data_routes(api, database, settings)` çağrısı
+    eski route konumuna kondu; artık-kullanılmayan 6 import temizlendi
+    (FireCluster/Weather/Topography/LandCover modelleri, attribution_for, sync_status).
+  - Ölçüm: `src/` içinde hiçbir yer `from src.fastapi_app import <model>`
+    yapmıyordu → blast-radius içeride; INLINE model zinciri saf Pydantic
+    (helper'a bağımlı değil) → temiz taşıma mümkün.
+  - **Kanıt (davranış-nötr):** app importu temiz, mypy 196 Success (tanımsız ad
+    yok → kalan inline route'lar taşınan modellere referans vermiyordu),
+    **1799 integration testi** (doğrudan `create_fastapi_app("testing")` üzerinden)
+    birebir geçiyor → route'lar aynı davranıyor. Kalan domain'ler (spatial/events,
+    grid, pipeline, CRUD) sonraki adımlar.
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)
