@@ -8,12 +8,17 @@ latest reading is scored automatically. Alongside it sits the configurable
 criterion. These tests pin the feature matrix (level + momentum, ``as_of`` never
 trained on), the reproducibility of the fixed ``random_state`` estimator, the
 statistical quiet-drop detection, the sigma/window clamping, the config shape and
-the read-only HTTP endpoints (including the real-time ``/latest`` sweep).
+the read-only HTTP endpoints (including the real-time ``/latest`` sweep) and the
+read-time fitted-model memo (a warm refresh must not refit identical forests and
+must return byte-identical numbers).
 """
 from datetime import date, timedelta
+import json
 
 import pytest
+from sklearn.ensemble import IsolationForest
 
+from src.services import isolation_forest_anomaly as anomaly_module
 from src.services.isolation_forest_anomaly import (
     ANOMALY_PERSISTENCE,
     DEFAULT_INTERVAL_MINUTES,
@@ -297,3 +302,108 @@ def test_endpoint_rejects_out_of_range_sigma(client):
         "/api/v1/isolation-forest-anomaly", params={"sigma_multiplier": "9"}
     )
     assert resp.status_code == 422
+
+
+# --------------------------------------------------------------------------- #
+# Fitted-model memoisation (read-time cache, same numbers)
+# --------------------------------------------------------------------------- #
+class _CountingForest(IsolationForest):
+    """Isolation Forest that counts how many times a fit is actually done."""
+
+    fits = 0
+
+    def fit(self, X, y=None):  # noqa: D102 - thin sklearn wrapper
+        type(self).fits += 1
+        return super().fit(X, y)
+
+
+@pytest.fixture()
+def counted_fits(monkeypatch):
+    """Route the service's estimator through ``_CountingForest`` and reset both."""
+    anomaly_module.reset_model_cache()
+    _CountingForest.fits = 0
+    monkeypatch.setattr(anomaly_module, "IsolationForest", _CountingForest)
+    yield _CountingForest
+    anomaly_module.reset_model_cache()
+
+
+def test_second_read_of_the_same_day_reuses_the_fit(counted_fits):
+    """The 15 dk beat / panel refresh must not rebuild identical models."""
+    cell = monitoring_cells(_Settings())[0]
+    source = _DipSource()
+    first = score_cell_anomaly(cell, source, _Settings(), _AS_OF, 20, 3.0)
+    after_first = counted_fits.fits
+    assert after_first == 1
+    second = score_cell_anomaly(cell, source, _Settings(), _AS_OF, 20, 3.0)
+    assert counted_fits.fits == after_first  # no new fit
+    assert second == first  # and the numbers are unchanged
+
+
+def test_changed_training_data_forces_a_fresh_fit(counted_fits):
+    """A different window (so a different matrix) must not reuse the cache."""
+    cell = monitoring_cells(_Settings())[0]
+    source = _DipSource()
+    score_cell_anomaly(cell, source, _Settings(), _AS_OF, 20, 3.0)
+    score_cell_anomaly(cell, source, _Settings(), _AS_OF, 10, 3.0)
+    assert counted_fits.fits == 2
+
+
+def test_identical_matrix_is_shared_across_cells(counted_fits):
+    """A constant feed gives the same training rows for every cell: one fit."""
+    cells = monitoring_cells(_Settings())[:3]
+    source = _FlatSource()
+    rows = [
+        score_cell_anomaly(cell, source, _Settings(), _AS_OF, 12, 3.0) for cell in cells
+    ]
+    assert counted_fits.fits == 1
+    assert len({row["anomaly_score"] for row in rows}) == 1
+
+
+def test_hyperparameter_change_forces_a_fresh_fit(counted_fits):
+    """Same data, different tree count: the key carries the hyper-parameters."""
+    cell = monitoring_cells(_Settings())[0]
+    source = _FlatSource()
+    score_cell_anomaly(cell, source, _Settings(), _AS_OF, 12, 3.0)
+    score_cell_anomaly(
+        cell, source, _Settings(ANOMALY_N_ESTIMATORS=40), _AS_OF, 12, 3.0
+    )
+    assert counted_fits.fits == 2
+
+
+def test_reset_model_cache_forces_a_refit(counted_fits):
+    cell = monitoring_cells(_Settings())[0]
+    source = _DipSource()
+    score_cell_anomaly(cell, source, _Settings(), _AS_OF, 20, 3.0)
+    anomaly_module.reset_model_cache()
+    score_cell_anomaly(cell, source, _Settings(), _AS_OF, 20, 3.0)
+    assert counted_fits.fits == 2
+
+
+def test_report_payload_is_byte_identical_with_the_cache_active():
+    """The memo must be invisible in the output, warm or cold."""
+    settings = _Settings(ANOMALY_MAX_CELLS=2)
+    anomaly_module.reset_model_cache()
+    cold = json.dumps(anomaly_report(settings, as_of=_AS_OF), sort_keys=True)
+    warm = json.dumps(anomaly_report(settings, as_of=_AS_OF), sort_keys=True)
+    anomaly_module.reset_model_cache()
+    again = json.dumps(anomaly_report(settings, as_of=_AS_OF), sort_keys=True)
+    assert cold == warm == again
+
+
+# --------------------------------------------------------------------------- #
+# Sweep cost ceiling (ANOMALY_MAX_CELLS)
+# --------------------------------------------------------------------------- #
+def test_anomaly_max_cells_bounds_the_sweep():
+    """The advertised knob must actually limit how many cells are fitted."""
+    report = anomaly_report(_Settings(ANOMALY_MAX_CELLS=3), as_of=_AS_OF)
+    assert report["cell_count"] == 3
+    assert len(report["cells"]) == 3
+
+
+def test_region_request_is_reachable_under_a_small_cap():
+    """The cap is applied after the region filter, not before it."""
+    last = monitoring_cells(_Settings())[-1].region_key
+    report = anomaly_report(
+        _Settings(ANOMALY_MAX_CELLS=1), as_of=_AS_OF, region_key=last
+    )
+    assert [row["region_key"] for row in report["cells"]] == [last]

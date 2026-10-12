@@ -51,6 +51,31 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     bu testle tek senaryo olarak karşılanıyordu
 
 ### Performance
+- Kod hantallığı taraması (EM-036) — Isolation Forest her okumada her hücre için
+  yeniden eğitiliyordu; 15 dakikalık beat ve panel tazelemeleri **aynı günün aynı
+  modelini** defalarca kuruyordu (pilot örgüsünde tek rapor ~1,3 s, neredeyse
+  tamamı `fit`)
+  - `src/services/isolation_forest_anomaly.py`: `_fit_forest()` eğitim matrisinin
+    blake2 parmak izi + hiper parametreler (`n_estimators`/`contamination`/
+    `random_state` ile anahtarlanan, FIFO sınırlı (128) model belleklemesi ekledi;
+    `random_state` sabit olduğu için aynı anahtar **bit bit aynı** modeli verir,
+    veride, eğitim penceresinde ya da hiper parametrelerde olan her değişiklik
+    anahtarı kırar ve taze eğitim yapılır; `_MODEL_CACHE_LOCK` ile iş parçacığı
+    güvenli
+  - Aynı rapor çıktı doğrulaması: yama öncesi ve sonrası `anomaly_report`
+    payload'larının SHA-256 özeti **birebir aynı** (`2a1b22d4…5cd3`); soğuk ilk
+    okuma ~1,4 s kalırken sıcak tekrar ~0,05 s (~24 kat)
+  - `reset_model_cache()` test/flush ucu; `tests/unit/test_isolation_forest_anomaly.py`
+    8 yeni test (fit sayacı ile: aynı gün ikinci okuma yeniden eğitmez, farklı
+    pencere/hiper parametre yeniden eğitir, sabit kaynakta matris hücreler
+    arasında paylaşılır, özet payload soğuk/sıcak bayt bayt aynı)
+  - Yan bulgu (davranış düzeltmesi): `ANOMALY_MAX_CELLS` ayarı `.env`/`settings`
+    içinde var olup yalnız `anomaly_config` özeti tarafından okunuyor, taramanın
+    kendisi **hiç** sınırlandırılmıyordu (üstelik yorum yanlış olarak
+    `monitoring_cells()` bu tavanı uyguluyor diyordu). Tavan artık bölge
+    filtresinden **sonra** uygulanıyor; varsayılan örgü (20 hücre) tavanın
+    (60) altında kaldığı için varsayılan çıktı değişmiyor, fakat beat maliyeti
+    gerçekten ayarlanabilir hale geldi (2 test bu semantiği kilitliyor)
 - Kod hantallığı taraması — tam tabloyu Python'a çekip burada süzmek yerine
   filtre/sayım/limit SQL'e indirildi (çıktı birebir aynı, testler kilitli)
   - `_active_events` (EM-089 vardiya devri, EM-082 çoklu yangın): `fire_events`

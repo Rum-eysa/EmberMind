@@ -2106,6 +2106,37 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
 - **Commit:** `test(EM-123): ...` (bu dal).
 
 
+### Kod hantallığı taraması (EM-036) — DONE (tur dışı bakım)
+
+- **Bulgu 1 (sıcak yol):** `score_cell_anomaly()` her okumada, her hücre için
+  100 ağaçlık Isolation Forest'i baştan eğitiyordu; beat 15 dakikada bir ve
+  panel her tazelemede **aynı günün aynı verisiyle** aynı modeli tekrar kuruyor
+  (pilot örgüsü 20 hücre → tek rapor ~1,3 s, ölçümün tamamı `fit`).
+- **Düzeltme:** `_fit_forest()` — eğitim matrisinin blake2 parmak izi +
+  `n_estimators`/`contamination`/`random_state` ile anahtarlanan FIFO sınırlı
+  (128) model belleklemesi; kilitli sözlük (iş parçacığı güvenliği), `fit`
+  kilidin dışında (soğukta iki kez eğitim zararsız ve deterministik).
+  `reset_model_cache()` açık flush ucu.
+- **Çıktı değişmedi:** yama öncesi/sonrası `anomaly_report` payload'larının
+  SHA-256 özeti bayt bayt aynı (`2a1b22d4…5cd3`, üç ayrı çalıştırma); sıcak
+  tekrar 1,32 s → 0,05 s.
+- **Bulgu 2 (yanlış/ölü ayar):** `ANOMALY_MAX_CELLS` `settings.py` ve
+  `.env.example`'da vaat ediliyor ama yalnız `anomaly_config` özeti tarafından
+  okunuyor, taramanın kendisine hiç uygulanmıyordu; üstelik koddaki yorum
+  "monitoring_cells() zaten bu tavanı uyguluyor" diyerek **yanlış** bilgi
+  veriyordu (örgü tavanı EM-035'in `SIGNAL_BASELINE_MAX_CELLS`'i). Tavan artık
+  bölge filtresinden sonra uygulanıyor → varsayılan çıktı değişmez (20 ≤ 60),
+  beat maliyeti gerçekten ayarlanabilir.
+- **Bilinçli olarak dokunulmadı:** `score_cell_anomaly` içindeki çift sinyal
+  okuması (`compute_cell_baseline` + `_signal_map` aynı günlere bakıyor) sha256
+  başına ~µs maliyet; `fit` yanında ihmal edilebilir, kod karmaşası artırmamak
+  için bırakıldı. `test_window_days_is_clamped_to_bounds` (3,3 s) soğuk eğitim
+  maliyetini ölçüyor, test kasten soğuk.
+- **Kapılar:** black(temiz 300)/mypy(Success — 195 dosya)/pylint(10.00)/
+  bandit(-ll Medium+High 0)/pytest **1793** (1785 + 8 yeni: 6 memo + 2 tavan).
+- **Commit:** `perf(EM-036): ...` (bu dal).
+
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
@@ -2129,7 +2160,7 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
 - **Final kapılar:** black 300 değişmez · mypy Success (195 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1785 passed**.
+  bandit 0 · pytest **1793 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

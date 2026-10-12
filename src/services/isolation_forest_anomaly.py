@@ -19,7 +19,9 @@ EM-043 baselines it builds on):
   momentum) is fed to the Isolation Forest so the learned score captures an
   unusual *combination*, not just a low value - a genuinely multi-feature model;
 * the estimator is pinned to a fixed ``random_state`` so scores are reproducible
-  across runs (they must not drift with ``PYTHONHASHSEED``);
+  across runs (they must not drift with ``PYTHONHASHSEED``); a fitted forest is
+  therefore memoised per ``(training data, hyper-parameters)`` - the beat and the
+  panel refreshes reuse identical fits instead of rebuilding them (same numbers);
 * "gerçek zamanlı ... 15 dakikalık aralıklarla" is modelled as a recompute cadence
   (``ANOMALY_INTERVAL_MINUTES``) driven by a Celery beat that calls
   :func:`score_silent_zone_anomalies`; nothing is stored, so the beat simply
@@ -32,6 +34,8 @@ real feeds would drop in behind the same interface - never faked here.
 
 from __future__ import annotations
 
+import hashlib
+import threading
 from datetime import date, timedelta
 from typing import Any, Optional
 
@@ -173,6 +177,63 @@ def build_feature_matrix(
     return training, latest
 
 
+# ------------------------------------------------- fitted-model memoisation ---
+#
+# Every read used to refit one 100-tree forest per cell, and the 15-minute beat
+# plus the panel refreshes re-read the *same* day over and over, so the same
+# deterministic models were rebuilt thousands of times for nothing (a full
+# report was ~1.3 s on the pilot lattice, all of it in ``fit``). A fit here is a
+# pure function of the training matrix and the estimator hyper-parameters -
+# ``random_state`` is pinned precisely so it is - so the cache key fingerprints
+# the matrix bytes: an identical key means a bit-identical model, and any change
+# in the underlying signal (or in the window / contamination / tree count)
+# changes the fingerprint and forces a fresh fit. Entries are FIFO-bounded so a
+# long-lived worker cannot grow as the days roll over.
+_MODEL_CACHE_LIMIT = 128
+_MODEL_CACHE: dict[str, IsolationForest] = {}
+_MODEL_CACHE_LOCK = threading.Lock()
+
+
+def _matrix_fingerprint(matrix: np.ndarray) -> str:
+    """Stable digest of the exact training data a fit depends on."""
+    payload = np.ascontiguousarray(matrix, dtype=float).tobytes()
+    return hashlib.blake2b(payload, digest_size=16).hexdigest()
+
+
+def _fit_forest(
+    matrix: np.ndarray,
+    n_estimators: int,
+    contamination: float,
+    random_state: int,
+) -> IsolationForest:
+    """Return a fitted Isolation Forest, reusing an identical cached fit."""
+    cache_key = (
+        f"{matrix.shape}|{_matrix_fingerprint(matrix)}"
+        f"|{n_estimators}|{contamination}|{random_state}"
+    )
+    with _MODEL_CACHE_LOCK:
+        cached = _MODEL_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    model = IsolationForest(
+        n_estimators=n_estimators,
+        contamination=contamination,
+        random_state=random_state,
+    )
+    model.fit(matrix)
+    with _MODEL_CACHE_LOCK:
+        if len(_MODEL_CACHE) >= _MODEL_CACHE_LIMIT:
+            _MODEL_CACHE.pop(next(iter(_MODEL_CACHE)), None)
+        _MODEL_CACHE[cache_key] = model
+    return model
+
+
+def reset_model_cache() -> None:
+    """Drop every cached fit (test isolation / explicit cache flush)."""
+    with _MODEL_CACHE_LOCK:
+        _MODEL_CACHE.clear()
+
+
 def score_cell_anomaly(
     cell: Any,
     source: SignalSource,
@@ -192,13 +253,13 @@ def score_cell_anomaly(
         cell, source, as_of, window_days, _sensitivity_z(settings)
     )
     training, latest = build_feature_matrix(source, cell.region_key, as_of, window_days)
-    model = IsolationForest(
-        n_estimators=_n_estimators(settings),
-        contamination=_contamination(settings),
-        random_state=_random_state(settings),
-    )
     matrix = np.asarray(training, dtype=float)
-    model.fit(matrix)
+    model = _fit_forest(
+        matrix,
+        _n_estimators(settings),
+        _contamination(settings),
+        _random_state(settings),
+    )
     sample = np.asarray([latest], dtype=float)
     anomaly_score = float(model.score_samples(sample)[0])
     learned_anomalous = bool(int(model.predict(sample)[0]) == -1)
@@ -263,12 +324,15 @@ def _resolve_and_score(
     multiplier = _sigma_multiplier(settings, sigma)
 
     cells = monitoring_cells(settings)
-    # monitoring_cells() already caps the lattice at ANOMALY_MAX_CELLS; slicing
-    # again here would be dead work, and filtering first is what keeps a
-    # region_key outside the first `cap` cells reachable.
     wanted = region_key.strip() if region_key else None
     if wanted:
         cells = [c for c in cells if c.region_key == wanted]
+    # ANOMALY_MAX_CELLS is this panel's own ceiling on how many cells a single
+    # sweep fits, so the 15-minute beat can be bounded independently of the
+    # lattice. It is applied *after* the region filter, which keeps an explicit
+    # region outside the first ``cap`` cells reachable. (The lattice itself is
+    # already bounded by the shared EM-035 cap, SIGNAL_BASELINE_MAX_CELLS.)
+    cells = cells[: max(1, _max_cells(settings))]
 
     rows = [
         score_cell_anomaly(cell, resolved, settings, stamp, window, multiplier)
