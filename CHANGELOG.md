@@ -25,6 +25,22 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     tam token göçü ve z-index skalası bilinçli olarak sonraki adımlar.
   - `tests/unit/test_design_system.py`: `test_shared_responsive_and_focus_layer_exists`
     eklendi (1794 test).
+- Kod kalitesi denetimi (Aşama 2, A-5) — paylaşılan JS yardımcısı (tek XSS kaynağı):
+  - `escapeHtml`, `operator_map.html` ve `risk_panel.html` içinde **birebir aynı
+    değildi** (operatör: `String(value)` + `&#39;`; risk: `null→""` + kesme işareti
+    yok). Bu yüzden naive birleştirme **davranış değiştirirdi** (KURAL 1/4).
+    Kök-çözüm: `src/static/app.js` içinde **tek** `WFS.escapeHtml(value, options)`
+    (varsayılan kapalı seçenekler); her sayfa kendi sözleşmesini açık seçenekle
+    koruyarak **birebir aynı** çıktıyı üretir (`{escapeApostrophe:true}` /
+    `{nullToEmpty:true}`). Sayfa içi `replace` zincirleri kaldırıldı.
+  - `/static` rotası (design_system.py) artık whitelist'teki `.js`'i
+    `application/javascript` türüyle sunuyor (uzantıya göre dallanma); CSS/JS
+    dışındaki dosyalar hâlâ 404 (keyfi dosya okuma yok).
+  - `setStatus` **birleştirilmedi**: imzaları farklı (1 vs 2 arg), hedef DOM
+    ayrı — davranış-nötr tek kaynak garantisi için elle inceleme gerekir,
+    listeye alındı. `inventory.html`'de `escapeHtml` yok, etkilenmedi.
+  - `tests/unit/test_design_system.py`: `test_shared_escape_html_helper_is_the_single_source`
+    ve `test_shared_js_asset_is_served` eklendi (1796 test).
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)

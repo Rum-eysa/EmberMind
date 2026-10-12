@@ -10,6 +10,7 @@ COMPONENTS_CSS = (STATIC_DIR / "components.css").read_text(encoding="utf-8")
 STYLEGUIDE_HTML = (STATIC_DIR / "styleguide.html").read_text(encoding="utf-8")
 OPERATOR_MAP_HTML = (STATIC_DIR / "operator_map.html").read_text(encoding="utf-8")
 RISK_PANEL_HTML = (STATIC_DIR / "risk_panel.html").read_text(encoding="utf-8")
+APP_JS = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
 
 
 def _risk_tokens(css: str) -> dict[str, str]:
@@ -89,6 +90,26 @@ def test_shared_responsive_and_focus_layer_exists():
     assert "overflow-x: auto" in COMPONENTS_CSS
 
 
+def test_shared_escape_html_helper_is_the_single_source():
+    """Code-quality audit A-5: the duplicated XSS guard is collapsed into one
+    shared helper (app.js). Each page keeps its own contract by delegating with
+    explicit options, so behaviour is preserved byte-for-byte:
+    operator_map = String(value) + apostrophe escaping, risk_panel = null->""
+    and no apostrophe escaping. The per-page replace chains must be gone."""
+    assert "WFS.escapeHtml = function" in APP_JS
+    assert "&#" in APP_JS  # escapes entities
+    # Both pages load the shared script before their inline script and delegate.
+    for page in (OPERATOR_MAP_HTML, RISK_PANEL_HTML):
+        assert '<script src="/static/app.js"></script>' in page
+        assert "WFS.escapeHtml(value," in page
+    # Each page's option reproduces its previous contract, nothing else.
+    assert "WFS.escapeHtml(value, { escapeApostrophe: true })" in OPERATOR_MAP_HTML
+    assert "WFS.escapeHtml(value, { nullToEmpty: true })" in RISK_PANEL_HTML
+    # The old inline replace chains were removed from both pages.
+    assert '.replace(/\'/g, "&#39;")' not in OPERATOR_MAP_HTML
+    assert 'String(value == null ? "" : value)' not in RISK_PANEL_HTML
+
+
 def test_styleguide_showcases_all_required_components():
     for fragment in (
         "/static/tokens.css",
@@ -127,3 +148,13 @@ def test_static_css_endpoints_and_whitelist(client):
     # No arbitrary file reads through the static route.
     assert client.get("/static/operator_map.html").status_code == 404
     assert client.get("/static/../fastapi_app.py").status_code in (404, 400)
+
+
+def test_shared_js_asset_is_served(client):
+    """Audit A-5: the shared helper must be servable as JavaScript, and the
+    static whitelist must still reject anything not explicitly listed."""
+    response = client.get("/static/app.js")
+    assert response.status_code == 200
+    assert "javascript" in response.headers["content-type"]
+    assert "WFS.escapeHtml" in response.text
+    assert client.get("/static/app.html").status_code == 404

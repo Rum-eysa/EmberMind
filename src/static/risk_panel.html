@@ -339,6 +339,7 @@
       </div>
     </section>
   </main>
+  <script src="/static/app.js"></script>
   <script>
   "use strict";
   const FEED = "/api/v1/panel/capacity-risk";
@@ -1019,10 +1020,10 @@
   const WI_CAP_FEED = "/api/v1/whatif/capacity";
   const WI_LEVEL_COLOR = RISK_LEVEL_COLOR;
 
+  // Delegates to the shared XSS-guard helper (app.js) with this page's exact
+  // contract: null/undefined -> "" and no apostrophe escaping.
   function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    return WFS.escapeHtml(value, { nullToEmpty: true });
   }
 
   function renderCapacityWhatIf(data) {

@@ -2158,14 +2158,24 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   da ortak CSS'i link'lediği için 18 tablo yerine tek noktadan kök-çözüm
   (statik + JS üretimi tablolar). `test_shared_responsive_and_focus_layer_exists`
   kilit testi eklendi.
+- **Aşama 2 (YÜKSEK dilim) — A-5 ortak JS yardımcısı (bu commit):** Yinelemeli
+  denetim turunda `escapeHtml`'in iki sayfada **birebir aynı olmadığı** ölçüldü
+  (operatör `String(value)`+`&#39;`, risk `null→""`+apostrof yok) → naive
+  birleştirme davranış değiştirirdi (KURAL 1/4). Kök-çözüm `src/static/app.js`
+  içinde tek `WFS.escapeHtml(value, options)`; her sayfa açık seçenekle kendi
+  sözleşmesini bayt-bayt korur. `/static` rotası whitelist'teki `.js`'i
+  `application/javascript` sunar (uzantı dallanması). `setStatus` **bilinçli
+  birleştirilmedi** (1 vs 2 arg, farklı DOM hedefi) — listede kaldı. Testler:
+  `test_shared_escape_html_helper_is_the_single_source`,
+  `test_shared_js_asset_is_served`.
 - **Bilinçli ertelenen (onay kapsamı dışında bırakılanlar):** `operator_map.html`
   monolit bölünmesi (A-1/B-2, yüksek riskli), tam hex/px token göçü, z-index
-  skalasının 28 literal'e bağlanması, `create_fastapi_app` bölünmesi, ortak JS
-  yardımcıları (`escapeHtml/save/setStatus/when`) için `/static` rota genişletme
-  (A-5 — API uç değişikliği), `session.query`→`select` (A-6). Ölü kod A-4
+  skalasının 28 literal'e bağlanması, `create_fastapi_app` bölünmesi,
+  `session.query`→`select` (A-6), `setStatus/when/save` JS birleştirme
+  (davranış-nötr tek kaynak için elle inceleme ister). Ölü kod A-4
   kullanıcı kararıyla listede bırakıldı.
 - **Kapılar:** black(temiz 300)/mypy(Success — 195 dosya)/pylint(10.00)/
-  bandit(-ll Medium+High 0)/pytest **1794** (1793 + 1 yeni).
+  bandit(-ll Medium+High 0)/pytest **1796** (1794 + 2 yeni).
 - **Commit:** `fix(audit): ...` (bu dal).
 
 
@@ -2192,7 +2202,7 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
 - **Final kapılar:** black 300 değişmez · mypy Success (195 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1794 passed**.
+  bandit 0 · pytest **1796 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

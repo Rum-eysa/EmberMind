@@ -1406,6 +1406,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/static/app.js"></script>
   <script>
   "use strict";
   const API = "/api/v1/map/layers";
@@ -1572,14 +1573,11 @@
   function setStatus(text) { statusBox.textContent = text; }
 
   // XSS guard: OSM asset names and live-feed messages are external data and
-  // must never be interpolated raw into innerHTML.
+  // must never be interpolated raw into innerHTML. Delegates to the shared
+  // helper (app.js) with this page's exact contract: String(value) and the
+  // apostrophe escaped.
   function escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+    return WFS.escapeHtml(value, { escapeApostrophe: true });
   }
 
   function popupHtml(feature) {
