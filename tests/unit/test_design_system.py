@@ -74,6 +74,21 @@ def test_components_use_only_tokens_for_colour_and_spacing():
     assert set(hexes) <= {"#fff", "#222"}, hexes
 
 
+def test_shared_responsive_and_focus_layer_exists():
+    """Code-quality audit: the shared layer stops wide tables overflowing the
+    page on narrow screens and gives every control a keyboard focus ring —
+    both must be token-based (no hard-coded colour) and live in the two files
+    every page already links."""
+    # Focus ring is a token, referenced by the universal fallback rule.
+    assert "--focus-ring:" in TOKENS_CSS
+    assert re.search(r":where\([^)]*\):focus-visible", COMPONENTS_CSS)
+    assert "var(--focus-ring)" in COMPONENTS_CSS
+    # Tables scroll inside their own box at a small breakpoint, and no new
+    # hard-coded hex palette was introduced by the layer.
+    assert re.search(r"@media \(max-width: 640px\)\s*\{\s*table", COMPONENTS_CSS)
+    assert "overflow-x: auto" in COMPONENTS_CSS
+
+
 def test_styleguide_showcases_all_required_components():
     for fragment in (
         "/static/tokens.css",

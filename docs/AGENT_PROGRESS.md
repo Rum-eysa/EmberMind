@@ -2137,6 +2137,38 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
 - **Commit:** `perf(EM-036): ...` (bu dal).
 
 
+### Kod kalitesi denetimi — Aşama 1 ölçüm + Aşama 2 (YÜKSEK dilim) — DONE
+
+- **Rol:** kıdemli full-stack + performans/UI denetçisi; **yeni özellik yok**,
+  ölç-önce, davranış-nötr, küçük/geri alınabilir adımlar.
+- **Aşama 1 (ölçüm, kod değişmedi):** AST+regex ölçümleri — Python 66.305
+  satır/300 dosya (76 dosya ≥300 satır); en büyük fonksiyon
+  `fastapi_app.py:402 create_fastapi_app` 763 satır; `operator_map.html`
+  6.325 satır/308 KB (269 JS fonksiyonu). Ölü kod: 8 src sembolü hiç
+  referanssız (`apply_barriers`, `settlement_place_classes`, `latest_forecast_count`,
+  `CoordinatePoint`, `StructuredAdapter`, `FT_PER_M`, 2 statüs sabiti). N+1:
+  `src/` içinde döngü-içi SQL **0**. Statik: `@media` toplam 4 (operatör 640,
+  risk/inventory 1000), 333 hex + 1007 px sert-değer, 28 z-index, `focus-visible`
+  HTML'de 0, 13+3+2 tablo ama **0** `overflow-x` sarmalayıcı. Rapor kullanıcıya
+  gösterildi; onay: **YALNIZ YÜKSEK** + ölü koda dokunma.
+- **Aşama 2 (YÜKSEK dilim) — bu commit:** `tokens.css`'e `--focus-ring` jetonu;
+  `components.css`'e sayfalar-arası ortak katman: dar ekranda tabloyu
+  `display:block; overflow-x:auto` (kendi kutusunda kayar, sayfa taşmaz;
+  masaüstü aynı) + `:where(...):focus-visible` evrensel odak halkası. Üç sayfa
+  da ortak CSS'i link'lediği için 18 tablo yerine tek noktadan kök-çözüm
+  (statik + JS üretimi tablolar). `test_shared_responsive_and_focus_layer_exists`
+  kilit testi eklendi.
+- **Bilinçli ertelenen (onay kapsamı dışında bırakılanlar):** `operator_map.html`
+  monolit bölünmesi (A-1/B-2, yüksek riskli), tam hex/px token göçü, z-index
+  skalasının 28 literal'e bağlanması, `create_fastapi_app` bölünmesi, ortak JS
+  yardımcıları (`escapeHtml/save/setStatus/when`) için `/static` rota genişletme
+  (A-5 — API uç değişikliği), `session.query`→`select` (A-6). Ölü kod A-4
+  kullanıcı kararıyla listede bırakıldı.
+- **Kapılar:** black(temiz 300)/mypy(Success — 195 dosya)/pylint(10.00)/
+  bandit(-ll Medium+High 0)/pytest **1794** (1793 + 1 yeni).
+- **Commit:** `fix(audit): ...` (bu dal).
+
+
 ## Bitiş özeti
 
 - **Tamamlanan görevler (hepsi DONE):** EM-031 (#31), EM-029 (#29),
@@ -2160,7 +2192,7 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   (3) uyarılar kenar-tetiklemeli (histerezis); (4) `.github/workflows/ci.yml`
   ve `docs/journal/` backlog'e ait olmadığı için commitlere alınmadı.
 - **Final kapılar:** black 300 değişmez · mypy Success (195 dosya) · pylint 10.00/10 ·
-  bandit 0 · pytest **1793 passed**.
+  bandit 0 · pytest **1794 passed**.
 - **PR:** main'e karşı **DRAFT** #244 açıldı (merge edilmedi).
 - **Önerilen sonraki adımlar:** (a) E4/E7 ML epiklerini ayrı planla;
   (b) EM-060 kaba çözünürlüğünün gerçek PostgreSQL/Celery ürette p95 etkisini

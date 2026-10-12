@@ -4,6 +4,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 
 ## [Unreleased]
 
+### Fixed
+- Kod kalitesi denetimi (Aşama 2, tur dışı bakım) — paylaşılan duyarlı/erişilebilir katman:
+  - `tokens.css` içine tek `--focus-ring` jetonu eklendi; `components.css` sonuna
+    **sayfalar-arası ortak** iki kural kondu: (1) `table { max-width:100% }` ve
+    `@media (max-width:640px)` altında tablo `display:block; overflow-x:auto` →
+    geniş veri tabloları (risk paneli, operatör haritası) dar ekranda **kendi
+    kutusunda kayar**, sayfa yatay taşmaz; masaüstü düzen **birebir aynı** kalır.
+    (2) `:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible`
+    ile `.em-*` olmayan tüm etkileşimli öğelere klavye odak halkası (denetim C-5).
+  - Kök-çözüm: üç sayfa da zaten `tokens.css`+`components.css` link'lediği için
+    18 tablo tek tek sarmalanmadı; statik **ve** JS ile üretilen tabloların hepsi
+    tek noktadan düzeldi. Yeni jeton/renk sert-kodu yok (mevcut "components.css
+    yalnız jeton kullanır" testi geçerli).
+  - Kapsam denetimi (denetim Aşama 1): Python 66.305 satır/300 dosya (76 dosya
+    ≥300 satır); `operator_map.html` 6.325 satır/308 KB tek dosya (269 JS fonk.)
+    ve `fastapi_app.py:402` 763 satırlık `create_fastapi_app` en büyük sıcak
+    noktalar; kırılma noktaları sayfa sayfa farklı (640 vs 1000). Bu commit
+    yalnız **YÜKSEK** etkili, davranış-nötr parçayı kapsıyor; monolit bölme,
+    tam token göçü ve z-index skalası bilinçli olarak sonraki adımlar.
+  - `tests/unit/test_design_system.py`: `test_shared_responsive_and_focus_layer_exists`
+    eklendi (1794 test).
+
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)
   - `tests/unit/test_risk_index_boundaries.py`: 49 test; `classify_risk`
