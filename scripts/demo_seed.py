@@ -12,11 +12,15 @@ from datetime import timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import src.models  # noqa: F401,E402  (populate Base.metadata for a full reset)
+from src.config.settings import Config  # noqa: E402
 from src.database import Database  # noqa: E402
 from src.models.exposure import ExposedAsset  # noqa: E402
 from src.models.road_network import RoadSegment  # noqa: E402
 from src.models.spatial import FireForecast  # noqa: E402
+from src.services.auth import bootstrap_demo_user, demo_credentials  # noqa: E402
 from src.services.synthetic import (  # noqa: E402
+    SYNTHETIC_LABEL,
     build_dataset,
     persist_dataset,
     record_run,
@@ -213,11 +217,56 @@ def seed_exposure_demo(session, fire: dict) -> dict:
     }
 
 
-def main() -> None:
-    """Seed the demo database with base tables + synthetic scenario."""
+def seed_demo(database: Database, seed: int, preset: str, reset: bool = False) -> dict:
+    """Reset (optional) then seed the demo DB with a labelled synthetic scenario.
+
+    When ``reset`` is true every registered table is dropped and recreated so
+    the demo starts from a clean slate; otherwise existing rows are upserted
+    idempotently. Returns a report dict describing what was written.
+    """
+    if reset:
+        database.reset_all()
+    else:
+        database.create_all()
+
+    dataset = build_dataset(seed, preset=preset)
+    settings = Config()
+    with database.session() as session:
+        counts = persist_dataset(session, dataset)
+        record_run(session, dataset, persisted=True, preset=preset)
+        exposure = seed_exposure_demo(session, dataset["fire"])
+        # EM-098: provision one clearly-labelled demo operator only when the
+        # user table is empty, so the login flow is real end to end offline.
+        demo_email, _ = demo_credentials(settings)
+        created = bootstrap_demo_user(session, settings) is not None
+        session.commit()
+
+    return {
+        "reset": reset,
+        "seed": seed,
+        "preset": preset,
+        "scenario_tag": dataset["meta"]["scenario_tag"],
+        "counts": counts,
+        "exposure": exposure,
+        "demo_account": {"email": demo_email, "created": created},
+        "synthetic_label": SYNTHETIC_LABEL,
+    }
+
+
+def _reset_requested(argv: list[str]) -> bool:
+    """True when ``--reset`` is passed or the DEMO_RESET env is truthy."""
+    if "--reset" in argv:
+        return True
+    return os.getenv("DEMO_RESET", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Seed the demo database with base tables + synthetic scenario (EM-106)."""
+    args = list(sys.argv[1:] if argv is None else argv)
     db_path = os.getenv("DATABASE_URL", "sqlite:///instance/wildfire-demo.db")
     seed = int(os.getenv("DEMO_SYNTHETIC_SEED", "7"))
     preset = os.getenv("DEMO_SYNTHETIC_PRESET", "standart")
+    reset = _reset_requested(args)
 
     # Ensure SQLite parent directory exists (CI-safe)
     if db_path.startswith("sqlite:///"):
@@ -226,22 +275,16 @@ def main() -> None:
         if parent:
             os.makedirs(parent, exist_ok=True)
 
-    print(f"[demo_seed] DB: {db_path}")
+    print(f"[demo_seed] DB: {db_path} reset={reset}")
     database = Database(db_path)
-    database.create_all()
-
-    # Generate synthetic scenario (EM-104)
-    dataset = build_dataset(seed, preset=preset)
-    with database.session() as session:
-        counts = persist_dataset(session, dataset)
-        record_run(session, dataset, persisted=True, preset=preset)
-        exposure = seed_exposure_demo(session, dataset["fire"])
+    report = seed_demo(database, seed, preset, reset=reset)
 
     print(
         f"[demo_seed] Sentetik senaryo: seed={seed} preset={preset} "
-        f"tag={dataset['meta']['scenario_tag']} counts={counts}"
+        f"tag={report['scenario_tag']} counts={report['counts']}"
     )
-    print(f"[demo_seed] EM-023 maruziyet demosu: {exposure}")
+    print(f"[demo_seed] EM-023 maruziyet demosu: {report['exposure']}")
+    print(f"[demo_seed] {report['synthetic_label']}")
     print("[demo_seed] Tamamlandı.")
 
 

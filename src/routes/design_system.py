@@ -1,4 +1,4 @@
-"""Design system endpoints: styleguide page and shared stylesheet assets (EM-075)."""
+"""Design system endpoints: styleguide page and shared static assets (EM-075)."""
 from pathlib import Path
 from typing import Any
 
@@ -11,8 +11,18 @@ from src.database import Database
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 STYLEGUIDE_PAGE = STATIC_DIR / "styleguide.html"
 
-# Whitelist of servable stylesheets; no arbitrary file reads.
-STATIC_ASSETS = {"tokens.css", "components.css"}
+# Whitelist of servable static assets; no arbitrary file reads.
+STATIC_ASSETS = {
+    "tokens.css",
+    "components.css",
+    "app.js",
+    # operator_map.html monolith split (code-quality audit): the page's JS
+    # lives in these ordered classic scripts, loaded in document order.
+    "operator_map_core.js",
+    "operator_map_panels_a.js",
+    "operator_map_panels_b.js",
+    "operator_map_init.js",
+}
 
 
 def register_design_system_routes(
@@ -33,7 +43,10 @@ def register_design_system_routes(
 
     @api.get("/static/{asset_name}", tags=["ui"], include_in_schema=False)
     def static_asset(asset_name: str) -> FileResponse:
-        """Serve the whitelisted design-system stylesheets."""
+        """Serve the whitelisted design-system CSS/JS assets."""
         if asset_name not in STATIC_ASSETS:
             raise HTTPException(status_code=404, detail="Unknown asset")
-        return FileResponse(STATIC_DIR / asset_name, media_type="text/css")
+        media_type = (
+            "application/javascript" if asset_name.endswith(".js") else "text/css"
+        )
+        return FileResponse(STATIC_DIR / asset_name, media_type=media_type)

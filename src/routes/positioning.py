@@ -9,12 +9,19 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 
 from src.database import Database
-from src.services.road_network import RoadNetworkError
 from src.services.positioning import (
+    CONSTRAINT_ATTRIBUTION,
+    CONSTRAINT_NAMES,
     POSITIONING_ATTRIBUTION,
     PositioningError,
     build_proposals,
 )
+from src.services.recommendation_engine import (
+    ENGINE_ATTRIBUTION,
+    ENGINE_PERSISTENCE,
+    enrich_proposals,
+)
+from src.services.road_network import RoadNetworkError
 
 
 def register_positioning_routes(
@@ -28,9 +35,15 @@ def register_positioning_routes(
         limit: int | None = Query(default=None, ge=1, le=50),
     ) -> dict[str, Any]:
         """Rank available resources by route ETA to a fire event's location."""
+        rejected: list[dict[str, Any]] = []
         try:
             with database.session() as session:
-                proposals = build_proposals(session, settings, event_key, limit)
+                proposals = build_proposals(
+                    session, settings, event_key, limit, rejected_out=rejected
+                )
+                # EM-045: annotate each ranked proposal with the value it adds
+                # (marginal peak-risk reduction) without disturbing the ranking.
+                enrich_proposals(session, settings, event_key, proposals)
         except PositioningError as exc:
             raise HTTPException(
                 status_code=404,
@@ -46,4 +59,37 @@ def register_positioning_routes(
             "event_key": event_key,
             "attribution": POSITIONING_ATTRIBUTION,
             "proposals": proposals,
+            # EM-050: constraint-violating origins never reach the list;
+            # they surface here with the violated constraints and a reason.
+            "rejected": rejected,
+            "rejected_count": len(rejected),
+            # EM-045: every proposal carries an expected_risk_reduction value.
+            "value_metric": {
+                "field": "expected_risk_reduction",
+                "attribution": ENGINE_ATTRIBUTION,
+                "persistence": ENGINE_PERSISTENCE,
+            },
+        }
+
+    @api.get("/api/v1/positioning/constraints", tags=["positioning"])
+    def positioning_constraints() -> dict[str, Any]:
+        """EM-050 descriptor: which constraints are enforced and how."""
+        return {
+            "constraints": list(CONSTRAINT_NAMES),
+            "fields": {
+                "range_km": "menzil (tek yön km) — rot mesafesi aşarsa elenir",
+                "shift_minutes": "mesai/yakıt — ETA aşarsa elenir",
+                "night_capable": "gece yetkisi — varış gece penceresine denk "
+                "gelirse ve yetki yoksa elenir",
+                "road_closure": "kapalı yollar nedeniyle ulaşılamayan elenir",
+            },
+            "resource_count_limit": int(
+                getattr(settings, "POSITIONING_MAX_PROPOSALS", 5)
+            ),
+            "night_ban_enabled": bool(
+                getattr(settings, "POSITIONING_NIGHT_BAN_ENABLED", True)
+            ),
+            "unbounded_means_unknown": True,
+            "persistence": "none",
+            "attribution": CONSTRAINT_ATTRIBUTION,
         }

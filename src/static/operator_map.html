@@ -69,9 +69,142 @@
                                color: #00695c; }
     #positioning-panel .empty { color: var(--text-secondary); padding: 4px 0; }
     #positioning-panel .count { color: var(--text-secondary); font-weight: 400; }
+        /* EM-047: operatör karar düğmeleri (kabul/düzenle/reddet) */
+    #positioning-panel .item { flex-wrap: wrap; }
+    #positioning-panel .decide { flex-basis: 100%; display: flex; gap: 4px; margin-top: 4px; }
+    #positioning-panel .db {
+          flex: 1; font-size: var(--font-size-xs); padding: 2px 0; cursor: pointer;
+          border: 1px solid var(--border-color); border-radius: 3px; background: #fff;
+        }
+    #positioning-panel .db-accept { color: #1b5e20; border-color: #1b5e20; }
+    #positioning-panel .db-edit { color: #00695c; border-color: #00695c; }
+    #positioning-panel .db-reject { color: #b71c1c; border-color: #b71c1c; }
+    #positioning-panel .db-why { color: #4527a0; border-color: #4527a0; }
+    /* EM-049: seyahat modu rozeti (Hava = kuş uçuşu, Kara = yol ağı) */
+    #positioning-panel .mode {
+          font-size: var(--font-size-xs); padding: 0 4px; border-radius: 3px;
+          color: #fff; vertical-align: middle;
+        }
+    #positioning-panel .mode-air { background: #1565c0; }
+    #positioning-panel .mode-road { background: #6d4c41; }
+    /* EM-097: karar destek çerçevesi - sorumluluk/versiyon şeridi + senaryo rozeti */
+    #positioning-panel .ds-scenario {
+          background: #b71c1c; color: #fff; font-size: var(--font-size-xs);
+          padding: 0 5px; border-radius: 3px; font-weight: 700; vertical-align: middle;
+        }
+    #positioning-panel .ds-frame {
+          margin-top: 6px; padding: 5px 6px; border-top: 1px solid var(--border-color);
+          font-size: var(--font-size-xs); color: var(--text-secondary); line-height: 1.35;
+        }
+    #positioning-panel .ds-frame .ds-resp { font-weight: 700; color: var(--text-primary); }
+    #positioning-panel .ds-frame .ds-ver { margin-top: 2px; }
+    #positioning-panel .ds-frame .ds-notice { margin-top: 2px; font-style: italic; color: #b71c1c; }
+    /* EM-048: etki karsilastirmasi butonu + yan yana risk tablosu */
+    #positioning-panel .pi-btn {
+          width: 100%; margin-top: 6px; padding: 5px 0; cursor: pointer;
+          font-size: var(--font-size-sm); border: 1px solid #4527a0;
+          border-radius: 4px; background: #ede7f6; color: #4527a0;
+        }
+    #positioning-panel .imp-h { margin-top: 6px; font-size: var(--font-size-sm); }
+    #positioning-panel .imp-c { color: var(--text-secondary); font-size: var(--font-size-xs); margin: 2px 0 6px; }
+    #positioning-panel .imp-t { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+    #positioning-panel .imp-t th, #positioning-panel .imp-t td {
+          border: 1px solid var(--border-color); padding: 2px 4px; text-align: center;
+        }
+    #positioning-panel .lv { border-radius: 3px; font-weight: 700; }
+    #positioning-panel .lv-normal { background: #e8f5e9; color: #1b5e20; }
+    #positioning-panel .lv-dikkat { background: #fff8e1; color: #f57f17; }
+    #positioning-panel .lv-kritik-yakin { background: #fff3e0; color: #e65100; }
+    #positioning-panel .lv-kritik { background: #ffebee; color: #b71c1c; }
+    #positioning-panel .as-h { margin-top: 6px; font-size: var(--font-size-sm); }
+    #positioning-panel .as-t { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+    #positioning-panel .as-t th, #positioning-panel .as-t td {
+          border: 1px solid var(--border-color); padding: 2px 4px; text-align: left;
+        }
+    #positioning-panel .db-release { color: #0277bd; border-color: #0277bd; }
+    #positioning-panel .db:disabled { opacity: .4; cursor: not-allowed; }
+    /* EM-051: saha görev karti (hedef + varis + risk notu) */
+    #positioning-panel .tc-card {
+      border: 1px solid var(--border-color); border-radius: 6px;
+      padding: 6px 8px; margin-top: 6px;
+    }
+    #positioning-panel .tc-h { display: flex; justify-content: space-between; font-weight: 600; }
+    #positioning-panel .tc-meta { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
+    /* EM-050: kısıt nedeniyle elenen öneriler */
+    #positioning-panel .rj-h { margin-top: 8px; font-size: var(--font-size-xs); color: var(--text-muted); }
+    /* EM-054: kabul/ret geri bildirim döngüsü raporu */
+    #positioning-panel .fb-rates { display: flex; gap: 10px; flex-wrap: wrap;
+      font-size: var(--font-size-xs); margin-top: 6px; }
+    #positioning-panel .fb-idea { border-left: 3px solid var(--border-color);
+      padding: 2px 8px; margin-top: 4px; font-size: var(--font-size-xs); }
+    /* EM-063: gorunum standardizasyonu (saat dilimi / birim / koordinat) */
+    #positioning-panel .loc-row { display: flex; gap: 10px; flex-wrap: wrap;
+      align-items: center; font-size: var(--font-size-xs); margin-top: 6px; }
+    #positioning-panel .loc-out { margin-top: 6px; font-size: var(--font-size-xs); }
+    #positioning-panel .loc-item { padding: 2px 0; }
+    #positioning-panel .rj-item {
+      border: 1px dashed var(--border-color); border-radius: 6px;
+      padding: 4px 8px; margin-top: 4px; font-size: var(--font-size-xs);
+    }
+    #positioning-panel .rj-c { color: #b71c1c; font-weight: 600; }
+    #positioning-panel .rj-r { color: var(--text-muted); }
+        /* EM-046: "neden?" gerekçe paneli (satır altı, aç/kapa) */
+    #positioning-panel .why {
+          flex-basis: 100%; background: #f5f3ff; border-left: 3px solid #4527a0;
+          padding: 4px 6px; margin-top: 4px; color: var(--text-primary);
+        }
+    #positioning-panel .why-h { font-weight: 700; margin: 2px 0; }
+    #positioning-panel .why ul { margin: 0 0 4px 16px; padding: 0; }
+    #positioning-panel .why li { margin: 1px 0; }
+    #positioning-panel .why-c { color: var(--text-secondary); font-size: .95em; }
     .route-eta { background: #00695c; color: #fff; border: none; font-weight: 700;
                    box-shadow: 0 1px 3px rgba(0,0,0,.4); }
     .route-eta::before { display: none; }
+    /* EM-055: what-if rüzgâr senaryosu — kaydırıcı paneli ve özet */
+    #whatif-panel {
+      position: absolute; top: 70px; left: 556px; z-index: 1000;
+      width: 280px; max-height: 60vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #whatif-panel h1 { margin-bottom: 4px; }
+    #whatif-panel .row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    #whatif-panel label { flex: 0 0 auto; }
+    #whatif-panel input[type=range] { flex: 1; min-width: 0; accent-color: #1565c0; }
+    #whatif-panel .val { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #whatif-panel .btns { display: flex; gap: 6px; margin: 6px 0; }
+    #whatif-panel button { flex: 1; font-size: var(--font-size-xs); padding: 3px 6px;
+      cursor: pointer; }
+    #whatif-summary .metric { display: flex; justify-content: space-between;
+      padding: 2px 0; border-bottom: 1px solid var(--border-color); }
+    #whatif-summary .metric b { font-weight: 700; }
+    #whatif-summary .ok { color: #2e7d32; }
+    #whatif-summary .bad { color: #c62828; }
+    #whatif-ignition { color: var(--text-secondary); font-style: italic; margin: 2px 0; }
+    #whatif-newlist { margin-top: 4px; }
+    #whatif-newlist .tag { color: #1565c0; font-weight: 700; }
+    /* EM-059: saved/shareable scenario toolbar inside the what-if panel. */
+    #whatif-scenario { border-top: 1px solid var(--border-color); margin-top: 6px;
+          padding-top: 6px; }
+    #whatif-scenario .scen-head { font-size: var(--font-size-xs); font-weight: 700;
+          color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; }
+    #whatif-scenario input[type=text] { flex: 1; min-width: 0; font-size: var(--font-size-xs);
+          padding: 3px 6px; }
+    #whatif-scenario select { flex: 1; min-width: 0; font-size: var(--font-size-xs);
+          padding: 3px 4px; }
+    #whatif-scen-link { font-size: var(--font-size-xs); word-break: break-all;
+          color: #1565c0; margin-top: 2px; }
+    #whatif-scen-link.err { color: #c62828; }
+        #whatif-history { border-top: 1px solid var(--border-color); margin-top: 6px;
+          padding-top: 6px; }
+        #whatif-history .scen-head { font-size: var(--font-size-xs); font-weight: 700;
+          color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; }
+        #whatif-history select { flex: 1; min-width: 0; font-size: var(--font-size-xs);
+          padding: 3px 4px; }
+        #whatif-history button { flex: 0 0 auto; }
+    #whatif-chip { font-size: var(--font-size-xs); font-weight: 700; padding: 2px 8px;
+      border-radius: 10px; background: #9e9e9e; color: #fff; white-space: nowrap; }
+    #whatif-chip.on { background: #1565c0; }
+    #whatif-chip.slow { background: #f9a825; color: #3a2b00; }
     /* EM-020: model güveni rozeti — ufuk çubuğunun içinde gösterilir */
     #confidence-badge { font-size: var(--font-size-xs); font-weight: 700;
                         padding: 2px 8px; border-radius: 10px;
@@ -86,6 +219,645 @@
     #live-flash { position: absolute; top: 12px; right: 12px; z-index: 1001;
                   font-size: var(--font-size-xs); display: none; max-width: 320px; }
     #live-flash.show { display: block; border-color: #7b1fa2; }
+    /* EM-032: eşik aşımı uyarı bandı (görsel) + ses düğmesi. */
+    #alert-banner { position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
+                    z-index: 1002; display: none; max-width: 80%;
+                    padding: 10px 18px; border-radius: 10px; font-weight: 700;
+                    background: #b71c1c; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.4);
+                    border: 2px solid #ff5252; animation: em-alert 1s ease-in-out 3; }
+    #alert-banner.show { display: block; }
+    @keyframes em-alert { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+    /* EM-079: bağlantı-kesildi bandı (canlı akış sağlığı) + panel yükleme iskeleti */
+    #conn-lost { position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+                 z-index: 1003; display: none; max-width: 92%;
+                 padding: 8px 16px; border-radius: 10px; text-align: center;
+                 background: #b00020; color: #fff; border: 2px solid #ff5252;
+                 box-shadow: 0 4px 16px rgba(0,0,0,.4); font-size: var(--font-size-xs); }
+    #conn-lost.show { display: block; }
+    #conn-lost .cl-title { font-weight: 800; font-size: var(--font-size-sm); }
+    #conn-lost .cl-hint { opacity: .9; margin-top: 2px; }
+    #conn-lost .cl-retry { margin-top: 6px; padding: 2px 12px; cursor: pointer;
+                 border: 1px solid #fff; border-radius: 6px; background: rgba(255,255,255,.14);
+                 color: #fff; font-size: var(--font-size-xs); }
+    .skel { color: var(--text-secondary); font-style: italic; }
+    .skel::after { content: "\2026"; animation: em-skel 1.2s steps(3, end) infinite; }
+    @keyframes em-skel { from { content: ""; } to { content: "\2026\2026\2026"; } }
+    .panel-err { color: #b71c1c; }
+    .panel-err .act { display: block; color: var(--text-secondary); font-weight: 400; }
+    #sound-toggle { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                    border: 1px solid var(--border-color); border-radius: 6px;
+                    background: none; }
+    #sound-toggle.off { opacity: .5; }
+    /* EM-078: sessiz bölge güven paneli — yüksek/düşük bant filtresi, sıralı liste */
+    #silent-panel {
+      position: absolute; top: 70px; right: 12px; z-index: 1000;
+      width: 260px; max-height: 52vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #silent-panel h1 { margin-bottom: 4px; }
+    #silent-panel .evt { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+    #silent-panel select { flex: 1; min-width: 0; font-size: var(--font-size-xs); }
+    #silent-panel .item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 2px;
+      border-bottom: 1px solid var(--border-color); cursor: pointer;
+    }
+    #silent-panel .item:hover { background: rgba(97,97,97,.10); }
+    #silent-panel .item.sel { background: rgba(97,97,97,.18); }
+    #silent-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+                         flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #silent-panel .nm { font-weight: 600; }
+    #silent-panel .t { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #silent-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #silent-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #silent-panel .cb-high { color: #1b5e20; }
+    #silent-panel .cb-moderate { color: #f57f17; }
+    #silent-panel .cb-low { color: #b71c1c; }
+    #silent-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
+    /* EM-080: harita aracı — altlık seçimi, yer/koordinat arama, mesafe/alan ölçüm */
+    #maptool-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 268px; max-height: 58vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #maptool-panel h1 { margin-bottom: 4px; }
+    #maptool-panel .evt { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+    #maptool-panel select { flex: 1; min-width: 0; font-size: var(--font-size-xs); }
+    #maptool-panel .subform { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    #maptool-panel .subform input { font-size: var(--font-size-xs); }
+    #maptool-panel .item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 2px;
+      border-bottom: 1px solid var(--border-color); cursor: pointer;
+    }
+    #maptool-panel .item:hover { background: rgba(97,97,97,.10); }
+    #maptool-panel .item.sel { background: rgba(97,97,97,.18); }
+    #maptool-panel .nm { font-weight: 600; }
+    #maptool-panel .tag { color: var(--text-secondary); font-size: var(--font-size-xxs, 10px); }
+    #maptool-panel .t2 { color: var(--text-secondary); }
+    #maptool-panel .head2 { font-weight: 700; margin-top: 8px; }
+    #maptool-panel .acts { display: flex; gap: 6px; margin: 4px 0; }
+    #maptool-panel .acts button { font-size: var(--font-size-xs); cursor: pointer;
+      padding: 2px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #maptool-panel .acts button.active { background: #bf360c; color: #fff; border-color: #bf360c; }
+    #maptool-panel .ro { color: var(--text-secondary); margin-top: 4px; }
+    #maptool-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #maptool-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
+    /* EM-084: saha görünümü — telefondan okunur kompakt görev kartı + yakın risk */
+    #fieldview-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 300px; max-height: 68vh; overflow-y: auto;
+      font-size: var(--font-size-sm); display: none;
+    }
+    #fieldview-panel h1 { margin-bottom: 4px; }
+    #fieldview-panel .subform { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    #fieldview-panel .subform input { font-size: var(--font-size-xs); width: 84px; }
+    #fieldview-panel select { font-size: var(--font-size-xs); max-width: 140px; }
+    #fieldview-panel .fv-card { border: 1px solid var(--border-color); border-radius: 8px;
+      padding: 6px 8px; margin: 6px 0; }
+    #fieldview-panel .fv-h { font-weight: 700; }
+    #fieldview-panel .fv-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #fieldview-panel .fv-risk { display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border-color); padding: 4px 0; }
+    #fieldview-panel .fv-dist { font-weight: 700; }
+    #fieldview-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #fieldview-panel .lv { border-radius: 3px; font-weight: 700; padding: 0 4px; font-size: var(--font-size-xxs, 10px); }
+    #fieldview-panel .lv-normal { background: #e8f5e9; color: #1b5e20; }
+    #fieldview-panel .lv-dikkat { background: #fff8e1; color: #f57f17; }
+    #fieldview-panel .lv-kritik-yakin { background: #fff3e0; color: #e65100; }
+    #fieldview-panel .lv-kritik { background: #ffebee; color: #b71c1c; }
+    #fieldview-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                     border: 1px solid var(--border-color); border-radius: 6px;
+                     background: none; }
+    /* EM-085: erişilebilirlik paneli — renk + etiket + şekil + desen birlikte gösterilir */
+    #a11y-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                 border: 1px solid var(--border-color); border-radius: 6px;
+                 background: none; }
+    #a11y-panel .a11y-h { font-weight: 700; margin: 8px 0 4px; }
+    #a11y-panel .a11y-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #a11y-panel .a11y-enc { display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid var(--border-color); padding: 4px 0; }
+    #a11y-panel .a11y-swatch { width: 18px; height: 18px; border-radius: 4px;
+      border: 1px solid var(--border-color); display: inline-block; }
+    #a11y-panel .a11y-glyph { font-size: 16px; width: 20px; text-align: center; }
+    #a11y-panel .a11y-label { font-weight: 700; }
+    #a11y-panel .a11y-pattern { color: var(--text-secondary); font-size: var(--font-size-xs); margin-left: auto; }
+    #a11y-panel .a11y-sc { list-style: none; margin: 0; padding: 0; }
+    #a11y-panel .a11y-sc li { padding: 2px 0; font-size: var(--font-size-xs); }
+    #a11y-panel .kbd { font-family: monospace; border: 1px solid var(--border-color);
+      border-radius: 4px; padding: 0 5px; background: var(--surface-color, #f4f4f4); }
+    #a11y-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    /* EM-098: giriş/oturum paneli — token yalnızca sessionStorage'da, asla localStorage'da */
+    #auth-open, #user-mgmt-open, #security-privacy-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                 border: 1px solid var(--border-color); border-radius: 6px;
+                 background: none; }
+    #auth-panel .auth-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #auth-panel .auth-user { font-size: var(--font-size-sm, 13px); margin-bottom: 2px; }
+    #auth-panel .auth-role { font-weight: 700; text-transform: lowercase; }
+    #auth-panel .auth-err { color: var(--risk-high, #d55e00); font-size: var(--font-size-xs); }
+    #auth-panel input { width: 100%; padding: 4px 6px; box-sizing: border-box;
+      border: 1px solid var(--border-color); border-radius: 6px;
+      background: var(--surface-color, #fff); color: inherit; }
+    /* EM-101: kullanici ve rol yonetimi — hesap listesi, rol/ulke, ekle/duzenle */
+    #user-mgmt-panel .um-row { border-bottom: 1px solid var(--border-color);
+      padding: 4px 0; display: flex; flex-direction: column; gap: 3px; }
+    #user-mgmt-panel .um-name { font-weight: 700; }
+    #user-mgmt-panel .um-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-inactive { opacity: 0.55; }
+    #user-mgmt-panel .um-badge { border: 1px solid var(--border-color); border-radius: 4px;
+      padding: 0 5px; font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    #user-mgmt-panel select, #user-mgmt-panel input { padding: 2px 5px;
+      border: 1px solid var(--border-color); border-radius: 5px;
+      background: var(--surface-color, #fff); color: inherit; font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-err { color: var(--risk-high, #d55e00); font-size: var(--font-size-xs); }
+    #user-mgmt-panel .um-subform { margin-top: 8px; display: flex; flex-direction: column;
+      gap: 5px; }
+    /* EM-100: güvenlik/gizlilik uygunluk karti — privacy-by-design + sır hijyeni + aktarım */
+    #security-privacy-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 320px; max-height: 68vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #security-privacy-panel .sp-section { border-bottom: 1px solid var(--border-color);
+      padding: 6px 0; display: flex; flex-direction: column; gap: 3px; }
+    #security-privacy-panel .sp-title { font-weight: 700; }
+    #security-privacy-panel .sp-meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
+    #security-privacy-panel .sp-badge { border: 1px solid var(--border-color); border-radius: 4px;
+      padding: 0 6px; font-size: var(--font-size-xs); align-self: flex-start; }
+    #security-privacy-panel .sp-pass { color: #1b7f37; }
+    #security-privacy-panel .sp-warn { color: var(--risk-high, #d55e00); }
+    #security-privacy-panel .sp-secret-row { display: flex; justify-content: space-between;
+      gap: 8px; font-size: var(--font-size-xs); }
+    /* EM-084: mobil/tablet — dar ekranda panel tam genişlik, temel yazılar okunur kalır */
+    @media (max-width: 640px) {
+      #fieldview-panel { top: 56px; left: 6px; right: 6px; width: auto;
+        max-height: 80vh; font-size: var(--font-size-base); }
+      #fieldview-panel .subform { flex-wrap: wrap; }
+      .panel { max-width: none; }
+    }
+    /* EM-081: olay zaman çizelgesi — kronolojik akış, kategori filtresi */
+    #timeline-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 300px; max-height: 56vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #timeline-panel h1 { margin-bottom: 4px; }
+    #timeline-panel .evt { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+    #timeline-panel select { flex: 1; min-width: 0; font-size: var(--font-size-xs); }
+    #timeline-panel .item {
+      display: flex; flex-direction: column; gap: 2px; padding: 4px 2px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    #timeline-panel .head { display: flex; align-items: center; gap: 6px; }
+    #timeline-panel .dot { width: 9px; height: 9px; border-radius: 50%;
+                           flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #timeline-panel .cat { font-weight: 700; }
+    #timeline-panel .ts { margin-left: auto; color: var(--text-secondary);
+                          white-space: nowrap; }
+    #timeline-panel .ttl { font-weight: 600; }
+    #timeline-panel .det { color: var(--text-secondary); }
+    #timeline-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #timeline-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #timeline-panel .cc-fire_event { color: #c62828; }
+    #timeline-panel .cc-forecast { color: #1565c0; }
+    #timeline-panel .cc-alert { color: #e65100; }
+    #timeline-panel .cc-accepted_recommendation { color: #2e7d32; }
+    #timeline-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
+    /* EM-082: çoklu yangın yönetimi — aktif yangın listesi + çakışma uyarıları */
+    #multifire-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 320px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #multifire-panel h1 { margin-bottom: 4px; }
+    #multifire-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #multifire-panel .fire { padding: 5px 2px; border-bottom: 1px solid var(--border-color); }
+    #multifire-panel .fh { display: flex; align-items: center; gap: 6px; }
+    #multifire-panel .sev { width: 9px; height: 9px; border-radius: 50%;
+                            flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #multifire-panel .nm { font-weight: 700; }
+    #multifire-panel .cc { margin-left: auto; color: var(--text-secondary);
+                           white-space: nowrap; }
+    #multifire-panel .units { color: var(--text-secondary); margin: 2px 0 0 15px; }
+    #multifire-panel .none { color: var(--text-secondary); margin: 2px 0 0 15px;
+                             font-style: italic; }
+    #multifire-panel .cf-head { font-weight: 700; margin: 8px 0 2px; }
+    #multifire-panel .cf { padding: 3px 6px; margin: 2px 0; border-radius: 6px;
+                           border: 1px solid #e0b000; background: #fff7e0; }
+    #multifire-panel .cf.orphan { border-color: #b06500; background: #fdeee0; }
+    #multifire-panel .cf.base { border-color: #1565c0; background: #e6f0fb; }
+    #multifire-panel .cf.under { border-color: #c62828; background: #fbe9e9; }
+    #multifire-panel .cf-ok { color: #2e7d32; font-weight: 600; margin-top: 6px; }
+    #multifire-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #multifire-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
+    /* EM-083: salt okunur belediye görünümü — sadeleştirilmiş izleme paneli */
+    #belediye-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 300px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #belediye-panel h1 { margin-bottom: 4px; }
+    #belediye-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #belediye-panel .ro { color: var(--text-secondary); margin: 0 0 6px; }
+    #belediye-panel .head { padding: 4px 6px; margin: 2px 0 6px; border-radius: 6px;
+                            border: 1px solid var(--border-color); font-weight: 700; }
+    #belediye-panel .head.calm { border-color: #2e7d32; background: #e8f5e9; color: #2e7d32; }
+    #belediye-panel .head.hot { border-color: #c62828; background: #fbe9e9; color: #c62828; }
+    #belediye-panel .fire { padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+                            display: flex; align-items: center; gap: 6px; }
+    #belediye-panel .sev { width: 9px; height: 9px; border-radius: 50%;
+                           flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #belediye-panel .nm { font-weight: 600; }
+    #belediye-panel .cc { margin-left: auto; color: var(--text-secondary); white-space: nowrap; }
+    #belediye-panel .cap { margin-top: 8px; color: var(--text-secondary); }
+    #belediye-panel .none { color: var(--text-secondary); font-style: italic; padding: 4px 0; }
+    #belediye-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #belediye-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
+    /* EM-086: bildirim merkezi — okundu/onaylandı + sesli uyarı ayarı */
+    #bildirim-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 320px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #bildirim-panel h1 { margin-bottom: 4px; }
+    #bildirim-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #bildirim-panel .summary { color: var(--text-secondary); margin: 0 0 6px; }
+    #bildirim-panel .sound { display: flex; flex-wrap: wrap; align-items: center;
+      gap: 8px; padding: 4px 6px; margin-bottom: 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #bildirim-panel .sound select { font-size: var(--font-size-xs); }
+    #bildirim-panel .notif { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #bildirim-panel .notif.unread { font-weight: 600; }
+    #bildirim-panel .notif .lvl { display: inline-block; padding: 0 5px;
+      border-radius: 8px; color: #fff; font-size: 10px; }
+    #bildirim-panel .notif .meta { color: var(--text-secondary); font-weight: 400; }
+    #bildirim-panel .notif .acts { margin-top: 2px; display: flex; gap: 6px; }
+    #bildirim-panel .notif .acts button { font-size: 11px; cursor: pointer;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #bildirim-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #bildirim-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+                   border: 1px solid var(--border-color); border-radius: 6px;
+                   background: none; }
+    /* EM-087: tek sayfalık durum raporu (SITREP) + PDF/Yazdır */
+    #sitrep-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 340px; max-height: 70vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #sitrep-panel h1 { margin-bottom: 4px; }
+    #sitrep-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #sitrep-panel .badge { display: none; padding: 4px 6px; margin-bottom: 6px;
+      border-radius: 6px; background: #fbe9e9; color: #b71c1c; font-weight: 700;
+      border: 1px solid #c62828; }
+    #sitrep-panel .headline { color: var(--text-secondary); margin: 0 0 6px; }
+    #sitrep-panel .fire { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #sitrep-panel .fire .lvl { display: inline-block; padding: 0 5px;
+      border-radius: 8px; color: #fff; font-size: 10px; }
+    #sitrep-panel .fire .meta { color: var(--text-secondary); font-weight: 400; }
+    #sitrep-panel .rec { margin-top: 8px; }
+    #sitrep-panel .rec .rechead { font-weight: 600; margin-bottom: 2px; }
+    #sitrep-panel .rec .recrow { padding: 2px 0; }
+    #sitrep-panel .print { margin-top: 8px; font-size: 12px; cursor: pointer;
+      padding: 4px 10px; border: 1px solid var(--border-color); border-radius: 6px;
+      background: var(--color-primary); color: #fff; }
+    #sitrep-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #sitrep-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #handover-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #handover-panel .noteform { margin-bottom: 6px; }
+    #handover-panel .noteform label { display: inline-block; margin: 2px 6px 2px 0; }
+    #handover-panel input { font-size: 12px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 4px; }
+    #handover-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #handover-panel .note { padding: 3px 2px; border-bottom: 1px solid var(--border-color); }
+    #handover-panel .fire { padding: 3px 2px; border-bottom: 1px solid var(--border-color); }
+    #handover-panel .note .meta, #handover-panel .fire .meta,
+    #handover-panel .rec .meta { color: var(--text-secondary); font-weight: 400; }
+    #handover-panel .rec .rechead { font-weight: 600; margin: 6px 0 2px; }
+    #handover-panel .rec .recrow { padding: 1px 0; }
+    /* EM-094: olay & uyarı webhook'ları — abonelik + imzalı teslim geçmişi */
+    #webhook-panel {
+      position: absolute; top: 70px; right: 284px; z-index: 1000;
+      width: 340px; max-height: 70vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #webhook-panel h1 { margin-bottom: 4px; }
+    #webhook-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #webhook-panel .summary { color: var(--text-secondary); margin: 0 0 6px; }
+    #webhook-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #webhook-panel .subform { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #webhook-panel .subform label { display: block; margin: 2px 0; }
+    #webhook-panel .subform .types label { display: inline-block; margin-right: 8px; }
+    #webhook-panel input[type=text] { font-size: 12px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 4px; width: 96%; }
+    #webhook-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #webhook-panel .sub { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #webhook-panel .sub .url { color: var(--text-secondary); font-weight: 400;
+      word-break: break-all; }
+    #webhook-panel .sub .off { color: #b71c1c; font-weight: 400; }
+    #webhook-panel .sub .acts { margin-top: 2px; display: flex; gap: 6px; }
+    #webhook-panel .hist { padding: 3px 2px; border-bottom: 1px solid var(--border-color); }
+    #webhook-panel .hist .meta { color: var(--text-secondary); font-weight: 400; }
+    #webhook-panel .st { display: inline-block; padding: 0 5px; border-radius: 8px;
+      color: #fff; font-size: 10px; }
+    #webhook-panel .head2 { font-weight: 600; margin: 6px 0 2px; }
+    #webhook-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    /* EM-096: birleşik denetim kaydı — değişmez kim/ne zaman/ne defteri */
+    #audit-panel {
+      position: absolute; top: 70px; right: 630px; z-index: 1000;
+      width: 360px; max-height: 72vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #audit-panel h1 { margin-bottom: 4px; }
+    #audit-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #audit-panel .summary { color: var(--text-secondary); margin: 0 0 6px; }
+    #audit-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    #audit-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #audit-panel .bar label { display: block; margin: 2px 0; }
+    #audit-panel input[type=text], #audit-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #audit-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #audit-panel .acts { margin-top: 4px; display: flex; gap: 6px; }
+    #audit-panel .row { padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #audit-panel .row .meta { color: var(--text-secondary); font-weight: 400; word-break: break-word; }
+    #audit-panel .dom { display: inline-block; padding: 0 5px; border-radius: 8px;
+      color: #fff; font-size: 10px; }
+    #audit-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    /* EM-035: sinyal baz çizgisi — hücre bazında 30 günlük normal + z-skoru */
+    #signal-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 280px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #signal-panel h1 { margin-bottom: 4px; }
+    #signal-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #signal-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #signal-panel .bar label { display: block; margin: 2px 0; }
+    #signal-panel input[type=text], #signal-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #signal-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #signal-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #signal-panel .item:hover { background: rgba(33,102,172,.10); }
+    #signal-panel .item.sel { background: rgba(33,102,172,.18); }
+    #signal-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #signal-panel .nm { font-weight: 600; }
+    #signal-panel .z { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #signal-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #signal-panel .syn { color: #e65100; font-weight: 600; }
+    #signal-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #signal-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-043: mevsimsel sinyal baz çizgisi — saat/hafta günü mevsimselliği + önce/sonra */
+    #seas-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 300px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #seas-panel h1 { margin-bottom: 4px; }
+    #seas-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #seas-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #seas-panel .bar label { display: block; margin: 2px 0; }
+    #seas-panel input[type=text], #seas-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #seas-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #seas-panel .summary { margin-bottom: 6px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #seas-panel .summary b { color: var(--text-primary); }
+    #seas-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #seas-panel .item:hover { background: rgba(33,102,172,.10); }
+    #seas-panel .item.sel { background: rgba(33,102,172,.18); }
+    #seas-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #seas-panel .nm { font-weight: 600; }
+    #seas-panel .z { margin-left: auto; font-weight: 700; white-space: nowrap;
+      text-align: right; }
+    #seas-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #seas-panel .syn { color: #e65100; font-weight: 600; }
+    #seas-panel .removed { color: #1b5e20; font-weight: 600; }
+    #seas-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #seas-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-036: Isolation Forest anomali skoru — hücre bazında çok-özellikli öğrenilmiş skor */
+    #ifa-panel {
+      position: absolute; top: 70px; left: 12px; z-index: 1000;
+      width: 300px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #ifa-panel h1 { margin-bottom: 4px; }
+    #ifa-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #ifa-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #ifa-panel .bar label { display: block; margin: 2px 0; }
+    #ifa-panel input[type=text], #ifa-panel input[type=number], #ifa-panel select {
+      font-size: 12px; padding: 1px 4px; border: 1px solid var(--border-color);
+      border-radius: 4px; }
+    #ifa-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #ifa-panel .summary { margin-bottom: 6px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #ifa-panel .summary b { color: var(--text-primary); }
+    #ifa-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #ifa-panel .item:hover { background: rgba(33,102,172,.10); }
+    #ifa-panel .item.sel { background: rgba(33,102,172,.18); }
+    #ifa-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; }
+    #ifa-panel .nm { font-weight: 600; }
+    #ifa-panel .score { margin-left: auto; font-weight: 700; white-space: nowrap;
+      text-align: right; }
+    #ifa-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #ifa-panel .syn { color: #e65100; font-weight: 600; }
+    #ifa-panel .basis { font-weight: 600; }
+    #ifa-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #ifa-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-037: yüksek öncelikli sessiz bölge — yayılım tahmini × sessizlik güveni */
+    #srisk-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 300px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #srisk-panel h1 { margin-bottom: 4px; }
+    #srisk-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #srisk-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #srisk-panel .bar label { display: block; margin: 2px 0; }
+    #srisk-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #srisk-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #srisk-panel .item:hover { background: rgba(33,102,172,.10); }
+    #srisk-panel .item.sel { background: rgba(33,102,172,.18); }
+    #srisk-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #srisk-panel .nm { font-weight: 600; }
+    #srisk-panel .pri { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #srisk-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #srisk-panel .threat { color: #b71c1c; font-weight: 600; }
+    #srisk-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #srisk-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-038: yanlış alarm önleme — sessiz aday güven etiketi (kapsama gücü) */
+    #szc-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 300px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #szc-panel h1 { margin-bottom: 4px; }
+    #szc-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #szc-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #szc-panel .bar label { display: block; margin: 2px 0; }
+    #szc-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #szc-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color);
+      cursor: pointer; }
+    #szc-panel .item:hover { background: rgba(33,102,172,.10); }
+    #szc-panel .item.sel { background: rgba(33,102,172,.18); }
+    #szc-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #szc-panel .nm { font-weight: 600; }
+    #szc-panel .cf { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #szc-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #szc-panel .weak { color: #b71c1c; font-weight: 600; }
+    #szc-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #szc-panel .syn { color: #e65100; font-weight: 600; }
+    #szc-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-042: sessiz bölge performans ölçümü — sentetik senaryoda TPR/FPR/gecikme */
+    #sdp-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 320px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #sdp-panel h1 { margin-bottom: 4px; }
+    #sdp-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #sdp-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #sdp-panel .bar label { display: block; margin: 2px 0; }
+    #sdp-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #sdp-panel .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px;
+      margin-bottom: 6px; padding: 4px 6px; border: 1px solid var(--border-color);
+      border-radius: 6px; }
+    #sdp-panel .metrics b { font-weight: 700; }
+    #sdp-panel .scen { color: #e65100; font-weight: 600; }
+    #sdp-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
+    #sdp-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #sdp-panel .nm { font-weight: 600; }
+    #sdp-panel .cf { margin-left: auto; font-weight: 700; white-space: nowrap; }
+    #sdp-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #sdp-panel .miss { color: #b71c1c; font-weight: 600; }
+    #sdp-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #sdp-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-040: sessiz bölge uyarıları — yüksek öncelikli bölge uyarı beslemesi */
+    #sra-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 320px; max-height: 62vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #sra-panel h1 { margin-bottom: 4px; }
+    #sra-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #sra-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #sra-panel .bar label { display: block; margin: 2px 0; }
+    #sra-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #sra-panel .item { display: flex; align-items: center; gap: 6px;
+      padding: 4px 2px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+    #sra-panel .item:hover { background: rgba(33,102,172,.10); }
+    #sra-panel .item.sel { background: rgba(33,102,172,.18); }
+    #sra-panel .dot { width: 10px; height: 10px; border-radius: 50%;
+      flex: 0 0 auto; border: 1px solid rgba(0,0,0,.25); }
+    #sra-panel .nm { font-weight: 600; }
+    #sra-panel .lvl { margin-left: auto; font-weight: 700; white-space: nowrap;
+      padding: 1px 6px; border-radius: 10px; color: #fff; font-size: 10px; }
+    #sra-panel .meta { color: var(--text-secondary); font-weight: 400; }
+    #sra-panel .threat { color: #b71c1c; font-weight: 600; }
+    #sra-panel .supp { color: var(--text-secondary); font-style: italic; }
+    #sra-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #sra-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
+    /* EM-041: sessiz bölge doğrulama — hüküm rozeti + satır içi işaretleme + geri bildirim özeti */
+    #sra-panel .verdict { font-weight: 700; white-space: nowrap;
+      padding: 1px 6px; border-radius: 10px; color: #fff; font-size: 10px; }
+    #sra-panel .markrow { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+    #sra-panel .markrow button { font-size: 10px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #sra-panel .markrow button:disabled { opacity: .5; cursor: default; }
+    #sra-panel .opbar { display: flex; align-items: center; gap: 4px; margin: 2px 0; }
+    #sra-panel .opbar input { flex: 1; font-size: 11px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 5px; min-width: 0; }
+    #sra-panel .feedback { margin-top: 4px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #sra-panel .feedback b { color: var(--text-primary); }
+    /* EM-044: sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı editör */
+    #szt-panel {
+      position: absolute; top: 70px; left: 300px; z-index: 1000;
+      width: 340px; max-height: 66vh; overflow-y: auto;
+      font-size: var(--font-size-xs); display: none;
+    }
+    #szt-panel h1 { margin-bottom: 4px; }
+    #szt-panel .count { color: var(--text-secondary); font-weight: 400; }
+    #szt-panel .bar { margin-bottom: 6px; padding: 4px 6px;
+      border: 1px solid var(--border-color); border-radius: 6px; }
+    #szt-panel .bar label { display: block; margin: 2px 0; }
+    #szt-panel button { font-size: 11px; cursor: pointer; padding: 1px 6px;
+      border: 1px solid var(--border-color); border-radius: 5px; background: none; }
+    #szt-panel .cfg { margin-bottom: 4px; padding: 4px 6px; font-size: 11px;
+      border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); }
+    #szt-panel .cfg b { color: var(--text-primary); }
+    #szt-panel .item { padding: 5px 2px; border-bottom: 1px solid var(--border-color); }
+    #szt-panel .nm { font-weight: 600; }
+    #szt-panel .src { color: var(--text-secondary); font-weight: 400; font-size: 10px; }
+    #szt-panel .src.ovr { color: #1b5e20; font-weight: 700; }
+    #szt-panel .knobs { display: flex; gap: 6px; margin: 3px 0; flex-wrap: wrap; }
+    #szt-panel .knobs label { display: flex; flex-direction: column; gap: 1px;
+      font-size: 10px; color: var(--text-secondary); }
+    #szt-panel .knobs input { font-size: 11px; padding: 1px 4px; width: 72px;
+      border: 1px solid var(--border-color); border-radius: 5px; }
+    #szt-panel .acts { display: flex; gap: 4px; }
+    #szt-panel .empty { color: var(--text-secondary); padding: 4px 0; }
+    #szt-panel .opbar { display: flex; align-items: center; gap: 4px; margin: 2px 0; }
+    #szt-panel .opbar input { flex: 1; font-size: 11px; padding: 1px 4px;
+      border: 1px solid var(--border-color); border-radius: 5px; min-width: 0; }
+    #szt-open { font-size: 12px; cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border-color); border-radius: 6px; background: none; }
     h1 { font-size: var(--font-size-sm); margin: 0 0 6px; }
     label { font-size: var(--font-size-xs); }
   </style>
@@ -99,11 +871,85 @@
            aria-label="Yayılım ufku kaydırıcısı">
     <div class="ticks" id="horizon-ticks"></div>
     <label><input type="checkbox" id="horizon-cumulative" checked> kümülatif</label>
+    <button type="button" id="whatif-open"
+      style="font-size:12px;cursor:pointer;padding:2px 8px;border:1px solid var(--border-color);border-radius:6px;background:none;"
+      title="EM-055 rüzgar senaryosu yeniden hesaplama">What-If (Rüzgar)</button>
+    <span id="whatif-chip" title="EM-055 senaryo durumu">What-If: kapalı</span>
     <span id="confidence-badge" title="EM-020 model güveni — girdi kaynaklarının güvenilirliğinden hesaplanır">Model güveni: —</span>
     <span id="live-chip" class="off" title="EM-090 canlı güncelleme — sayfa yenilemeden olay/tahmin/uyarı akışı">● canlı değil</span>
+    <button type="button" id="sound-toggle" title="EM-032 eşik aşımı uyarı sesi (aç/kapa)">🔔 Ses</button>
+    <button type="button" id="silent-open"
+      title="EM-078 sessiz bölge güven paneli — güvenilir/düşük bölgeleri filtrele, haritada seç">Sessiz Bölgeler</button>
+    <button type="button" id="timeline-open"
+      title="EM-081 olay zaman çizelgesi — vardiya devri için kronolojik olay akışı">Zaman Çizelgesi</button>
+    <button type="button" id="multifire-open"
+      title="EM-082 çoklu yangın yönetimi — eş zamanlı yangınlar ve kaynak paylaşım çakışmaları">Çoklu Yangın</button>
+    <button type="button" id="belediye-open"
+      title="EM-083 salt okunur belediye görünümü — bölgeniz için sadeleştirilmiş izleme ekranı">Belediye</button>
+    <button type="button" id="bildirim-open"
+      title="EM-086 bildirim merkezi — uyarıları okundu/onaylandı izleyin, sesli uyarıyı seviyeye göre ayarlayın">Bildirimler</button>
+    <button type="button" id="sitrep-open"
+      title="EM-087 durum raporu (SITREP) — tek sayfalık özeti derle, PDF/Yazdır ile dışa aktar">Durum Raporu</button>
+    <button type="button" id="handover-open"
+      title="EM-089 vardiya devri notları — olaya not ekle, notları zaman çizelgesinde gör, tek tıkla devir özeti oluştur">Vardiya Devri</button>
+    <button type="button" id="webhook-open"
+      title="EM-094 olay & uyarı webhook'ları — uç nokta ve olay tiplerini yapılandır, imzalı gönder ve teslim geçmişini izle">Webhook'lar</button>
+    <button type="button" id="audit-open"
+      title="EM-096 birleşik denetim kaydı — hangi alt sistemden gelirse gelsin kim/ne zaman/hangi kararı-ğişikliği değiştiremez silinemez defterde gör">Denetim Kaydı</button>
+    <button type="button" id="signal-open"
+      title="EM-035 sinyal baz çizgisi — hücre bazında 30 günlük iletişim/rapor normali ve bugünkü sessizlik adayı">
+      Sinyal Baz Çizgisi</button>
+    <button type="button" id="seas-open"
+      title="EM-043 mevsimsel sinyal baz çizgisi — saat-in-günü + haftanın-günü mevsimselliği öğrenilir; gece/hafta sonu sessizliği yanlış alarm olmaz; düz önceki vs mevsimsel sonraki karşılaştırılır">
+      Mevsimsel Baz Çizgisi</button>
+    <button type="button" id="ifa-open"
+      title="EM-036 Isolation Forest anomali skoru — her hücre için baz penceresinde çok-özellikli model eğitilir, son okumun anomali skoru otomatik üretilir; eşik ortalama(baz) − sigma·sapma (sigma varsayılan 3.0, yapılandırılabilir); 15 dk aralıkla tazelenir">
+      Isolation Forest Anomali</button>
+    <button type="button" id="srisk-open"
+      title="EM-037 yüksek öncelikli sessiz bölge — yayılım tahmini ulaşan ama SOS olmayan bölgeler, risk × sessizlik sıralı">
+      Yüksek Öncelikli Sessiz Bölge</button>
+    <button type="button" id="szc-open"
+      title="EM-038 yanlış alarm önleme — sessiz adayları yapısal kapsama gücüne ve ani düşüşe göre düşük/orta/yüksek güvenle etiketle">
+      Yanlış Alarm Önleme</button>
+    <button type="button" id="sdp-open"
+      title="EM-042 sessiz bölge performans ölçümü — sentetik senaryoda TPR/FPR ve uyarı gecikmesi">
+      Sessiz Bölge Performans</button>
+    <button type="button" id="sra-open"
+      title="EM-040 sessiz bölge uyarıları — yayılım tehdidi ulaşan yüksek öncelikli sessiz bölgeler için bölge/süre/risk seviyeli uyarı; aynı bölgenin tekrar uyarıları bastırılır">
+      Sessiz Bölge Uyarıları</button>
+    <button type="button" id="szt-open"
+      title="EM-044 sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı eşik (z-skoru) ve minimum sessizlik süresi arayüzden ayarlanır; her değişiklik denetim kaydına yazılır; varsayılana dönme seçeneği vardır">
+      Sessiz Bölge Ayarı</button>
+    <button type="button" id="maptool-open"
+      title="EM-080 harita aracı — sokak/uydu/arazi altlığı seç, yer adı veya koordinat ara, mesafe/alan ölç">
+      Harita Aracı</button>
+    <button type="button" id="fieldview-open"
+      title="EM-084 saha görünümü — telefondan okunur görev kartı + konuma göre en yakın risk bölgesi">
+      Saha Görünümü</button>
+    <button type="button" id="a11y-open"
+      title="EM-085 erişilebilirlik — renk körü güvenli risk kodlaması (renk+etiket+şekil+desen), tema ve genel klavye kısayolları">
+      Erişilebilirlik</button>
+    <button type="button" id="auth-open"
+      title="EM-098 kimlik doğrulama — e-posta/parola girişi, oturum süresi (TTL + hareketsizlik) ve güvenli çıkış">
+      Giriş</button>
+    <button type="button" id="user-mgmt-open"
+      title="EM-101 kullanıcı ve rol yönetimi — hesap ekle/düzenle/devre dışı bırak, rol atama ve ülke kapsami; her işlem denetim kaydına yazılır">
+      Kullanıcı Yönetimi</button>
+    <button type="button" id="security-privacy-open"
+      title="EM-100 güvenlik ve gizlilik uygunluğu — gizlilik-tasarım (bölge/hücre bazlı, kişisel veri yok) denetimi, maskelenmiş gizli-anahtar durumu ve dürüst TLS/aktarım duruşu">
+      Güvenlik &amp; Gizlilik</button>
   </div>
 
   <div id="live-flash" class="panel" aria-live="polite"></div>
+
+  <div id="alert-banner" role="alert" aria-live="assertive"></div>
+
+  <div id="conn-lost" role="alert" aria-live="assertive">
+    <div class="cl-title" id="conn-lost-title"></div>
+    <div id="conn-lost-text"></div>
+    <div class="cl-hint" id="conn-lost-hint"></div>
+    <button type="button" class="cl-retry" id="conn-lost-retry"></button>
+  </div>
 
   <div id="legend" class="panel">
     <h1>Lejant</h1>
@@ -126,6 +972,7 @@
     <div class="row"><span class="swatch" style="background:#ce93d8"></span> Tehdit altındaki yapı — ≤120 dk (EM-023)</div>
         <div class="row"><span class="swatch" style="background:#26a69a;border-radius:50%"></span> Konuşlanma noktası (EM-052)</div>
         <div class="row"><span class="swatch" style="background:#00897b"></span> Önerilen kaynak rotası + ETA (EM-052)</div>
+        <div class="row"><span class="swatch" style="background:rgba(21,101,192,.25);border:1.5px dashed #1565c0"></span> What-if senaryo bölgesi (EM-055)</div>
     <div class="row"><a href="/panel" style="color:#c0392b;font-weight:700">→ Komutan Kapasite &amp; Risk Paneli</a></div>
     <div class="row"><a href="/inventory">→ Kaynak Envanteri (koordinatör)</a></div>
     <div class="row"><a href="/styleguide">→ Tasarım Sistemi (styleguide)</a></div>
@@ -144,539 +991,425 @@
   </div>
 
   <div id="positioning-panel" class="panel" aria-live="polite">
-    <h1>Konuşlanma Önerileri <span id="positioning-count" class="count"></span></h1>
+    <h1>Konuşlanma Önerileri <span id="positioning-count" class="count"></span>
+      <span id="ds-scenario" class="ds-scenario" title="Görünen veriler sentetik senaryo üretimidir" hidden>SENARYO VERİSİ</span></h1>
     <div id="positioning-list"></div>
+    <div id="ds-frame" class="ds-frame"></div>
+    <button type="button" id="positioning-impact-btn" class="pi-btn" hidden
+      onclick="loadImpactComparison()">Etki karşılaştırması (uygulanırsa vs uygulanmazsa)</button>
+    <div id="positioning-impact" hidden></div>
+    <button type="button" id="positioning-assign-btn" class="pi-btn"
+      onclick="toggleAssignments()">Atamalar — çakışma önleme (EM-053)</button>
+    <div id="positioning-assign" hidden></div>
+<button type="button" id="positioning-taskcards-btn" class="pi-btn"
+      onclick="toggleTaskCards()">Görev kartları (EM-051)</button>
+<div id="positioning-taskcards" hidden></div>
+<button type="button" id="positioning-feedback-btn" class="pi-btn"
+      onclick="toggleFeedback()">Kabul/ret geri bildirimi (EM-054)</button>
+<div id="positioning-feedback" hidden></div>
+<button type="button" id="display-loc-btn" class="pi-btn"
+      onclick="toggleLocalization()">Görüntü standardizasyonu (EM-063)</button>
+<div id="display-loc" hidden></div>
+  </div>
+
+  <div id="whatif-panel" class="panel" aria-live="polite">
+    <h1>What-If — Hava Senaryosu</h1>
+    <div id="whatif-ignition">İgnisyon noktası: bir olay seçin veya haritaya tıklayın.</div>
+    <div class="row">
+      <label for="whatif-dir">Yön değişimi</label>
+      <input type="range" id="whatif-dir" min="-180" max="180" step="5" value="0"
+             aria-label="Rüzgâr yön değişimi kaydırıcısı (derece)">
+      <span class="val" id="whatif-dir-val">0°</span>
+    </div>
+    <div class="row">
+      <label for="whatif-speed">Hız çarpanı</label>
+      <input type="range" id="whatif-speed" min="50" max="200" step="5" value="100"
+             aria-label="Rüzgâr hız çarpanı kaydırıcısı (yüzde)">
+      <span class="val" id="whatif-speed-val">%100</span>
+    </div>
+    <div class="row">
+      <label for="whatif-temp">Sıcaklık Δ</label>
+      <input type="range" id="whatif-temp" min="-30" max="30" step="1" value="0"
+             aria-label="Hava sıcaklığı değişim kaydırıcısı (Celsius)">
+      <span class="val" id="whatif-temp-val">0°C</span>
+    </div>
+    <div class="row">
+      <label for="whatif-humidity">Nem Δ</label>
+      <input type="range" id="whatif-humidity" min="-60" max="60" step="5" value="0"
+             aria-label="Bağıl nem değişim kaydırıcısı (yüzde puanı)">
+      <span class="val" id="whatif-humidity-val">0%</span>
+    </div>
+    <div class="btns">
+      <button type="button" id="whatif-rot45" title="Kabul kriteri senaryosu: rüzgâr 45° dönsün">45° döndür</button>
+      <button type="button" id="whatif-reset">Sıfırla</button>
+    </div>
+    <div id="whatif-scenario">
+      <div class="scen-head">Senaryolar — Kaydet / Paylaş</div>
+      <div class="row">
+        <input type="text" id="whatif-scen-name" placeholder="Senaryo adı"
+               aria-label="Kaydedilecek what-if senaryosunun adı">
+      </div>
+      <div class="btns">
+        <button type="button" id="whatif-scen-save" title="Şu anki kaydırıcı değerlerini adlandırılmış bir senaryo olarak kaydet">Kaydet</button>
+        <button type="button" id="whatif-scen-share" title="Seçili senaryo için paylaşım bağlantısı oluştur">Paylaş</button>
+      </div>
+      <div class="row">
+        <select id="whatif-scen-list" aria-label="Kaydedilmiş what-if senaryoları"></select>
+        <button type="button" id="whatif-scen-load" title="Seçili senaryoyu kaydırıcılara yükle ve yeniden hesapla">Yükle</button>
+      </div>
+      <div id="whatif-scen-link"></div>
+    </div>
+    <div id="whatif-history">
+      <div class="scen-head">Geçmiş — son koşular (EM-062)</div>
+      <div class="row">
+        <select id="whatif-hist-list" aria-label="Son what-if koşuları"></select>
+        <button type="button" id="whatif-hist-revert" title="Seçili koşunun değerlerine geri dön">Geri dön</button>
+        <button type="button" id="whatif-hist-clear" title="Geçmişi temizle">Temizle</button>
+      </div>
+    </div>
+    <div id="whatif-summary"></div>
+    <div id="whatif-newlist"></div>
+  </div>
+
+  <div id="silent-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölgeler <span id="silent-count" class="count"></span></h1>
+    <label class="evt">Güven bandı
+      <select id="silent-filter" aria-label="Sessiz bölge güven bandı filtresi">
+        <option value="">Tümü</option>
+        <option value="high">Yüksek güven</option>
+        <option value="moderate">Orta güven</option>
+        <option value="low">Düşük güven</option>
+      </select>
+    </label>
+    <div id="silent-list"></div>
+  </div>
+
+  <div id="maptool-panel" class="panel" aria-live="polite">
+    <h1>Harita Aracı</h1>
+    <label class="evt">Altlık
+      <select id="mt-basemap" aria-label="Harita altlığı seçimi">
+        <option value="street">Sokak</option>
+      </select>
+    </label>
+    <div class="subform">
+      <label>Ara (yer adı veya "enlem, boylam"):
+        <input type="text" id="mt-query" size="22" placeholder="ör. Bodrum veya 37.03, 27.43">
+      </label>
+      <button type="button" id="mt-search">Ara</button>
+    </div>
+    <div id="mt-results"></div>
+    <div class="head2">Ölçüm aracı</div>
+    <div class="acts">
+      <button type="button" id="mt-mode-distance">Mesafe</button>
+      <button type="button" id="mt-mode-area">Alan</button>
+      <button type="button" id="mt-clear">Temizle</button>
+    </div>
+    <div class="ro" id="mt-measure">Mesafe/alan için bir mod seçin, sonra haritaya tıklayın.</div>
+  </div>
+
+  <div id="fieldview-panel" class="panel" aria-live="polite">
+    <h1>Saha Görünümü <span id="fv-count" class="count"></span></h1>
+    <label class="evt">Olay
+      <select id="fv-event" aria-label="Saha görünümü olay filtresi">
+        <option value="">Tüm atanmış görevler</option>
+      </select>
+    </label>
+    <div class="subform">
+      <label>Kaynak
+        <input type="text" id="fv-resource" size="12" placeholder="resource_key">
+      </label>
+      <button type="button" id="fv-refresh">Yenile</button>
+    </div>
+    <div class="subform">
+      <label>Konum (enlem, boylam) — opsiyonel:
+        <input type="text" id="fv-lat" size="6" placeholder="37.03">
+        <input type="text" id="fv-lon" size="6" placeholder="27.43">
+      </label>
+    </div>
+    <div id="fv-body"></div>
+  </div>
+
+  <div id="a11y-panel" class="panel" aria-live="polite">
+    <h1>Erişilebilirlik ve Kısayollar</h1>
+    <div id="a11y-body"></div>
+  </div>
+
+  <div id="auth-panel" class="panel" aria-live="polite">
+    <h1>Giriş ve Oturum</h1>
+    <div id="auth-body"></div>
+  </div>
+
+  <div id="user-mgmt-panel" class="panel" aria-live="polite">
+    <h1>Kullanıcı ve Rol Yönetimi</h1>
+    <div id="user-mgmt-body"></div>
+  </div>
+
+  <div id="security-privacy-panel" class="panel" aria-live="polite">
+    <h1>Güvenlik ve Gizlilik Uygunluğu</h1>
+    <div id="security-privacy-body"></div>
+  </div>
+
+  <div id="timeline-panel" class="panel" aria-live="polite">
+    <h1>Olay Zaman Çizelgesi <span id="timeline-count" class="count"></span></h1>
+    <label class="evt">Kategori
+      <select id="timeline-filter" aria-label="Olay kategorisi filtresi">
+        <option value="">Tümü</option>
+        <option value="fire_event">Yangın olayı</option>
+        <option value="forecast">Tahmin güncellemesi</option>
+        <option value="alert">Uyarı</option>
+        <option value="accepted_recommendation">Kabul edilen öneri</option>
+      </select>
+    </label>
+    <div id="timeline-list"></div>
+  </div>
+
+  <div id="multifire-panel" class="panel" aria-live="polite">
+    <h1>Çoklu Yangın Yönetimi <span id="multifire-count" class="count"></span></h1>
+    <div id="multifire-list"></div>
+    <div id="multifire-conflicts"></div>
+  </div>
+
+  <div id="belediye-panel" class="panel" aria-live="polite">
+    <h1>Belediye Görünümü <span id="belediye-count" class="count"></span></h1>
+    <div class="ro" id="belediye-region">Salt okunur · yalnızca izleme</div>
+    <div id="belediye-headline"></div>
+    <div id="belediye-list"></div>
+    <div class="cap" id="belediye-capacity"></div>
+  </div>
+
+  <div id="bildirim-panel" class="panel" aria-live="polite">
+    <h1>Bildirim Merkezi <span id="bildirim-count" class="count"></span></h1>
+    <div class="summary" id="bildirim-summary"></div>
+    <div class="sound" id="bildirim-sound"></div>
+    <div id="bildirim-list"></div>
+  </div>
+
+  <div id="sitrep-panel" class="panel" aria-live="polite">
+    <h1>Durum Raporu (SITREP) <span id="sitrep-count" class="count"></span></h1>
+    <div class="badge" id="sitrep-badge"></div>
+    <div class="headline" id="sitrep-headline"></div>
+    <div id="sitrep-body"></div>
+  </div>
+
+  <div id="handover-panel" class="panel" aria-live="polite">
+    <h1>Vardiya Devri <span id="handover-count" class="count"></span></h1>
+    <div class="noteform">
+      <label>Olay anahtarı: <input type="text" id="handover-event" size="12"
+        placeholder="evt-..."></label>
+      <label>Not: <input type="text" id="handover-body" size="26"
+        placeholder="serbest metin not"></label>
+      <label>Yazan: <input type="text" id="handover-author" size="10"
+        placeholder="opsiyonel"></label>
+      <div class="acts">
+        <button type="button" id="handover-add">Not Ekle</button>
+        <button type="button" id="handover-listen">Notları Yenile</button>
+        <button type="button" id="handover-summary-btn">Devir Özetini Oluştur</button>
+      </div>
+    </div>
+    <div id="handover-summary"></div>
+    <div id="handover-list"></div>
+  </div>
+
+  <div id="webhook-panel" class="panel" aria-live="polite">
+    <h1>Olay &amp; Uyarı Webhook'ları <span id="webhook-count" class="count"></span></h1>
+    <div class="summary" id="webhook-summary"></div>
+    <div class="subform">
+      <label>Ad: <input type="text" id="webhook-name" size="18" placeholder="ör. SOC girdi hattı"></label>
+      <label>URL: <input type="text" id="webhook-url" size="30" placeholder="https://…/hook"></label>
+      <label>Gizli anahtar (opsiyonel): <input type="text" id="webhook-secret" size="18"
+        placeholder="boşsa otomatik üretilir"></label>
+      <div class="types" id="webhook-types">
+        <span>Olay tipleri:</span>
+        <label><input type="checkbox" value="fire_event"> Yangın</label>
+        <label><input type="checkbox" value="forecast"> Tahmin</label>
+        <label><input type="checkbox" value="alert"> Uyarı</label>
+      </div>
+      <div class="acts">
+        <button type="button" id="webhook-add">Abonelik Ekle</button>
+        <button type="button" id="webhook-dispatch" title="En son canlı akış olaylarını ilgili abonelere imzalı gönder">
+          Olayları Dağıt</button>
+        <button type="button" id="webhook-retry" title="Zamanlanmış yeniden denemeleri çalıştır">Yeniden Dene</button>
+        <button type="button" id="webhook-refresh">Yenile</button>
+      </div>
+    </div>
+    <div class="head2">Abonelikler</div>
+    <div id="webhook-subs"></div>
+    <div class="head2">Son Teslimler</div>
+    <div id="webhook-history"></div>
+  </div>
+
+  <div id="audit-panel" class="panel" aria-live="polite">
+    <h1>Birleşik Denetim Kaydı <span id="audit-count" class="count"></span></h1>
+    <div class="summary" id="audit-summary"></div>
+    <div class="bar">
+      <label>Filtre — Alan:
+        <select id="audit-filter-domain"><option value="">tümü</option></select>
+      </label>
+      <label>Aktör: <input type="text" id="audit-filter-actor" size="14"
+        placeholder="boş = tümü"></label>
+      <div class="acts">
+        <button type="button" id="audit-refresh">Yenile</button>
+      </div>
+    </div>
+    <div class="head2">Yeni Denetim Kaydı Ekle</div>
+    <div class="bar">
+      <label>Alan:
+        <select id="audit-domain"></select>
+      </label>
+      <label>Eylem:
+        <select id="audit-action"></select>
+      </label>
+      <label>Aktör: <input type="text" id="audit-actor" size="14"
+        placeholder="kim (zorunlu)"></label>
+      <label>Özne anahtarı: <input type="text" id="audit-subject" size="18"
+        placeholder="ör. EVT-… / üs anahtarı"></label>
+      <label>Özet: <input type="text" id="audit-summary-text" size="28"
+        placeholder="ne oldu (tek satır)"></label>
+      <div class="acts">
+        <button type="button" id="audit-add">Kaydet</button>
+      </div>
+    </div>
+    <div class="head2">Değişmez Geçmiş</div>
+    <div id="audit-list"></div>
+  </div>
+
+  <div id="signal-panel" class="panel" aria-live="polite">
+    <h1>Sinyal Baz Çizgisi <span id="signal-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Kaynak:
+        <select id="signal-source" aria-label="Sinyal kaynağı seçimi"></select>
+      </label>
+      <label>Referans tarih: <input type="text" id="signal-asof" size="10"
+        placeholder="boş = bugün"></label>
+      <label><input type="checkbox" id="signal-candidate" checked>
+        yalnızca sessiz adayı</label>
+      <div class="acts"><button type="button" id="signal-refresh">Yenile</button></div>
+    </div>
+    <div id="signal-list"></div>
+  </div>
+
+  <div id="seas-panel" class="panel" aria-live="polite">
+    <h1>Mevsimsel Baz Çizgisi <span id="seas-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Kaynak:
+        <select id="seas-source" aria-label="Mevsimsel sinyal kaynağı seçimi"></select>
+      </label>
+      <label>Kontrol saati: <select id="seas-hour" aria-label="Saat aralığı">
+        <option value="3" selected>03:00 (gece)</option>
+        <option value="0">00:00</option>
+        <option value="6">06:00</option>
+        <option value="12">12:00 (gündüz)</option>
+        <option value="18">18:00</option>
+        <option value="22">22:00</option>
+      </select></label>
+      <label>Referans tarih: <input type="text" id="seas-asof" size="10"
+        placeholder="boş = bugün"></label>
+      <label><input type="checkbox" id="seas-candidate"> yalnızca mevsimsel aday</label>
+      <div class="acts">
+        <button type="button" id="seas-refresh">Yenile</button>
+        <button type="button" id="seas-recompute" title="EM-043 günlük yeniden hesaplama">Günlük Yenile</button>
+      </div>
+    </div>
+    <div id="seas-summary" class="summary" style="display:none"></div>
+    <div id="seas-list"></div>
+  </div>
+
+  <div id="ifa-panel" class="panel" aria-live="polite">
+    <h1>Isolation Forest Anomali <span id="ifa-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Kaynak:
+        <select id="ifa-source" aria-label="Anomali sinyal kaynağı seçimi"></select>
+      </label>
+      <label>sigma katsayısı: <input type="number" id="ifa-sigma" size="3" step="0.5"
+        min="1" max="5" value="3.0" aria-label="Sessizlik eşiği sigma katsayısı"></label>
+      <label>Baz penceresi (gün): <input type="number" id="ifa-window" size="3" step="1"
+        min="1" max="365" aria-label="Baz penceresi gün sayısı"></label>
+      <label>Referans tarih: <input type="text" id="ifa-asof" size="10"
+        placeholder="boş = bugün"></label>
+      <label><input type="checkbox" id="ifa-anomaly"> yalnızca anomali</label>
+      <div class="acts">
+        <button type="button" id="ifa-refresh">Yenile</button>
+        <button type="button" id="ifa-latest" title="EM-036 15 dk gerçek zamanlı tarama">Anlık Tara</button>
+      </div>
+    </div>
+    <div id="ifa-summary" class="summary" style="display:none"></div>
+    <div id="ifa-list"></div>
+  </div>
+
+  <div id="srisk-panel" class="panel" aria-live="polite">
+    <h1>Yüksek Öncelikli Sessiz Bölge <span id="srisk-count" class="count"></span></h1>
+    <div class="bar">
+      <label><input type="checkbox" id="srisk-flagged" checked>
+        yalnızca yüksek öncelikliler</label>
+      <div class="acts"><button type="button" id="srisk-refresh">Yenile</button></div>
+    </div>
+    <div id="srisk-list"></div>
+  </div>
+
+  <div id="szc-panel" class="panel" aria-live="polite">
+    <h1>Yanlış Alarm Önleme <span id="szc-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Güven: <select id="szc-confidence">
+        <option value="all" selected>tümü</option>
+        <option value="high">yüksek</option>
+        <option value="medium">orta</option>
+        <option value="low">düşük (yanlış alarm)</option>
+      </select></label>
+      <div class="acts"><button type="button" id="szc-refresh">Yenile</button></div>
+    </div>
+    <div id="szc-list"></div>
+  </div>
+
+  <div id="sdp-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölge Performans <span id="sdp-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Ufuk: <select id="sdp-horizon">
+        <option value="14">14 gün</option>
+        <option value="30" selected>30 gün</option>
+        <option value="60">60 gün</option>
+      </select></label>
+      <div class="acts"><button type="button" id="sdp-refresh">Yenile</button></div>
+    </div>
+    <div id="sdp-metrics" class="metrics"></div>
+    <div class="head2">Enjekte Edilen Sessiz Epizotlar</div>
+    <div id="sdp-list"></div>
+  </div>
+
+  <div id="sra-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölge Uyarıları <span id="sra-count" class="count"></span></h1>
+    <div class="bar">
+      <label>Risk seviyesi: <select id="sra-level">
+        <option value="all" selected>Tümü</option>
+        <option value="kritik">Kritik</option>
+        <option value="yuksek">Yüksek</option>
+        <option value="orta">Orta</option>
+        <option value="dusuk">Düşük</option>
+      </select></label>
+      <div class="opbar"><label>Operatör: <input id="sra-operator" type="text"
+        placeholder="kim işaretliyor" autocomplete="off" size="12"></label></div>
+      <div class="acts"><button type="button" id="sra-refresh">Yenile</button></div>
+    </div>
+    <div id="szv-feedback" class="feedback" style="display:none"></div>
+    <div id="sra-list"></div>
+  </div>
+
+  <div id="szt-panel" class="panel" aria-live="polite">
+    <h1>Sessiz Bölge Hassasiyet ve Eşik Ayarı <span id="szt-count" class="count"></span></h1>
+    <div class="bar">
+      <div class="opbar"><label>Operatör: <input id="szt-operator" type="text"
+        placeholder="kim ayarlıyor" autocomplete="off" size="12"></label></div>
+      <div class="acts"><button type="button" id="szt-refresh">Yenile</button></div>
+    </div>
+    <div id="szt-config" class="cfg" style="display:none"></div>
+    <div id="szt-list"></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script>
-  "use strict";
-  const API = "/api/v1/map/layers";
-  const HORIZONS = [30, 60, 120];
-  const HORIZON_COLORS = { 30: "#ffd400", 60: "#ff7f00", 120: "#d62728" };
-  const LAYER_STYLE = {
-    fires: f => f.properties.kind === "fire_event"
-      ? { radius: 8, color: "#7c1a12", fillColor: "#e74c3c", fillOpacity: 0.85 }
-      : { radius: 6, color: "#9c5a00", fillColor: "#f39c12", fillOpacity: 0.8 },
-    fuel: { radius: 4, color: "#1b4d1e", fillColor: "#2e7d32", fillOpacity: 0.7 },
-    "silent-regions": { color: "#616161", weight: 2, dashArray: "6 4",
-                        fillColor: "#9e9e9e", fillOpacity: 0.35 },
-    resources: f => {
-      // EM-103 envanter varlıkları türe göre, üsler mavi; müsait olmayan gri.
-      const assetFills = { crew: "#1565c0", helicopter: "#6a1b9a", uav: "#00838f" };
-      const isAsset = f.properties.kind === "suppression_resource";
-      const fill = isAsset ? (assetFills[f.properties.resource_type] || "#1565c0")
-                           : "#1565c0";
-      return f.properties.available
-        ? { radius: 7, color: "#0d3c78", fillColor: fill, fillOpacity: 0.9 }
-        : { radius: 7, color: "#5c5c5c", fillColor: "#9e9e9e", fillOpacity: 0.6 };
-    },
-    roads: { color: "#6d4c41", weight: 2, opacity: 0.65 },
-    // EM-023: tehdit altındaki yapı — mor ailesi (risk bölgesi renklerinden ayrışır).
-    exposure: f => {
-      const t = f.properties.first_impact_minutes;
-      const c = t <= 30 ? "#7b1fa2" : t <= 60 ? "#ab47bc" : "#ce93d8";
-      return { radius: 7, weight: 2, color: "#4a148c", fillColor: c,
-               fillOpacity: 0.9, opacity: 0.95 };
-    },
-    // EM-052: konuşlanma noktası (Point) turkuaz, önerilen rota (LineString) koyu turkuaz.
-    positioning: f => (f.geometry && f.geometry.type === "Point")
-      ? { radius: 8, weight: 2, color: "#004d40", fillColor: "#26a69a",
-          fillOpacity: 0.95, opacity: 0.95 }
-      : { color: "#00897b", weight: 3, opacity: 0.9 },
-    // EM-020: kötümser zarf kesikli kırmızı, iyimser zarf noktalı yeşil.
-    uncertainty: f => f.properties && f.properties.band === "pessimistic"
-      ? { color: "#d62728", weight: 2, dashArray: "6 4",
-          fillColor: "#d62728", fillOpacity: 0.08 }
-      : { color: "#2e7d32", weight: 1, dashArray: "2 4",
-          fillColor: "#2e7d32", fillOpacity: 0.05 },
-  };
-
-  const map = L.map("map", { zoomControl: true }).setView([37.75, 28.0], 9);
-  const baseTiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
-  }).addTo(map);
-
-  const layers = {};        // key -> L.LayerGroup (display layer)
-  let forecastByHorizon = {}; // horizon -> L.GeoJSON
-  let forecastAll = null;   // raw FeatureCollection cache
-  let uncertaintyAll = null; // EM-020 band FeatureCollection cache
-  let sliderIndex = 2;      // 0..2 -> 30/60/120 dk
-  let fireEvents = [];      // EM-023: {event_key, name} for the exposure filter
-  let exposureEventKey = null; // EM-023: current exposure list/layer event filter
-  // EM-052: son konumlandırma katmanı ögeleri ve rota referansları (odaklama için).
-  let positioningFeatures = [];
-  let positioningLayerRefs = {};   // proposal_id -> Leaflet rota katmanı
-
-  // EM-090: canlı güncelleme (WebSocket) durumu.
-  let catalogLayers = [];      // kataloğun meta listesi (canlı yenileme için)
-  let liveSocket = null;       // /ws/live bağlantısı
-  let liveLastId = 0;          // uygulanan son akış id'si (yeniden bağlanma imleci)
-  let liveDelay = 1000;        // yeniden bağlanma geri çekilmesi (ms)
-  let liveClosed = false;      // sayfa kapanıyor, yeniden bağlanmayı durdur
-  let liveRefreshTimer = null; // katman yenilemelerini birleştirme (debounce)
-
-  const statusBox = document.getElementById("status");
-  function setStatus(text) { statusBox.textContent = text; }
-
-  // XSS guard: OSM asset names and live-feed messages are external data and
-  // must never be interpolated raw into innerHTML.
-  function escapeHtml(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function popupHtml(feature) {
-    const p = feature.properties || {};
-    // EM-052: konuşlanma noktası ve rota ögeleri komutan-dili özet.
-    if (p.kind === "positioning_route" || p.kind === "deployment_point") {
-      const eta = p.eta_minutes != null ? `T+${escapeHtml(p.eta_minutes)} dk` : "—";
-      const km = p.distance_km != null ? ` &bull; ${escapeHtml(p.distance_km)} km` : "";
-      const head = p.kind === "deployment_point" ? "KONUŞLANMA" : "ROTA";
-      return `<div style="font-size:12px;line-height:1.4">`
-        + `<b>${head}: ${escapeHtml(p.name || "kaynak")}</b><br>`
-        + `Tahmini varış: <b>${eta}</b>${km}<br>`
-        + `<i>${escapeHtml(p.resource_type || "")}</i></div>`;
-    }
-    // EM-023: tehdit listesi ögeleri komutan-dili özet; diğerleri ham alan listesi.
-    if (p.asset_type) {
-      const label = ASSET_LABELS[p.asset_type] || p.asset_type;
-      const name = p.name || "isimsiz";
-      const pop = p.population ? ` &bull; ${escapeHtml(p.population)} kişi` : "";
-      const demo = p.source && String(p.source).indexOf("demo") >= 0
-        ? ' &bull; <i>demo verisi</i>' : "";
-      const horizon = p.impact_horizon_minutes ? ` (${escapeHtml(p.impact_horizon_minutes)} dk dilimi)` : "";
-      return `<div style="font-size:12px;line-height:1.4">`
-        + `<b>${escapeHtml(label)}: ${escapeHtml(name)}</b><br>`
-        + `İlk etki: <b>T+${escapeHtml(p.first_impact_minutes)} dk</b>${horizon}<br>`
-        + `Öncelik skoru: <b>${p.priority_score != null ? escapeHtml(p.priority_score) : "—"}</b>`
-        + `${pop}${demo}</div>`;
-    }
-    const lines = Object.entries(p)
-      .filter(([, v]) => v !== null && v !== undefined)
-      .map(([k, v]) => `<li><b>${escapeHtml(k)}</b>: ${escapeHtml(v)}</li>`);
-    return `<ul style="margin:0;padding-left:16px;font-size:12px">${lines.join("")}</ul>`;
-  }
-
-  function styleFor(key, feature, isForecast) {
-    if (isForecast) {
-      const h = feature.properties.horizon_minutes;
-      return { color: HORIZON_COLORS[h] || "#c0392b", weight: 2,
-               fillColor: HORIZON_COLORS[h] || "#c0392b", fillOpacity: 0.25 };
-    }
-    const s = LAYER_STYLE[key];
-    return typeof s === "function" ? s(feature) : s;
-  }
-
-  // EM-020: model güveni rozeti (Yüksek / Orta / Düşük / Bilinmiyor).
-  const CONFIDENCE_COLORS = { high: "#2e7d32", moderate: "#f9a825",
-                              low: "#c62828", unknown: "#9e9e9e" };
-  function renderConfidence(conf) {
-    const badge = document.getElementById("confidence-badge");
-    if (!conf) { badge.textContent = "Model güveni: —"; return; }
-    const band = conf.band || "unknown";
-    const label = conf.label || band;
-    const score = conf.score === null || conf.score === undefined ? "" : ` (${conf.score})`;
-    badge.textContent = `Model güveni: ${label}${score}`;
-    badge.style.background = CONFIDENCE_COLORS[band] || CONFIDENCE_COLORS.unknown;
-    badge.title = conf.inputs_scored
-      ? `EM-020: ${conf.inputs_scored} girdi kaynağından hesaplandı`
-      : "EM-020: girdi kaynağı bilgisi yok";
-  }
-
-  function makeGeoJsonLayer(key) {
-    return L.geoJSON(null, {
-      style: f => styleFor(key, f, key === "forecasts"),
-      pointToLayer: (f, latlng) => {
-        const s = styleFor(key, f, false);
-        return L.circleMarker(latlng, { stroke: true, ...s });
-      },
-      onEachFeature: (f, layer) => {
-        if (f.properties) layer.bindPopup(popupHtml(f));
-        // EM-052: rota çizgisi üzerinde sabit ETA etiketi; odaklama için referans.
-        if (f.properties && f.properties.kind === "positioning_route") {
-          if (f.properties.eta_minutes != null) {
-            layer.bindTooltip(`T+${f.properties.eta_minutes} dk`,
-              { permanent: true, direction: "center", className: "route-eta" });
-          }
-          if (f.properties.proposal_id) {
-            positioningLayerRefs[f.properties.proposal_id] = layer;
-          }
-        }
-      },
-    });
-  }
-
-  async function loadLayer(key) {
-    let url = `${API}/${key}`;
-    if ((key === "exposure" || key === "positioning") && exposureEventKey) {
-      url += `?event_key=${encodeURIComponent(exposureEventKey)}`;
-    }
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${key}: HTTP ${res.status}`);
-    const data = await res.json();
-    if (key === "fires") {
-      // EM-023: olay filtresi için yangın olaylarını (tekrarsız) yakala.
-      const seen = new Set();
-      fireEvents = [];
-      for (const f of data.features || []) {
-        const p = f.properties || {};
-        if (p.kind === "fire_event" && p.event_key && !seen.has(p.event_key)) {
-          seen.add(p.event_key);
-          fireEvents.push({ event_key: p.event_key, name: p.name });
-        }
-      }
-      populateExposureEvents();
-    }
-    if (key === "forecasts") {
-      forecastAll = data;
-      renderHorizons();
-      setStatus(`Risk bölgeleri: ${data.count} poligon`);
-    } else if (key === "uncertainty") {
-      // EM-020: bantlar ufuk seçimine göre renderHorizons içinde çizilir.
-      uncertaintyAll = data;
-      renderConfidence(data.model_confidence);
-      renderHorizons();
-      setStatus(`Belirsizlik bandı: ${data.count} poligon — ${data.attribution}`);
-    } else {
-      if (key === "positioning") { positioningLayerRefs = {}; }
-      layers[key].clearLayers();
-      layers[key].addData(data);
-      setStatus(`${data.title}: ${data.count} öge`);
-      if (key === "exposure") renderExposureList(data);
-      if (key === "positioning") renderPositioningList(data);
-    }
-    if (data.attribution) setStatus(`${data.title}: ${data.count} öge — ${data.attribution}`);
-    return data;
-  }
-
-  // EM-023: tehdit altındaki yerleşim/yol/altyapı için sıralı öncelik listesi.
-  const ASSET_LABELS = { settlement: "Yerleşim", power_line: "Enerji hattı", road: "Yol" };
-  function impactColor(t) { return t <= 30 ? "#7b1fa2" : t <= 60 ? "#ab47bc" : "#ce93d8"; }
-  function populateExposureEvents() {
-    const sel = document.getElementById("exposure-event");
-    if (!sel) return;
-    const current = sel.value;
-    sel.innerHTML = '<option value="">Tüm yangınlar</option>';
-    for (const ev of fireEvents) {
-      const opt = document.createElement("option");
-      opt.value = ev.event_key;
-      opt.textContent = ev.name || ev.event_key;
-      sel.appendChild(opt);
-    }
-    if (current) sel.value = current;
-  }
-  function renderExposureList(data) {
-    const panel = document.getElementById("exposure-panel");
-    const box = document.getElementById("exposure-list");
-    const countEl = document.getElementById("exposure-count");
-    panel.style.display = "block";
-    box.innerHTML = "";
-    const feats = (data.features || []).slice();
-    if (countEl) countEl.textContent = feats.length ? `(${feats.length})` : "(0)";
-    if (!feats.length) {
-      box.innerHTML = '<div class="empty">Seçili olayın tahmin poligonlarında tehdit altındaki yapı yok.</div>';
-      return;
-    }
-    // Backend öncelik skoruna göre sıralı; UI de aynı sırayı korur.
-    feats.sort((a, b) =>
-      (b.properties.priority_score || 0) - (a.properties.priority_score || 0)
-      || a.properties.first_impact_minutes - b.properties.first_impact_minutes);
-    for (const f of feats) {
-      const p = f.properties;
-      const row = document.createElement("div");
-      row.className = "item";
-      const label = ASSET_LABELS[p.asset_type] || p.asset_type;
-      const name = p.name || "isimsiz";
-      const pop = p.population ? ` (${escapeHtml(p.population)} kişi)` : "";
-      const demo = p.source && String(p.source).indexOf("demo") >= 0
-        ? ' <span class="badge">demo</span>' : "";
-      row.innerHTML =
-        `<span class="dot" style="background:${impactColor(p.first_impact_minutes)}"></span>` +
-        `<span><b>${escapeHtml(label)}</b>: ${escapeHtml(name)}${pop}${demo}</span>` +
-        `<span class="t">T+${escapeHtml(p.first_impact_minutes)} dk</span>` +
-        `<span class="pri" title="Öncelik skoru (EM-023)">${p.priority_score != null ? escapeHtml(p.priority_score) : ""}</span>`;
-      box.appendChild(row);
-    }
-  }
-
-  // EM-052: önerilen konuşlanma listesi + seçilen rotaya otomatik odaklama.
-  function focusProposal(proposalId) {
-    const routeFeature = positioningFeatures.find(
-      f => f.properties && f.properties.kind === "positioning_route"
-         && f.properties.proposal_id === proposalId);
-    if (routeFeature) {
-      const bounds = L.geoJSON(routeFeature).getBounds();
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
-    }
-    const layer = positioningLayerRefs[proposalId];
-    if (layer && layer.openPopup) layer.openPopup();
-  }
-  function renderPositioningList(data) {
-    const panel = document.getElementById("positioning-panel");
-    const box = document.getElementById("positioning-list");
-    const countEl = document.getElementById("positioning-count");
-    positioningFeatures = (data.features || []).slice();
-    panel.style.display = "block";
-    box.innerHTML = "";
-    const points = positioningFeatures.filter(
-      f => f.properties && f.properties.kind === "deployment_point");
-    if (countEl) countEl.textContent = points.length ? `(${points.length})` : "(0)";
-    if (!points.length) {
-      box.innerHTML = '<div class="empty">Öneri yok. Yukarıdan bir olay seçin; '
-        + 'seçili olay için müsait kaynak ve yol ağı olmalı.</div>';
-      return;
-    }
-    for (const f of points) {
-      const p = f.properties;
-      const row = document.createElement("div");
-      row.className = "item";
-      row.setAttribute("role", "button");
-      row.tabIndex = 0;
-      const eta = p.eta_minutes != null ? `T+${escapeHtml(p.eta_minutes)} dk` : "—";
-      const km = p.distance_km != null ? ` &middot; ${escapeHtml(p.distance_km)} km` : "";
-      const type = p.resource_type ? escapeHtml(p.resource_type) : "";
-      row.innerHTML =
-        `<span><b>${escapeHtml(p.name || "kaynak")}</b>`
-        + `${type ? ` <i>(${type})</i>` : ""}${km}</span>`
-        + `<span class="t">${eta}</span>`;
-      const focus = () => focusProposal(p.proposal_id);
-      row.addEventListener("click", focus);
-      row.addEventListener("keydown", e => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); focus(); }
-      });
-      box.appendChild(row);
-    }
-  }
-
-  function renderHorizons() {
-    if (!forecastAll || !forecastAll.features) return;
-    const selected = HORIZONS[sliderIndex];
-    const cumulative = document.getElementById("horizon-cumulative").checked;
-    Object.values(forecastByHorizon).forEach(g => map.removeLayer(g));
-    forecastByHorizon = {};
-    for (const h of HORIZONS) {
-      if (cumulative ? h <= selected : h !== selected) continue;
-      const group = L.geoJSON(
-        { ...forecastAll,
-          features: forecastAll.features.filter(
-            f => f.properties && f.properties.horizon_minutes === h)},
-        { style: f => styleFor("forecasts", f, true),
-          onEachFeature: (f, layer) => layer.bindPopup(popupHtml(f)) }
-      );
-      group.addTo(map);
-      forecastByHorizon[h] = group;
-    }
-    // EM-020: güven bandı yalnızca seçili ufkun iyimser/kötümser zarflarıyla.
-    if (uncertaintyAll && layers.uncertainty && map.hasLayer(layers.uncertainty)) {
-      layers.uncertainty.clearLayers();
-      layers.uncertainty.addData({ ...uncertaintyAll,
-        features: uncertaintyAll.features.filter(
-          f => f.properties && f.properties.horizon_minutes === selected)});
-    }
-    renderTicks();
-  }
-
-  function renderTicks() {
-    const box = document.getElementById("horizon-ticks");
-    box.innerHTML = "";
-    HORIZONS.forEach((h, i) => {
-      // Buttons (not spans): keyboard-focusable and operable, with pressed
-      // state exposed to assistive technology.
-      const el = document.createElement("button");
-      el.type = "button";
-      el.textContent = `${h} dk`;
-      el.className = i === sliderIndex ? "active" : "";
-      el.setAttribute("aria-pressed", i === sliderIndex ? "true" : "false");
-      el.addEventListener("click", () => {
-        sliderIndex = i;
-        document.getElementById("horizon-slider").value = String(i);
-        renderHorizons();
-      });
-      box.appendChild(el);
-    });
-  }
-
-  // --- EM-090: canlı güncelleme (WebSocket + REST yedeği) ------------------
-  const LIVE_KIND_LABELS = { fire_event: "Olay", forecast: "Tahmin", alert: "UYARI" };
-  function setLive(cls, text, title) {
-    const chip = document.getElementById("live-chip");
-    if (!chip) return;
-    chip.className = cls;
-    chip.textContent = text;
-    if (title) chip.title = title;
-  }
-  function flashLive(updates) {
-    const box = document.getElementById("live-flash");
-    if (!box || !updates || !updates.length) return;
-    const lines = updates.slice(-4).map(u => {
-      const label = LIVE_KIND_LABELS[u.kind] || u.kind;
-      const msg = u.message || u.title || "";
-      return `<div><b>${escapeHtml(label)}</b>: ${escapeHtml(msg)}</div>`;
-    });
-    box.innerHTML = `<b>Canlı güncelleme</b>${lines.join("")}`;
-    box.classList.add("show");
-    clearTimeout(flashLive._t);
-    flashLive._t = setTimeout(() => box.classList.remove("show"), 6000);
-  }
-  async function refreshActiveLayers() {
-    for (const meta of catalogLayers) {
-      const layer = layers[meta.key];
-      if (layer && map.hasLayer(layer)) {
-        try { await loadLayer(meta.key); }
-        catch (err) { setStatus(`Hata: ${err.message}`); }
-      }
-    }
-  }
-  function applyLiveUpdates(updates) {
-    if (!updates || !updates.length) return;
-    for (const u of updates) { if (u.id > liveLastId) liveLastId = u.id; }
-    flashLive(updates);
-    // Birçok güncellemeyi tek katman yenilemesine indirge (debounce).
-    if (liveRefreshTimer) return;
-    liveRefreshTimer = setTimeout(() => {
-      liveRefreshTimer = null;
-      refreshActiveLayers();
-    }, 800);
-  }
-  function startLive() {
-    if (typeof WebSocket === "undefined") { startLivePoll(); return; }
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const url = `${proto}://${location.host}/ws/live?since=${liveLastId}`;
-    setLive("warn", "● bağlanıyor…", "EM-090: canlı akışa bağlanılıyor");
-    let socket;
-    try { socket = new WebSocket(url); }
-    catch (err) { startLivePoll(); return; }
-    liveSocket = socket;
-    socket.onopen = () => {
-      liveDelay = 1000;
-      setLive("on", "● canlı", "EM-090: canlı akış bağlı — sayfa yenilemeden güncellenir");
-    };
-    socket.onmessage = ev => {
-      let frame;
-      try { frame = JSON.parse(ev.data); } catch (err) { return; }
-      if (frame.type === "snapshot" || frame.type === "update") {
-        applyLiveUpdates(frame.updates);
-        if (frame.last_id > liveLastId) liveLastId = frame.last_id;
-      }
-    };
-    socket.onclose = () => {
-      if (liveClosed) return;
-      setLive("warn", "● yeniden bağlanıyor…",
-        "EM-090: bağlantı koptu, kaçırılan güncellemeler telafi edilecek");
-      setTimeout(startLive, liveDelay);
-      liveDelay = Math.min(liveDelay * 2, 30000);
-    };
-    socket.onerror = () => { try { socket.close(); } catch (err) { /* yoksay */ } };
-  }
-  function startLivePoll() {
-    // WebSocket yoksa aynı telafi semantiğiyle REST yoklamasına düş.
-    async function tick() {
-      try {
-        const res = await fetch(`/api/v1/live/updates?since=${liveLastId}`);
-        if (res.ok) {
-          const frame = await res.json();
-          applyLiveUpdates(frame.updates);
-          if (frame.last_id > liveLastId) liveLastId = frame.last_id;
-          setLive("on", "● canlı (yoklama)", "EM-090: WebSocket yedeği — REST yoklaması");
-        }
-      } catch (err) { /* sessiz */ }
-      setTimeout(tick, 5000);
-    }
-    tick();
-  }
-
-  async function init() {
-    const res = await fetch(API);
-    if (!res.ok) throw new Error(`Katman kataloğu alınamadı: HTTP ${res.status}`);
-    const catalog = await res.json();
-    if (!catalog || !Array.isArray(catalog.layers)) throw new Error("Geçersiz katalog yanıtı");
-    catalogLayers = catalog.layers;
-    for (const meta of catalog.layers) {
-      layers[meta.key] = makeGeoJsonLayer(meta.key);
-    }
-    // Toggleable overlays: operator aç/kapa yapabilir (Leaflet layer control).
-    const overlays = {};
-    for (const meta of catalog.layers) {
-      if (layers[meta.key]) overlays[meta.title] = layers[meta.key];
-    }
-    const baseLayers = { "Temel harita": baseTiles };
-    L.control.layers(baseLayers, overlays, { collapsed: false })
-      .addTo(map);
-
-    document.getElementById("horizon-slider").addEventListener("input", e => {
-      sliderIndex = Number(e.target.value);
-      renderHorizons();
-    });
-    document.getElementById("horizon-cumulative").addEventListener("change", renderHorizons);
-
-    // EM-023: olay filtresi değişince hem listeyi hem harita katmanını yenile.
-    const exposureSel = document.getElementById("exposure-event");
-    if (exposureSel) {
-      exposureSel.addEventListener("change", async e => {
-        exposureEventKey = e.target.value || null;
-        if (layers.exposure && map.hasLayer(layers.exposure)) {
-          try { await loadLayer("exposure"); }
-          catch (err) { setStatus(`Hata: ${err.message}`); }
-        } else {
-          document.getElementById("exposure-panel").style.display = "none";
-        }
-        // EM-052: olay değişince konumlandırma katmanı da yeniden hesaplanır.
-        if (layers.positioning && map.hasLayer(layers.positioning)) {
-          try { await loadLayer("positioning"); }
-          catch (err) { setStatus(`Hata: ${err.message}`); }
-        } else {
-          document.getElementById("positioning-panel").style.display = "none";
-        }
-      });
-    }
-
-    // Aktif yangın + risk bölgeleri varsayılan açık; diğerleri tembel yüklenir.
-    const controlDiv = document.querySelector(".leaflet-control-layers");
-    if (controlDiv) {
-      controlDiv.addEventListener("change", async () => {
-        for (const meta of catalog.layers) {
-          const layer = layers[meta.key];
-          if (!layer) continue;
-          const on = map.hasLayer(layer);
-          if (on && !layer._loaded) {
-            layer._loaded = true;
-            try { await loadLayer(meta.key); }
-            catch (err) { setStatus(`Hata: ${err.message}`); }
-          }
-          if (!on && meta.key === "exposure") {
-            document.getElementById("exposure-panel").style.display = "none";
-          }
-          if (!on && meta.key === "positioning") {
-            document.getElementById("positioning-panel").style.display = "none";
-          }
-        }
-      });
-    }
-
-    for (const key of ["fires", "forecasts"]) {
-      const layer = layers[key];
-      if (!layer) continue;
-      layer.addTo(map);
-      layer._loaded = true;
-      try { await loadLayer(key); } catch (err) { setStatus(`Hata: ${err.message}`); }
-    }
-
-    // EM-090: canlı akışı başlat; sayfa kapanırken yeniden bağlanmayı durdur.
-    window.addEventListener("beforeunload", () => {
-      liveClosed = true;
-      if (liveSocket) { try { liveSocket.close(); } catch (err) { /* yoksay */ } }
-    });
-    startLive();
-  }
-
-  init().catch(err => setStatus(`Harita başlatılamadı: ${err.message}`));
-  </script>
+  <script src="/static/app.js"></script>
+  <script src="/static/operator_map_core.js"></script>
+  <script src="/static/operator_map_panels_a.js"></script>
+  <script src="/static/operator_map_panels_b.js"></script>
+  <script src="/static/operator_map_init.js"></script>
 </body>
 </html>

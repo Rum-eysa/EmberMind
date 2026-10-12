@@ -105,6 +105,11 @@ class CrewBase(BaseModel):
     longitude = Column(Float, nullable=False)
     crew_type = Column(String(64), nullable=False, default="first_response")
     available = Column(Boolean, nullable=False, default=True)
+    # EM-050: same optional deployability limits as suppression resources;
+    # nullable = unconstrained so existing bases keep proposing as before.
+    range_km = Column(Float, nullable=True)
+    shift_minutes = Column(Float, nullable=True)
+    night_capable = Column(Boolean, nullable=True)
 
     __table_args__ = (Index("idx_crew_bases_coords", "latitude", "longitude"),)
 
@@ -119,4 +124,7 @@ class CrewBase(BaseModel):
             "longitude": self.longitude,
             "crew_type": self.crew_type,
             "available": self.available,
+            "range_km": self.range_km,
+            "shift_minutes": self.shift_minutes,
+            "night_capable": self.night_capable,
         }

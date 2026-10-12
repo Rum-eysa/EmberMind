@@ -159,11 +159,33 @@ def test_capacity_summary(session):
     assert summary["total_resources"] == 3
     assert summary["available_resources"] == 2
     crew = summary["by_type"]["crew"]
-    assert crew == {"total": 2, "available": 1, "deployed": 1, "capacity": 55.0}
+    assert crew == {
+        "total": 2,
+        "available": 1,
+        "deployed": 1,
+        "en_route": 0,
+        "capacity": 55.0,
+    }
     heli = summary["by_type"]["helicopter"]
     assert heli["total"] == 1
     assert heli["capacity"] == 15.0
     assert summary["by_type"]["uav"]["total"] == 0
+
+
+def test_en_route_status_counts_in_summary(session):
+    # EM-031: "yolda" (en_route) is a first-class status and must be visible
+    # in the coordinator rollup next to available/deployed.
+    create_resource(session, _crew_payload(resource_key="EKIP-09"))
+    create_resource(
+        session,
+        _crew_payload(
+            resource_key="HEL-09", resource_type="helikopter", status="yolda"
+        ),
+    )
+    session.commit()
+    heli = capacity_summary(session)["by_type"]["helicopter"]
+    assert heli["en_route"] == 1
+    assert heli["available"] == 0
 
 
 def test_normalize_helpers():
@@ -173,6 +195,9 @@ def test_normalize_helpers():
     assert normalize_type("iha") == "uav"
     assert normalize_status("MÜSAİT") == "available"
     assert normalize_status("MAINTENANCE") == "maintenance"
+    # EM-031: en_route is accepted through its Turkish and hyphen aliases.
+    assert normalize_status("yolda") == "en_route"
+    assert normalize_status("EN-ROUTE") == "en_route"
     with pytest.raises(InventoryError):
         normalize_type("uzay-meki")
     with pytest.raises(InventoryError):

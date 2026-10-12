@@ -49,18 +49,40 @@
     .muted-note { font-size: var(--font-size-xs); color: var(--text-secondary);
                   margin-bottom: 8px; }
     .assume-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .assume-editor { font-size: var(--font-size-xs); color: var(--text-secondary);
+                     display: flex; align-items: center; gap: 6px; }
+    .assume-editor input { width: 120px; background: var(--bg-inset);
+                           color: var(--text-primary); border: 1px solid var(--border-color);
+                           border-radius: var(--radius-sm); padding: 3px 6px; }
+    .assume-audit-title { font-size: var(--font-size-sm); margin: 12px 0 4px;
+                          color: var(--text-secondary); }
     #assume-status { font-size: var(--font-size-xs); color: var(--text-secondary); }
+    /* EM-030 capacity-gap timeline (inline SVG, no external chart lib). */
+    #gap-chart svg { width: 100%; height: 168px; display: block; }
+    .gap-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px;
+                  font-size: 11px; color: var(--text-secondary); }
+    .gap-legend i { display: inline-block; width: 14px; height: 3px;
+                    vertical-align: middle; margin-right: 4px; }
     @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <header>
-    <h1>Komutan Paneli — Kapasite ve Risk</h1>
+    <h1 data-i18n="app.title">Komutan Paneli — Kapasite ve Risk</h1>
     <div id="meta">
-      <span id="panel-day"></span> · eşik <span id="panel-threshold"></span>
+      <span id="panel-day"></span> · <span data-i18n="meta.threshold">eşik</span>
+      <span id="panel-threshold"></span>
       · <span id="status">yükleniyor…</span>
+      · <select id="lang-switch" class="assume-input" title="Dil / Γλώσσα / Language"
+            aria-label="language"></select>
       · <button id="theme-toggle" class="em-btn em-btn--secondary em-btn--sm"
-            type="button">🌓 Tema</button>
+            type="button">🌓 <span data-i18n="btn.theme">Tema</span></button>
+      · <select id="tz-switch" class="assume-input" title="Saat dilimi / Time zone"
+            aria-label="time zone"></select>
+      · <select id="coord-switch" class="assume-input" title="Koordinat biçimi / Coordinate format"
+            aria-label="coordinate format"></select>
+      · <button id="pref-reset" class="em-btn em-btn--secondary em-btn--sm"
+            type="button" title="Varsayılana dön">↺ <span data-i18n="btn.pref_reset">Varsayılana dön</span></button>
     </div>
   </header>
   <main>
@@ -70,18 +92,50 @@
         <div class="label">Bölge Risk İndeksi (FWI) · <span id="max-zone"></span></div>
       </div>
       <div class="card">
-        <h2>Eşik &amp; Aşım</h2>
-        <div class="kv"><span>Eşik değeri</span><b id="k-threshold"></b></div>
-        <div class="kv"><span>Eşiği aşan bölge</span><b id="k-over"></b></div>
-        <div class="kv"><span>İlk aşım zamanı</span><b id="k-first"></b></div>
+        <h2 data-i18n="card.threshold">Eşik &amp; Aşım</h2>
+        <div class="kv"><span data-i18n="label.threshold_value">Eşik değeri</span><b id="k-threshold"></b></div>
+        <div class="kv"><span data-i18n="label.zones_over">Eşiği aşan bölge</span><b id="k-over"></b></div>
+        <div class="kv"><span data-i18n="label.first_exceedance">İlk aşım zamanı</span><b id="k-first"></b></div>
       </div>
       <div class="card">
-        <h2>Eşik Renkleri</h2>
+        <h2 data-i18n="card.legend">Eşik Renkleri</h2>
         <div id="legend"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.risk_index">Olay Risk İndeksi — Risk(t)</h2>
+        <div class="muted-note">Yayılım talebi / etkin kapasite (ha/saat);
+          eşikler yönetici ayarında. EM-029</div>
+        <table id="risk-index">
+          <thead><tr><th>Olay</th><th class="num" id="ri-h0">T+?</th>
+            <th class="num" id="ri-h1">T+?</th><th class="num" id="ri-h2">T+?</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="kv" style="margin-top:6px"><span>En yüksek risk</span>
+          <b id="ri-max">–</b></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.timeline">Kapasite Açığı Zaman Çizelgesi</h2>
+        <div class="muted-note">Talep (ha/saat) etkin kapasiteyi ne zaman aşıyor?
+          Çizgi grafik zaman ekseninde; ilk kritik eşiği başlıkta. EM-030 —
+          yoldaki kaynaklar varış ETA'sından itibaren kapasiteye eklenir (EM-033).</div>
+        <div class="kv"><span>Kapasite ne zaman yetmez?</span>
+          <b id="tl-first">–</b></div>
+        <div id="gap-chart" style="margin-top:8px"></div>
+        <div id="tl-legend" class="gap-legend"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.budget">Yeniden Hesaplama Bütçesi</h2>
+        <div class="muted-note">Son yeniden hesaplamaların p95 gecikmesi 10 sn
+          hedefine karşı; aşılırsa otomatik kaba çözünürlüğe geçilir. EM-060</div>
+        <div class="kv"><span>p95 gecikme</span><b id="pb-p95">–</b></div>
+        <div class="kv"><span>Hedef</span><b id="pb-target">–</b></div>
+        <div class="kv"><span>Örnek (pencere)</span><b id="pb-samples">–</b></div>
+        <div class="kv"><span>Durum</span><b id="pb-state">–</b></div>
       </div>
     </section>
     <section class="card">
-      <h2>Bölgeler — Risk İndeksi ve İlk Aşım</h2>
+      <h2 data-i18n="card.zones">Bölgeler — Risk İndeksi ve İlk Aşım</h2>
       <table id="zones">
         <thead><tr>
           <th>Renk</th><th>Bölge</th><th>Risk İndeksi</th><th style="width:26%">Seviye</th>
@@ -92,7 +146,7 @@
     </section>
     <section>
       <div class="card">
-        <h2>Müdahale Kapasitesi</h2>
+        <h2 data-i18n="card.capacity">Müdahale Kapasitesi</h2>
         <div class="kv"><span>Toplam ekip üssü</span><b id="c-total"></b></div>
         <div class="kv"><span>Müsait</span><b id="c-available"></b></div>
         <div class="kv"><span>Müsait değil</span><b id="c-unavailable"></b></div>
@@ -101,7 +155,7 @@
         <div class="kv"><span>Etkin kapasite (ha/saat)</span><b id="c-effective"></b></div>
       </div>
       <div class="card">
-        <h2>Kapasite Varsayımları (ha/saat)</h2>
+        <h2 data-i18n="card.assumptions">Kapasite Varsayımları (ha/saat)</h2>
         <div class="muted-note">Bir birimin etkin müdahale kapasitesi —
           yönetici düzenleyebilir.</div>
         <table id="assumptions">
@@ -110,20 +164,144 @@
           <tbody></tbody>
         </table>
         <div class="assume-actions">
+          <label class="assume-editor">Düzenleyen
+            <input id="assume-editor" type="text" placeholder="operatör" maxlength="64">
+          </label>
           <button id="save-assumptions" class="em-btn em-btn--primary em-btn--sm"
-                  type="button">Kaydet</button>
+                  type="button"><span data-i18n="btn.save">Kaydet</span></button>
           <span id="assume-status"></span>
         </div>
+        <h3 class="assume-audit-title">Değişiklik geçmişi (denetim)</h3>
+        <table id="assume-audit">
+          <thead><tr><th>Zaman</th><th>Tür</th><th class="num">Eski</th>
+            <th class="num">Yeni</th><th>Düzenleyen</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
       <div class="card">
-        <h2>Kapasite Kırılımı (ekip türü)</h2>
+        <h2 data-i18n="card.breakdown">Kapasite Kırılımı (ekip türü)</h2>
         <table id="capacity">
           <thead><tr><th>Tür</th><th class="num">Müsait</th><th class="num">Toplam</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div class="card">
-        <h2>Kaynak Envanteri (EM-103)</h2>
+        <h2 data-i18n="card.by_country">Kapasite — Ülke Bazında (EM-064)</h2>
+        <div class="muted-note">İki ülkenin kaynakları sessizce birleştirilmez;
+          her ülke ayrı toplanır, ülkesiz kaynak ayrı gösterilir.</div>
+        <table id="capacity-country">
+          <thead><tr><th>Ülke</th><th class="num">Etkin (ha/saat)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.ext_support">Dış Destek Erken Tahmini (EM-065)</h2>
+        <div class="muted-note">Ulusal kapasitenin (müsait + yoldaki takviye)
+          ne zaman yetersiz kalacağı açığın gerçekleşmesinden önce uyarı olarak
+          gösterilir; gereken tahmini takviye birim sayısı ile birlikte.</div>
+        <table id="ext-support">
+          <thead><tr><th>Olay</th><th class="num">İlk açık (dk)</th>
+            <th class="num">Destek (birim)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="ext-support-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.crossborder">Sınır Ötesi Durum (EM-066)</h2>
+        <div class="muted-note">TR ve GR yetkilileri için ortak ekran: her
+          ülkenin aktif yangınları, risk seviyesi ve tahmini dış destek
+          ihtiyacı. Paylaşım kapsamı alan grubu seçimiyle ayarlanabilir.</div>
+        <div class="kv"><span data-i18n="scope.share">Paylaşım kapsamı</span>
+          <span id="xborder-scope">
+            <label><input type="checkbox" value="fire" checked> <span data-i18n="scope.fire">Yangın</span></label>
+            <label><input type="checkbox" value="risk" checked> <span data-i18n="scope.risk">Risk</span></label>
+            <label><input type="checkbox" value="support" checked> <span data-i18n="scope.support">Destek</span></label>
+          </span></div>
+        <table id="crossborder">
+          <thead><tr><th>Ülke</th><th>Olay</th>
+            <th>Risk</th><th class="num">Destek (birim)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="crossborder-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.spread">Sınır Geçiş Projeksiyonu (EM-067)</h2>
+        <div class="muted-note">Yangının ülke sınırını geçme olasılığı ve
+          süresi (deterministik geometri: EM-015 baş yayılım yönü/hızı);
+          karşı ülke için erken uyarı.</div>
+        <table id="xborder-spread">
+          <thead><tr><th>Olay</th><th>Yön</th><th>Olasılık</th>
+            <th class="num">Geçiş (dk)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="xborder-spread-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
+        <h2>Veri Paylaşım Politikası (EM-070)</h2>
+        <div class="muted-note">Ülke ve rol bazında karşı ülkeye izin verilen
+          alan grupları (yetki katmanı). Geçerli politika ve denetim kaydı
+          <code>country_share_policy</code> tablosunda ek-yazılımlı saklanır.</div>
+        <table id="share-policy">
+          <thead><tr><th>Ülke</th><th>Rol</th><th>Paylaşılan alanlar</th>
+            <th>Kaynak</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="share-policy-preview" class="muted-note"></div>
+        <div class="kv"><span>Ülke
+          <select id="sp-country" class="assume-input">
+            <option value="TR">Türkiye</option>
+            <option value="GR">Yunanistan</option>
+          </select></span>
+          <span>Rol <input id="sp-role" class="assume-input" placeholder="* (ülke varsayılanı)"></span></div>
+        <div class="kv"><span>Paylaşılacak alanlar</span>
+          <span id="sp-fields">
+            <label><input type="checkbox" value="fire" checked> Yangın</label>
+            <label><input type="checkbox" value="risk" checked> Risk</label>
+            <label><input type="checkbox" value="support" checked> Destek</label>
+          </span></div>
+        <div class="kv"><span>Değiştiren <input id="sp-by" class="assume-input" placeholder="yönetici"></span>
+          <span>Gerekçe <input id="sp-reason" class="assume-input" placeholder="opsiyonel"></span></div>
+        <button id="sp-save" type="button" class="assume-input">Politikayı kaydet</button>
+        <span id="sp-status" class="muted-note"></span>
+      </div>
+      <div class="card">
+        <h2>Ortak Erken Uyarı Bildirimi (EM-069)</h2>
+        <div class="muted-note">Sınır geçiş projeksiyonu (EM-067) eşiği aştığında
+          karşı ülke koordinasyon birimine önceden tanımlı kanaldan bildirim
+          gider. Kenar-tetiklemeli: olay+hedef başına tek açık bildirim;
+          geçiş artık öngörülmediğinde otomatik çözülür.</div>
+        <table id="xborder-notify">
+          <thead><tr><th>Olay</th><th>Yön</th><th>Olasılık</th>
+            <th class="num">Geçiş (dk)</th><th>Bildirim</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button id="xb-notify-sweep" type="button" class="assume-input">Tara ve bildir</button>
+        <span id="xb-notify-status" class="muted-note"></span>
+        <div id="xborder-notify-summary" class="muted-note"></div>
+      </div>
+      <div class="card">
+        <h2>Dış Destek Talebi Taslağı (EM-071)</h2>
+        <div class="muted-note">EM-065 erken tahmininden ihtiyaç / zaman /
+          konumla otomatik özetlenen uluslararası destek talebi taslağı.
+          TR/EN/EL üretilir; metin düzenlenebilir, kopyalanabilir veya
+          PDF olarak alınabilir.</div>
+        <div class="kv"><span>Olay</span>
+          <select id="sd-event" class="assume-input" style="width:170px">
+            <option value="">seçin…</option>
+          </select></div>
+        <div class="assume-actions">
+          <button id="sd-generate" type="button" class="assume-input">Taslağı oluştur</button>
+          <button id="sd-copy" type="button" class="assume-input">Kopyala</button>
+          <button id="sd-print" type="button" class="assume-input">PDF / Yazdır</button>
+          <span id="sd-status" class="muted-note"></span>
+        </div>
+        <div id="sd-summary" class="muted-note" style="margin-top:6px"></div>
+        <textarea id="sd-text" rows="10"
+          style="width:100%;margin-top:6px;font-family:monospace"
+          placeholder="Olay seçip “Taslağı oluştur”a basın"></textarea>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.inventory">Kaynak Envanteri (EM-103)</h2>
         <table id="inventory">
           <thead><tr><th>Varlık</th><th class="num">Müsait</th>
             <th class="num">Görevde</th><th class="num">Toplam</th>
@@ -134,26 +312,82 @@
           <b id="inv-total">–</b></div>
       </div>
       <div class="card">
-        <h2>Kaynak</h2>
+        <h2 data-i18n="card.whatif">Kapasite What-If (EM-056)</h2>
+        <div class="muted-note">Ek kaynak gir: sabit EM-029 talebi varsayıms
+          kapasiteye karşı yeniden fiyatlanır; açık değişimi ve çözülen olaylar.
+          Geçici — hiçbir kaynak atanmaz.</div>
+        <div class="kv"><span>Ekip (+)</span>
+          <input id="wi-crew" class="assume-input" type="number" min="0" step="1" value="0"></div>
+        <div class="kv"><span>Helikopter (+)</span>
+          <input id="wi-heli" class="assume-input" type="number" min="0" step="1" value="0"></div>
+        <div class="kv"><span>İHA (+)</span>
+          <input id="wi-uav" class="assume-input" type="number" min="0" step="1" value="0"></div>
+        <div class="kv"><span>Olay</span>
+          <select id="wi-event" class="assume-input" style="width:140px">
+            <option value="">tümü</option>
+          </select></div>
+        <div class="assume-actions">
+          <button id="wi-run" class="em-btn em-btn--primary em-btn--sm"
+                  type="button"><span data-i18n="btn.run">Senaryoyu çalıştır</span></button>
+          <span id="wi-status"></span>
+        </div>
+        <div id="wi-result" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="card.source">Kaynak</h2>
         <div id="attribution" class="em-muted"></div>
       </div>
     </section>
   </main>
+  <script src="/static/app.js"></script>
   <script>
   "use strict";
   const FEED = "/api/v1/panel/capacity-risk";
-  const CATEGORY_TR = {
+  const RISK_FEED = "/api/v1/risk-index";
+  // EM-064: country-separated capacity account (two nations never merge).
+  const COUNTRY_CAP_FEED = "/api/v1/capacity/by-country";
+  // EM-065: external-support early forecast over the capacity-gap timeline.
+  const EXT_SUPPORT_FEED = "/api/v1/external-support";
+  // EM-066: cross-border shared TR/GR situation (scope-filterable).
+  const CROSSBORDER_FEED = "/api/v1/crossborder/situation";
+  // EM-067: deterministic border-crossing likelihood + time projection.
+  const XBORDER_SPREAD_FEED = "/api/v1/crossborder/spread";
+  // EM-070: country/role data-sharing authorization policy (append-only audit).
+  const SHARE_POLICY_FEED = "/api/v1/share-policy";
+  // EM-069: joint cross-border early-warning notification (edge-triggered).
+  const XBORDER_NOTIFY_FEED = "/api/v1/crossborder/notification-status";
+  const XBORDER_NOTIFY_SWEEP = "/api/v1/crossborder/notifications/sweep";
+  // EM-071: external-support request draft (auto-summarised, editable, TR/EN/EL).
+  const SUPPORT_DRAFT_FEED = "/api/v1/support-request-draft";
+  const SUPPORT_DRAFT_EVENTS = "/api/v1/support-request-draft/events";
+  // EM-068: interface text resolved from the i18n catalogue (TR/EN complete,
+  // EL core screens, EN bridge fallback). The language lives only here/localStorage.
+  const I18N_FEED = "/api/v1/i18n/messages";
+  // EM-088: the saved operator profile (language / theme / unit) lives server-side.
+  const PREFERENCES = "/api/v1/preferences";
+  const LANGS = [["tr", "Türkçe"], ["en", "English"], ["el", "Ελληνικά"]];
+  let LOCALE = localStorage.getItem("embermind-lang") || "tr";
+  let PREF = {};  // last-known persisted profile (empty until the server answers)
+  let I18N = {};
+  // Locale-driven enums (rebuilt from the catalogue on every language switch);
+  // the Turkish literals below are the offline fallback before the feed loads.
+  let CATEGORY_LABELS = {
     very_low: "Çok Düşük", low: "Düşük", moderate: "Orta",
     high: "Yüksek", very_high: "Çok Yüksek", extreme: "Aşırı",
   };
-  const RESOURCE_TR = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
+  let RESOURCE_LABELS = { crew: "Ekip", helicopter: "Helikopter", uav: "İHA" };
+  // EM-029 severity bands -> colors (tokens.css scale; kritik-yakin arası).
+  const RISK_LEVEL_COLOR = {
+    normal: "var(--color-success)", dikkat: "var(--color-warning)",
+    "kritik-yakin": "#e67e22", kritik: "var(--color-danger)",
+  };
 
   function setText(id, value) { document.getElementById(id).textContent = value; }
 
   function render(data) {
     setText("panel-day", data.day || "veri yok");
     setText("panel-threshold", data.risk_threshold);
-    setText("status", "son güncelleme: " + new Date().toLocaleTimeString("tr-TR"));
+    setText("status", t("meta.last_update", { time: new Date().toLocaleTimeString(LOCALE) }));
 
     const hero = document.getElementById("risk-hero");
     const s = data.summary;
@@ -173,7 +407,7 @@
     legend.innerHTML = "";
     for (const cat of data.risk_order) {
       const el = document.createElement("span");
-      el.innerHTML = `<i style="background:${data.legend[cat]}"></i>${CATEGORY_TR[cat] || cat}`;
+      el.innerHTML = `<i style="background:${data.legend[cat]}"></i>${CATEGORY_LABELS[cat] || cat}`;
       legend.appendChild(el);
     }
 
@@ -212,7 +446,7 @@
     if (inv) {
       for (const [type, b] of Object.entries(inv.by_type)) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${RESOURCE_TR[type] || type}</td>
+        tr.innerHTML = `<td>${RESOURCE_LABELS[type] || type}</td>
           <td class="num">${b.available}</td><td class="num">${b.deployed}</td>
           <td class="num">${b.total}</td><td class="num">${b.capacity.toFixed(1)}</td>`;
         invBody.appendChild(tr);
@@ -233,7 +467,7 @@
     for (const a of assumptions) {
       const bt = eff ? eff.by_type[a.resource_type] : null;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${RESOURCE_TR[a.resource_type] || a.resource_type}</td>
+      tr.innerHTML = `<td>${RESOURCE_LABELS[a.resource_type] || a.resource_type}</td>
         <td class="num"><input class="assume-input" type="number" min="0"
           step="0.1" data-type="${a.resource_type}" value="${a.ha_per_hour}"></td>
         <td class="num">${bt ? bt.effective_ha_per_hour.toFixed(1) : "–"}</td>`;
@@ -250,17 +484,849 @@
     } catch (err) {
       setText("status", "panel verisi alınamadı: " + err.message);
     }
+    refreshRiskIndex();
+    refreshTimeline();
+    refreshPerfBudget();
+    refreshCapacityByCountry();
+    refreshExternalSupport();
+    refreshCrossborder();
+    refreshXborderSpread();
+    refreshSharePolicy();
+    refreshXborderNotify();
+    refreshSupportDraftEvents();
   }
 
-  refresh();
+  // EM-067: sınır geçiş projeksiyonu — olay başına geçiş yönü, olasılık
+  // bandı ve tahmini geçiş dakikası (yoksa "—").
+  async function refreshXborderSpread() {
+    const body = document.querySelector("#xborder-spread tbody");
+    const summary = document.getElementById("xborder-spread-summary");
+    try {
+      const res = await fetch(XBORDER_SPREAD_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      const rows = data.events || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="4">aktif yangın olayı yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const ev of rows) {
+        const tr = document.createElement("tr");
+        const dir = ev.crossing_minutes !== null
+          ? ev.country + "→" + ev.target_country : "—";
+        const likelihood = ev.likelihood === null
+          ? "—" : ev.likelihood_level + " (" + ev.likelihood.toFixed(2) + ")";
+        const mins = ev.crossing_minutes === null
+          ? "—" : "T+" + Math.round(ev.crossing_minutes);
+        const color = ev.crossing_minutes !== null
+          ? "var(--color-danger)" : "inherit";
+        tr.innerHTML = `<td>${escapeHtml(ev.event_key)}</td>`
+          + `<td>${escapeHtml(dir)}</td>`
+          + `<td>${escapeHtml(likelihood)}</td>`
+          + `<td class="num" style="color:${color}">${mins}</td>`;
+        body.appendChild(tr);
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="4">sınır geçiş projeksiyonu alınamadı</td></tr>';
+    }
+  }
+
+  // EM-066: sınır ötesi ortak durum — seçilen paylaşım kapsamına göre her
+  // ülkenin olaylarını (yangın/risk/destek) tek tabloda gösterir.
+  function _xborderScope() {
+    const boxes = document.querySelectorAll("#xborder-scope input:checked");
+    return Array.from(boxes).map((b) => b.value).join(",");
+  }
+
+  async function refreshCrossborder() {
+    const body = document.querySelector("#crossborder tbody");
+    const summary = document.getElementById("crossborder-summary");
+    try {
+      const scope = _xborderScope();
+      const url = scope
+        ? CROSSBORDER_FEED + "?fields=" + encodeURIComponent(scope)
+        : CROSSBORDER_FEED;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const fields = data.shared_fields || [];
+      body.innerHTML = "";
+      const countries = data.countries || [];
+      if (!countries.length) {
+        body.innerHTML = '<tr><td colspan="4">etkin sınır ötesi olay yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const country of countries) {
+        for (const ev of (country.events || [])) {
+          const risk = ev.risk ? ev.risk.peak_level : "—";
+          const riskColor = ev.risk
+            ? (RISK_LEVEL_COLOR[ev.risk.peak_level] || "inherit") : "inherit";
+          const units = ev.support
+            ? (ev.support.estimated_support_units || 0) : "—";
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${escapeHtml(country.label || country.country)}</td>`
+            + `<td>${escapeHtml(ev.event_key)}</td>`
+            + `<td style="color:${riskColor}">${escapeHtml(String(risk))}</td>`
+            + `<td class="num">${units}</td>`;
+          body.appendChild(tr);
+        }
+        if (fields.includes("risk") || fields.includes("support")) {
+          const foot = document.createElement("tr");
+          const peak = fields.includes("risk")
+            ? escapeHtml(country.peak_level || "—") : "—";
+          const total = fields.includes("support")
+            ? country.total_support_units : "—";
+          foot.innerHTML = `<td><b>${escapeHtml(country.label || country.country)}</b></td>`
+            + '<td><b>toplam</b></td>'
+            + `<td><b>${peak}</b></td>`
+            + `<td class="num"><b>${total}</b></td>`;
+          body.appendChild(foot);
+        }
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="4">sınır ötesi durum alınamadı</td></tr>';
+    }
+  }
+
+  // EM-070: ülke/rol bazlı veri paylaşım politikası — geçerli matris + önizleme.
+  const SHARE_SOURCE_LABELS = {
+    role_policy: "rol politikası", country_default: "ülke varsayılanı",
+    configured_default: "yapılandırılmış varsayılan",
+  };
+
+  async function refreshSharePolicy() {
+    const body = document.querySelector("#share-policy tbody");
+    try {
+      const res = await fetch(SHARE_POLICY_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      for (const country of (data.countries || [])) {
+        for (const entry of (country.roles || [])) {
+          const tr = document.createElement("tr");
+          const shared = (entry.shared_fields || []).join(", ") || "—";
+          tr.innerHTML = `<td>${escapeHtml(country.label || country.country)}</td>`
+            + `<td>${escapeHtml(entry.role)}</td>`
+            + `<td>${escapeHtml(shared)}</td>`
+            + `<td>${escapeHtml(SHARE_SOURCE_LABELS[entry.source] || entry.source)}</td>`;
+          body.appendChild(tr);
+        }
+      }
+      if (!body.children.length) {
+        body.innerHTML = '<tr><td colspan="4">politika verisi yok</td></tr>';
+      }
+      refreshSharePreview();
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="4">veri paylaşım politikası alınamadı</td></tr>';
+    }
+  }
+
+  async function refreshSharePreview() {
+    const preview = document.getElementById("share-policy-preview");
+    const country = document.getElementById("sp-country").value;
+    const role = document.getElementById("sp-role").value.trim();
+    let url = SHARE_POLICY_FEED + "/preview?country=" + encodeURIComponent(country);
+    if (role) url += "&role=" + encodeURIComponent(role);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      preview.textContent = data.message || "";
+    } catch (err) {
+      preview.textContent = "önizleme alınamadı: " + err.message;
+    }
+  }
+
+  async function saveSharePolicy() {
+    const status = document.getElementById("sp-status");
+    const boxes = document.querySelectorAll("#sp-fields input:checked");
+    const payload = {
+      country: document.getElementById("sp-country").value,
+      role: document.getElementById("sp-role").value.trim() || null,
+      shared_fields: Array.from(boxes).map((b) => b.value),
+      changed_by: document.getElementById("sp-by").value.trim() || null,
+      reason: document.getElementById("sp-reason").value.trim() || null,
+    };
+    status.textContent = "kaydediliyor…";
+    try {
+      const res = await fetch(SHARE_POLICY_FEED, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const detail = err.detail || {};
+        throw new Error(detail.error || ("HTTP " + res.status));
+      }
+      const data = await res.json();
+      status.textContent = data.changed ? "kaydedildi" : "değişiklik yok";
+      await refreshSharePolicy();
+    } catch (err) {
+      status.textContent = "hata: " + err.message;
+    }
+  }
+
+  // EM-069: ortak sınır ötesi erken uyarı bildirimi — eşik aşan geçişler + durum.
+  async function refreshXborderNotify() {
+    const body = document.querySelector("#xborder-notify tbody");
+    const summary = document.getElementById("xborder-notify-summary");
+    try {
+      const res = await fetch(XBORDER_NOTIFY_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      const rows = data.qualifying || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5">eşiği aşan sınır geçiş yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const ev of rows) {
+        const tr = document.createElement("tr");
+        const mins = ev.crossing_minutes === null
+          ? "—" : "T+" + Math.round(ev.crossing_minutes);
+        const notif = ev.notified
+          ? '<span style="color:var(--color-success)">✓ gönderildi</span>'
+          : '<span style="color:var(--color-warning)">bekliyor</span>';
+        tr.innerHTML = `<td>${escapeHtml(ev.event_key)}</td>`
+          + `<td>${escapeHtml(ev.source_country)}→${escapeHtml(ev.target_country)}</td>`
+          + `<td>${escapeHtml(ev.likelihood_level)} (${ev.likelihood})</td>`
+          + `<td class="num">${mins}</td>`
+          + `<td>${notif}</td>`;
+        body.appendChild(tr);
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="5">erken uyarı durumu alınamadı</td></tr>';
+    }
+  }
+
+  async function runXborderNotifySweep() {
+    const status = document.getElementById("xb-notify-status");
+    status.textContent = "taranıyor…";
+    try {
+      const res = await fetch(XBORDER_NOTIFY_SWEEP, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const created = (data.created || []).length;
+      const deduped = (data.deduped || []).length;
+      const resolved = (data.resolved || []).length;
+      status.textContent = `yeni ${created} · yinelenen ${deduped} · çözülen ${resolved}`;
+      await refreshXborderNotify();
+    } catch (err) {
+      status.textContent = "hata: " + err.message;
+    }
+  }
+
+  // EM-065: dış destek erken tahmini — ulusal kapasitenin ne zaman
+  // yetersiz kalacağı + gereken takviye birim sayısı (açık gerçekleşmeden).
+  // EM-071: dıș destek talebi taslağı — olay secimini doldurur (secim korunur).
+  async function refreshSupportDraftEvents() {
+    const sel = document.getElementById("sd-event");
+    const chosen = sel.value;
+    try {
+      const res = await fetch(SUPPORT_DRAFT_EVENTS);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      sel.innerHTML = '<option value="">seçin…</option>';
+      for (const ev of (data.events || [])) {
+        const opt = document.createElement("option");
+        opt.value = ev.event_key;
+        const tail = ev.predicted_shortfall
+          ? " · ≈" + ev.estimated_support_units + " birim" : " · yeterli";
+        opt.textContent = ev.event_key + tail;
+        sel.appendChild(opt);
+      }
+      if (chosen && data.events.some((e) => e.event_key === chosen)) {
+        sel.value = chosen;
+      } else if (data.suggested_event_key) {
+        sel.value = data.suggested_event_key;
+      }
+    } catch (err) { /* select oldasi kalir */ }
+  }
+
+  // EM-071: secili olay + guncel arayuz dilinden duzenlenebilir taslak uretir.
+  async function loadSupportDraft() {
+    const status = document.getElementById("sd-status");
+    const box = document.getElementById("sd-text");
+    const summary = document.getElementById("sd-summary");
+    const ev = document.getElementById("sd-event").value;
+    if (!ev) { status.textContent = "önce olay seçin"; return; }
+    status.textContent = "üretiliyor…";
+    try {
+      const url = SUPPORT_DRAFT_FEED + "?event_key="
+        + encodeURIComponent(ev) + "&lang=" + encodeURIComponent(LOCALE);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      box.value = data.draft_text || "";
+      summary.textContent = data.summary || "";
+      status.textContent = data.language_label + " · taslak hazır (düzenlenebilir)";
+    } catch (err) {
+      status.textContent = "hata: " + err.message;
+    }
+  }
+
+  function copySupportDraft() {
+    const box = document.getElementById("sd-text");
+    const status = document.getElementById("sd-status");
+    if (!box.value) { status.textContent = "kopyalanacak taslak yok"; return; }
+    navigator.clipboard.writeText(box.value)
+      .then(() => { status.textContent = "panoya kopyalandı"; })
+      .catch(() => { status.textContent = "kopyalanamadı"; });
+  }
+
+  // EM-071: gizli iframe uzerinden yazdirma/PDF diyalogunu acar.
+  function printSupportDraft() {
+    const text = document.getElementById("sd-text").value;
+    const status = document.getElementById("sd-status");
+    if (!text) { status.textContent = "yazdırılacak taslak yok"; return; }
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write("<pre style='font-family:monospace;white-space:pre-wrap'>"
+      + escapeHtml(text) + "</pre>");
+    doc.close();
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    status.textContent = "yazdırma/PDF diyaloğu açıldı";
+    setTimeout(() => document.body.removeChild(frame), 1000);
+  }
+
+  async function refreshExternalSupport() {
+    const body = document.querySelector("#ext-support tbody");
+    const summary = document.getElementById("ext-support-summary");
+    try {
+      const res = await fetch(EXT_SUPPORT_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      body.innerHTML = "";
+      const rows = data.events || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="3">aktif yangın olayı yok</td></tr>';
+        if (summary) summary.textContent = "";
+        return;
+      }
+      for (const ev of rows) {
+        const tr = document.createElement("tr");
+        const first = ev.predicted_shortfall
+          ? "T+" + Math.round(ev.first_shortfall_minute) : "yeterli";
+        const units = ev.predicted_shortfall ? ev.estimated_support_units : "—";
+        const color = ev.predicted_shortfall ? "var(--color-danger)" : "var(--color-success)";
+        tr.innerHTML = `<td>${escapeHtml(ev.event_key)}</td>`
+          + `<td class="num" style="color:${color}">${first}</td>`
+          + `<td class="num">${units}</td>`;
+        body.appendChild(tr);
+      }
+      if (summary) summary.textContent = (data.summary || {}).message || "";
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="3">dış destek tahmini alınamadı</td></tr>';
+    }
+  }
+
+  // EM-064: ülke bazında etkin kapasite — her ülke ayrı satır, ülkesiz
+  // kaynak "atanmamış" kovasında açıkça gösterilir (sessiz birleştirme yok).
+  async function refreshCapacityByCountry() {
+    const body = document.querySelector("#capacity-country tbody");
+    try {
+      const res = await fetch(COUNTRY_CAP_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const cap = (await res.json()).capacity;
+      body.innerHTML = "";
+      const rows = cap.countries || [];
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="2">müsait kaynak yok</td></tr>';
+        return;
+      }
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        const label = row.country === "atanmamış"
+          ? "Ülkesiz (atanmamış)" : escapeHtml(row.country);
+        tr.innerHTML = `<td>${label}</td>`
+          + `<td class="num">${row.total_effective_ha_per_hour.toFixed(1)}</td>`;
+        body.appendChild(tr);
+      }
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><b>Toplam</b></td>'
+        + `<td class="num"><b>${cap.grand_total_effective_ha_per_hour.toFixed(1)}</b></td>`;
+      body.appendChild(tr);
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="2">ülke kapasitesi alınamadı</td></tr>';
+    }
+  }
+
+  // EM-030: "kapasite ne zaman yetmez?" — talep vs kapasite çizgi grafiği ve
+  // kritik bant ilk aşım dakikası (ufuklar arası doğrusal enterpolasyon).
+  const TL_FEED = "/api/v1/risk-index/timeline";
+
+  function renderGapChart(ev, capacity, sched) {
+    const pts = ev.series;
+    if (!pts.length) return '<div class="muted-note">yayılım tahmini yok</div>';
+    const W = 320, H = 168, padL = 34, padR = 10, padT = 12, padB = 24;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const maxMin = Math.max.apply(null, pts.map((p) => p.minute));
+    const maxDemand = Math.max.apply(null, pts.map((p) => p.demand_ha_h));
+    const maxVal = Math.max(capacity, maxDemand) * 1.1 || 1;
+    const X = (min) => padL + (min / maxMin) * plotW;
+    const Y = (val) => padT + plotH - (val / maxVal) * plotH;
+    const demandPts = [[0, 0]].concat(pts.map((p) => [p.minute, p.demand_ha_h]));
+    const dLine = demandPts
+      .map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1))
+      .join(" ");
+    // EM-033: capacity is a step line — it jumps as en-route units hit their
+    // ETA. With no committed arrivals (sched null) this degrades to the flat
+    // EM-030 capacity line.
+    const capPts = [[0, capacity]];
+    if (sched && sched.arrivals) {
+      const runMap = {};
+      for (const a of sched.arrivals) { runMap[a.minute] = (runMap[a.minute] || 0) + a.ha_per_hour; }
+      let run = capacity;
+      for (const m of Object.keys(runMap).map(Number).sort((x, y) => x - y)) {
+        if (m <= maxMin) { capPts.push([m, run]); run += runMap[m]; capPts.push([m, run]); }
+      }
+    }
+    capPts.push([maxMin, run]);
+    const capLine = capPts
+      .map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1))
+      .join(" ");
+    const capY = Y(capacity).toFixed(1);
+    const ticks = pts
+      .map((p) => '<line x1="' + X(p.minute).toFixed(1) + '" y1="' + (padT + plotH)
+        + '" x2="' + X(p.minute).toFixed(1) + '" y2="' + (padT + plotH + 4)
+        + '" stroke="var(--border-color)"/><text x="' + X(p.minute).toFixed(1)
+        + '" y="' + (H - 8) + '" font-size="9" fill="var(--text-secondary)" text-anchor="middle">T+' + p.minute + "</text>")
+      .join("");
+    let marker = "";
+    if (ev.first_exceedance_minute !== null) {
+      const mx = X(ev.first_exceedance_minute).toFixed(1);
+      marker = '<line x1="' + mx + '" y1="' + padT + '" x2="' + mx + '" y2="'
+        + (padT + plotH) + '" stroke="var(--color-danger)" stroke-dasharray="3 3"/>'
+        + '<text x="' + mx + '" y="' + (padT + 8) + '" font-size="9" fill="var(--color-danger)" text-anchor="middle">kritik</text>';
+    }
+    return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="kapasite açığı çizgi grafik">'
+      + '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (padL + plotW) + '" y2="' + (padT + plotH) + '" stroke="var(--border-color)"/>'
+      + '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="var(--border-color)"/>'
+      + '<polyline points="' + capLine + '" fill="none" stroke="var(--color-success)" stroke-width="2"/>'
+      + '<text x="' + (padL - 4) + '" y="' + (Number(capY) + 3) + '" font-size="9" fill="var(--color-success)" text-anchor="end">kap</text>'
+      + '<polyline points="' + dLine + '" fill="none" stroke="var(--color-accent)" stroke-width="2"/>'
+      + marker + ticks
+      + "</svg>";
+  }
+
+  async function refreshTimeline() {
+    const holder = document.getElementById("gap-chart");
+    const firstEl = document.getElementById("tl-first");
+    const legend = document.getElementById("tl-legend");
+    try {
+      const res = await fetch(TL_FEED);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      if (!data.events.length) {
+        firstEl.textContent = "aktif olay yok";
+        holder.innerHTML = "";
+        legend.innerHTML = "";
+        return;
+      }
+      const over = data.events
+        .filter((e) => e.first_exceedance_minute !== null)
+        .sort((a, b) => a.first_exceedance_minute - b.first_exceedance_minute);
+      const ev = over.length
+        ? over[0]
+        : data.events.slice().sort((a, b) => {
+            const la = a.series.length ? a.series[a.series.length - 1].demand_ha_h : -1;
+            const lb = b.series.length ? b.series[b.series.length - 1].demand_ha_h : -1;
+            return lb - la;
+          })[0];
+      firstEl.textContent = ev.first_exceedance_minute !== null
+        ? ev.event_key + " · T+" + ev.first_exceedance_minute + " dk'da kritik"
+        : "ufuk penceresinde aşılmıyor";
+      const sched = (data.capacity_schedule && data.capacity_schedule.arrivals !== undefined)
+        ? data.capacity_schedule : null;
+      holder.innerHTML = renderGapChart(ev, data.capacity_effective_ha_h, sched);
+      legend.innerHTML =
+        '<span><i style="background:var(--color-accent)"></i>talep (ha/saat)</span>'
+        + '<span><i style="background:var(--color-success)"></i>etkin kapasite</span>'
+        + '<span><i style="background:var(--color-danger)"></i>ilk kritik</span>';
+    } catch (err) {
+      firstEl.textContent = "çizelge alınamadı";
+      holder.innerHTML = "";
+    }
+  }
+
+  // EM-029: olay bazında ufukluk Risk(t) tablosu (yayılım talebi / kapasite).
+  async function refreshRiskIndex() {
+    const body = document.querySelector("#risk-index tbody");
+    try {
+      const res = await fetch(RISK_FEED);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const horizons = data.horizon_minutes.slice(0, 3);
+      ["ri-h0", "ri-h1", "ri-h2"].forEach((id, i) => {
+        setText(id, horizons[i] ? "T+" + horizons[i] : "—");
+      });
+      body.innerHTML = "";
+      if (!data.events.length) {
+        body.innerHTML = '<tr><td colspan="4">aktif yangın olayı yok</td></tr>';
+        return;
+      }
+      for (const ev of data.events) {
+        const cells = horizons.map((h) => {
+          const row = ev.horizons.find((x) => x.horizon_minutes === h);
+          if (!row) return '<td class="num">\u2014</td>';
+          const color = RISK_LEVEL_COLOR[row.level] || "var(--text-primary)";
+          const val = row.risk_index === null ? "\u221e" : row.risk_index.toFixed(2);
+          const tip = `${row.level} \u00b7 talep ${row.demand_ha_h} ha/saat \u00b7 a\u00e7\u0131k ${row.gap_ha_h} ha/saat`;
+          return `<td class="num" title="${tip}"><b style="color:${color}">${val}</b></td>`;
+        });
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${ev.event_key}</td>${cells.join("")}`;
+        body.appendChild(tr);
+      }
+      const s = data.summary;
+      const peak = s.max_risk_event
+        ? `${s.max_risk_event}: ${s.max_risk_index === null ? "kritik (kapasite sıfır)" : s.max_risk_index.toFixed(2)} (${s.max_risk_level})`
+        : "–";
+      setText("ri-max", peak);
+      // EM-056: what-if olay seçkini aktif olaylarla besle (mevcut seçimi koru).
+      const sel = document.getElementById("wi-event");
+      const keep = sel.value;
+      sel.innerHTML = '<option value="">tümü</option>';
+      for (const ev of data.events) {
+        const opt = document.createElement("option");
+        opt.value = ev.event_key;
+        opt.textContent = ev.event_key;
+        sel.appendChild(opt);
+      }
+      if (keep) sel.value = keep;
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="4">risk indeksi alınamadı</td></tr>`;
+    }
+  }
+
+  // EM-056: kapasite değişimi what-if — ek kaynakların açık üzerindeki etkisi.
+  const WI_CAP_FEED = "/api/v1/whatif/capacity";
+  const WI_LEVEL_COLOR = RISK_LEVEL_COLOR;
+
+  // Delegates to the shared XSS-guard helper (app.js) with this page's exact
+  // contract: null/undefined -> "" and no apostrophe escaping.
+  function escapeHtml(value) {
+    return WFS.escapeHtml(value, { nullToEmpty: true });
+  }
+
+  function renderCapacityWhatIf(data) {
+    const caps = data.capacity;
+    const head = `<div class="kv"><span>Kapasite (ha/saat)</span><b>`
+      + `${caps.current_ha_h.toFixed(1)} → ${caps.scenario_ha_h.toFixed(1)}`
+      + ` <span class="over">(+${caps.delta_ha_h.toFixed(1)})</span></b></div>`
+      + `<div class="muted-note">Ek: ${escapeHtml(JSON.stringify(data.added_resources))}`
+      + ` · çözülen olay: ${data.summary.events_resolved_by_addition}`
+      + ` / ${data.summary.events_scored}</div>`;
+    if (!data.events.length) {
+      return head + '<div class="muted-note">aktif yangın olayı yok</div>';
+    }
+    let rows = "";
+    for (const ev of data.events) {
+      const pk = ev.peak;
+      if (!pk) {
+        rows += `<tr><td>${escapeHtml(ev.event_key)}</td>`
+          + '<td colspan="4">yayılım tahmini yok</td></tr>';
+        continue;
+      }
+      const curColor = WI_LEVEL_COLOR[pk.current_level] || "var(--text-primary)";
+      const scnColor = WI_LEVEL_COLOR[pk.scenario_level] || "var(--text-primary)";
+      const badge = ev.resolved_by_addition
+        ? ' <span style="color:var(--color-success)">✓çözüldü</span>' : "";
+      rows += `<tr><td>${escapeHtml(ev.event_key)}${badge}</td>`
+        + `<td class="num">${pk.current_gap_ha_h.toFixed(1)}</td>`
+        + `<td class="num">${pk.scenario_gap_ha_h.toFixed(1)}</td>`
+        + `<td class="num over">${pk.gap_delta_ha_h.toFixed(1)}</td>`
+        + `<td><b style="color:${curColor}">${pk.current_level}</b> → ` 
+        + `<b style="color:${scnColor}">${pk.scenario_level}</b></td></tr>`;
+    }
+    return head + '<table><thead><tr><th>Olay (T+' + pk_horizon(data) + ')</th>'
+      + '<th class="num">Açık</th><th class="num">Senaryo</th>'
+      + '<th class="num">Δ</th><th>Bant</th></tr></thead><tbody>'
+      + rows + "</tbody></table>";
+  }
+
+  function pk_horizon(data) {
+    for (const ev of data.events) {
+      if (ev.peak) return ev.peak.horizon_minutes;
+    }
+    return "?";
+  }
+
+  async function runCapacityWhatIf() {
+    const status = document.getElementById("wi-status");
+    const holder = document.getElementById("wi-result");
+    const added = {
+      crew: parseInt(document.getElementById("wi-crew").value, 10) || 0,
+      helicopter: parseInt(document.getElementById("wi-heli").value, 10) || 0,
+      uav: parseInt(document.getElementById("wi-uav").value, 10) || 0,
+    };
+    const eventKey = document.getElementById("wi-event").value || null;
+    status.textContent = "hesaplanıyor…";
+    try {
+      const res = await fetch(WI_CAP_FEED, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ added_resources: added, event_key: eventKey }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const detail = err.detail;
+        throw new Error((detail && detail.error) || (detail && detail.detail && detail.detail.error) || ("HTTP " + res.status));
+      }
+      const data = await res.json();
+      holder.innerHTML = renderCapacityWhatIf(data);
+      status.textContent = "tamam";
+    } catch (err) {
+      holder.innerHTML = "";
+      status.textContent = "hata: " + err.message;
+    }
+  }
+
+  document.getElementById("wi-run").addEventListener("click", runCapacityWhatIf);
+
+  // EM-060: yeniden hesaplama p95 gecikmesi ve otomatik ölçek küçültme durumu.
+  const PB_FEED = "/api/v1/perf-budget";
+
+  async function refreshPerfBudget() {
+    try {
+      const res = await fetch(PB_FEED);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const p95 = data.p95_ms === null ? "veri yok" : data.p95_ms.toFixed(0) + " ms";
+      setText("pb-p95", p95);
+      setText("pb-target", (data.target_ms).toFixed(0) + " ms");
+      setText("pb-samples", data.samples + " / " + data.window);
+      const stateEl = document.getElementById("pb-state");
+      if (data.breached) {
+        stateEl.textContent = data.scale_down_active
+          ? "aşıldı · kaba çözünürlük"
+          : "aşıldı";
+        stateEl.style.color = "var(--color-danger)";
+      } else if (!data.min_samples_met) {
+        stateEl.textContent = "yetersiz örnek";
+        stateEl.style.color = "var(--text-secondary)";
+      } else {
+        stateEl.textContent = "bütçe içinde";
+        stateEl.style.color = "var(--color-success)";
+      }
+    } catch (err) {
+      setText("pb-state", "alınamadı");
+    }
+  }
+
+  // EM-068: resolve one interface string from the loaded catalogue (with
+  // ``{name}`` placeholder substitution); the raw key is the last-resort value.
+  function t(key, params) {
+    let text = Object.prototype.hasOwnProperty.call(I18N, key) ? I18N[key] : key;
+    if (params) {
+      for (const name in params) {
+        text = text.split("{" + name + "}").join(String(params[name]));
+      }
+    }
+    return text;
+  }
+
+  // Apply the catalogue to every ``data-i18n`` chrome element and rebuild the
+  // locale-driven resource / category enum labels used by the render loops.
+  function applyLocale() {
+    document.documentElement.lang = LOCALE;
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (Object.prototype.hasOwnProperty.call(I18N, key)) {
+        el.textContent = I18N[key];
+      }
+    });
+    const cats = {};
+    const res = {};
+    for (const key in I18N) {
+      if (key.indexOf("enum.category.") === 0) cats[key.slice(14)] = I18N[key];
+      else if (key.indexOf("enum.resource.") === 0) res[key.slice(14)] = I18N[key];
+    }
+    if (Object.keys(cats).length) CATEGORY_LABELS = cats;
+    if (Object.keys(res).length) RESOURCE_LABELS = res;
+  }
+
+  // Fetch the message catalogue for ``lang``; on failure keep the current text.
+  async function loadLocale(lang) {
+    try {
+      const res = await fetch(I18N_FEED + "?lang=" + encodeURIComponent(lang));
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      I18N = data.messages || {};
+      LOCALE = data.language || lang;
+      localStorage.setItem("embermind-lang", LOCALE);
+      savePreference({ language: LOCALE });
+      applyLocale();
+    } catch (err) {
+      // Offline / unknown locale: the baked-in Turkish chrome stays readable.
+    }
+  }
+
+  // EM-088: persist any subset of the operator profile server-side (the fetch
+  // that changes the visible knob is the "apply immediately"; localStorage below
+  // is only the offline mirror). Errors are swallowed - the local view is intact.
+  async function savePreference(fields) {
+    Object.assign(PREF, fields);
+    try {
+      await fetch(PREFERENCES, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+    } catch (err) {
+      // Offline: the choice still applies to this session via localStorage.
+    }
+  }
+
+  // EM-068: language switcher (names shown in their own language).
+  const langSel = document.getElementById("lang-switch");
+  for (const [code, label] of LANGS) {
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = label;
+    langSel.appendChild(opt);
+  }
+  langSel.value = LOCALE;
+  langSel.addEventListener("change", (e) => {
+    loadLocale(e.target.value).then(refresh);
+  });
+
+  // EM-088: build the timezone / coordinate-format switches from the server
+  // config and wire them (plus the reset action) to the persisted profile.
+  const tzSel = document.getElementById("tz-switch");
+  const coordSel = document.getElementById("coord-switch");
+  function fillSwitch(sel, values, current) {
+    sel.innerHTML = "";
+    for (const v of values) {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
+    }
+    if (current) sel.value = current;
+  }
+  tzSel.addEventListener("change", (e) => savePreference({ timezone: e.target.value }));
+  coordSel.addEventListener("change", (e) =>
+    savePreference({ coordinate_format: e.target.value }));
+  document.getElementById("pref-reset").addEventListener("click", async () => {
+    try {
+      const res = await fetch(PREFERENCES, { method: "DELETE" });
+      if (res.ok) PREF = await res.json();
+    } catch (err) {
+      // Offline: nothing to reset server-side; fall through to the defaults.
+    }
+    const d = PREF || {};
+    document.documentElement.dataset.theme = d.theme || "dark";
+    localStorage.setItem("embermind-theme", d.theme || "dark");
+    if (tzSel && d.timezone) tzSel.value = d.timezone;
+    if (coordSel && d.coordinate_format) coordSel.value = d.coordinate_format;
+    await loadLocale(d.language || "tr");
+    await refresh();
+  });
+
+  // EM-088: load the saved profile first (apply theme + units, honour the saved
+  // language), falling back to EM-068 localStorage / EM-063 settings defaults.
+  async function bootPreferences() {
+    try {
+      const [pRes, cRes] = await Promise.all([
+        fetch(PREFERENCES),
+        fetch(PREFERENCES + "/config"),
+      ]);
+      if (pRes.ok) PREF = await pRes.json();
+      const cfg = cRes.ok ? await cRes.json() : {};
+      const allowed = (cfg && cfg.allowed) || {};
+      const defaults = (cfg && cfg.defaults) || {};
+      fillSwitch(tzSel, allowed.timezone || [defaults.timezone || "Europe/Istanbul"],
+        PREF.timezone || defaults.timezone || "Europe/Istanbul");
+      fillSwitch(coordSel,
+        allowed.coordinate_format || [defaults.coordinate_format || "decimal"],
+        PREF.coordinate_format || defaults.coordinate_format || "decimal");
+      const theme = PREF.theme || localStorage.getItem("embermind-theme")
+        || defaults.theme || "dark";
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem("embermind-theme", theme);
+    } catch (err) {
+      // No server profile yet: keep the local theme / language choices.
+    }
+    await loadLocale(PREF.language || LOCALE);
+  }
+
+  bootPreferences().then(() => refresh().then(loadAssumeAudit));
   setInterval(refresh, 60000);
 
-  // EM-028 yönetici düzenlemesi: ha/saat varsayımlarını kaydet ve paneli tazele.
+  // EM-066: paylaşım kapsamı kutuları değişince ortak görünümü yeniden çek.
+  document.querySelectorAll("#xborder-scope input").forEach((box) => {
+    box.addEventListener("change", refreshCrossborder);
+  });
+
+  // EM-070: politika formu — ülke/rol değişince önizleme, kaydet butonuyla yazım.
+  document.getElementById("sp-save").addEventListener("click", saveSharePolicy);
+  document.getElementById("sp-country").addEventListener("change", refreshSharePreview);
+  document.getElementById("sp-role").addEventListener("change", refreshSharePreview);
+
+  // EM-069: ortak erken uyarı — durumu ve tarayıp bildir eylemini bağla.
+  document.getElementById("xb-notify-sweep").addEventListener("click", runXborderNotifySweep);
+
+  // EM-071: dış destek talebi taslağı — üret / kopyala / PDF eylemleri.
+  document.getElementById("sd-generate").addEventListener("click", loadSupportDraft);
+  document.getElementById("sd-copy").addEventListener("click", copySupportDraft);
+  document.getElementById("sd-print").addEventListener("click", printSupportDraft);
+
+  // EM-034: kapasite varsayımı değişiklik geçmişi (denetim) — yeniden eskiye.
+  async function loadAssumeAudit() {
+    const body = document.querySelector("#assume-audit tbody");
+    if (!body) return;
+    try {
+      const res = await fetch("/api/v1/capacity/assumptions/audit");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      body.innerHTML = "";
+      const entries = data.entries || [];
+      if (!entries.length) {
+        body.innerHTML = '<tr><td colspan="5">henüz değişiklik kaydı yok</td></tr>';
+        return;
+      }
+      for (const e of entries) {
+        const tr = document.createElement("tr");
+        const when = (e.changed_at || "").replace("T", " ").slice(0, 16);
+        tr.innerHTML = `<td>${escapeHtml(when)}</td`
+          + `><td>${escapeHtml(RESOURCE_LABELS[e.resource_type] || e.resource_type)}</td`
+          + `><td class="num">${Number(e.old_value).toFixed(1)}</td`
+          + `><td class="num">${Number(e.new_value).toFixed(1)}</td`
+          + `><td>${escapeHtml(e.updated_by || "—")}</td>`;
+        body.appendChild(tr);
+      }
+    } catch (auditErr) {
+      body.innerHTML = '<tr><td colspan="5">geçmiş yüklenemedi</td></tr>';
+    }
+  }
+
+  // EM-028 yönetici düzenlemesi + EM-034: ha/saat varsayımlarını düzenleyeni
+  // taşıyarak kaydet, paneli ve denetim geçmişini tazele.
   document.getElementById("save-assumptions").addEventListener("click", async () => {
     const body = {};
     document.querySelectorAll("#assumptions .assume-input").forEach((inp) => {
       body[inp.dataset.type] = parseFloat(inp.value);
     });
+    const editor = (document.getElementById("assume-editor").value || "").trim();
+    if (editor) body.updated_by = editor;
     const status = document.getElementById("assume-status");
     status.textContent = "kaydediliyor…";
     try {
@@ -273,22 +1339,26 @@
         const err = await res.json().catch(() => ({}));
         throw new Error((err.detail && err.detail.error) || ("HTTP " + res.status));
       }
-      status.textContent = "kaydedildi";
+      const applied = await res.json();
+      status.textContent = (applied.applied_count || 0) > 0
+        ? "kaydedildi (" + applied.applied_count + " değişiklik)"
+        : "değişiklik yok";
       await refresh();
-      status.textContent = "kaydedildi";
+      await loadAssumeAudit();
     } catch (err) {
       status.textContent = "hata: " + err.message;
     }
   });
 
-  // EM-075 tema anahtarı: panel koyu başlar, kullanıcı tercihi saklanır.
+  // EM-075 tema anahtarı + EM-088: tema tercihi sunucuda da saklanır.
   const themeBtn = document.getElementById("theme-toggle");
-  const storedTheme = localStorage.getItem("embermind-theme");
-  if (storedTheme) document.documentElement.dataset.theme = storedTheme;
+  const initTheme = PREF.theme || localStorage.getItem("embermind-theme");
+  if (initTheme) document.documentElement.dataset.theme = initTheme;
   themeBtn.addEventListener("click", () => {
     const root = document.documentElement;
     root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
     localStorage.setItem("embermind-theme", root.dataset.theme);
+    savePreference({ theme: root.dataset.theme });
   });
   </script>
 </body>

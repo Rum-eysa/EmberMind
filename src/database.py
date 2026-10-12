@@ -26,6 +26,16 @@ class Database:
         """Create all registered tables."""
         Base.metadata.create_all(self.engine)
 
+    def reset_all(self) -> None:
+        """Drop then recreate every registered table (clean demo/CI state).
+
+        Only the tables whose models are imported into :data:`Base` are
+        affected; callers that need a *complete* reset must import the model
+        package first (``import src.models``) so the metadata is populated.
+        """
+        Base.metadata.drop_all(self.engine)
+        Base.metadata.create_all(self.engine)
+
     @contextmanager
     def session(self) -> Iterator[Session]:
         """Yield a transactional session and close it after use."""

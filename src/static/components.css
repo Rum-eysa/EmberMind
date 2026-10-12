@@ -104,6 +104,7 @@ a { color: var(--color-accent); }
 .em-badge--success { background: var(--color-success); color: #fff; border-color: transparent; }
 .em-badge--warning { background: var(--color-warning); color: #fff; border-color: transparent; }
 .em-badge--danger  { background: var(--color-danger);  color: #fff; border-color: transparent; }
+.em-badge--info    { background: var(--color-accent);  color: #fff; border-color: transparent; }
 
 /* Risk threshold badges: one per RISK_COLORS category (tokens.css --risk-*) */
 .em-badge--risk-very_low   { background: var(--risk-very-low);   color: #222; border-color: var(--border-color); }
@@ -158,3 +159,25 @@ a { color: var(--color-accent); }
 .em-stack > * + * { margin-top: var(--space-3); }
 .em-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .em-muted { color: var(--text-secondary); font-size: var(--font-size-sm); }
+
+/* ---------- Responsive & keyboard-access hardening (code-quality audit) ----------
+ * Wide data tables (risk panel, operator map) must scroll inside their own box
+ * on narrow screens rather than forcing the whole page sideways; the desktop
+ * layout is unchanged. This applies to every table — static markup or
+ * JS-generated — so no per-page wrapper edits are needed. */
+table { max-width: 100%; }
+@media (max-width: 640px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Universal keyboard focus ring for interactive elements that are not an
+ * .em-* component. :where() keeps specificity at 0 so the component rules
+ * above still win where they apply. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}

@@ -1,7 +1,8 @@
-"""EM-028 capacity unit definition, normalisation and endpoint tests."""
+"""EM-028 capacity unit tests and EM-031 availability status-management tests."""
 import pytest
+from sqlalchemy import select
 
-from src.models.inventory import SuppressionResource
+from src.models.inventory import RESOURCE_STATUSES, SuppressionResource
 from src.services.capacity import (
     CapacityError,
     available_counts_by_type,
@@ -153,3 +154,46 @@ def test_effective_endpoint_reports_ha_per_hour(client):
     res = client.get("/api/v1/capacity/effective")
     assert res.status_code == 200
     assert res.json()["capacity"]["unit"] == "ha/saat"
+
+
+# ------------------------------------------------------------------ EM-031 ---
+
+
+def test_en_route_is_a_canonical_status():
+    assert "en_route" in RESOURCE_STATUSES
+
+
+def test_status_change_updates_effective_capacity_immediately(session):
+    _resource(session, "HEL-90", "helicopter", "available")
+    session.flush()
+    total = effective_capacity(session, _Settings())["total_effective_ha_per_hour"]
+    assert total == pytest.approx(HELI_DEFAULT)
+    resource = session.scalars(
+        select(SuppressionResource).where(SuppressionResource.resource_key == "HEL-90")
+    ).one()
+    resource.status = "en_route"  # scrambles the heli: committed, not on station
+    session.flush()
+    after = effective_capacity(session, _Settings())
+    assert after["total_effective_ha_per_hour"] == pytest.approx(0.0)
+    assert after["by_type"]["helicopter"]["available"] == 0
+
+
+def test_en_route_status_endpoint_flow_updates_capacity(client):
+    created = client.post(
+        "/api/v1/resources",
+        json={
+            "resource_key": "HEL-91",
+            "resource_type": "helicopter",
+            "latitude": 37.0,
+            "longitude": 28.0,
+            "status": "available",
+        },
+    )
+    assert created.status_code == 200
+    base = client.get("/api/v1/capacity/effective").json()["capacity"]
+    assert base["total_effective_ha_per_hour"] == pytest.approx(HELI_DEFAULT)
+    updated = client.put("/api/v1/resources/HEL-91", json={"status": "yolda"})
+    assert updated.status_code == 200
+    assert updated.json()["resource"]["status"] == "en_route"
+    after = client.get("/api/v1/capacity/effective").json()["capacity"]
+    assert after["total_effective_ha_per_hour"] == pytest.approx(0.0)

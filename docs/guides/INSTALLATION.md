@@ -51,6 +51,30 @@ Uygulama `http://localhost:8000` adresinde çalışacaktır.
 
 OpenAPI arayüzü `http://localhost:8000/docs` adresinde çalışır.
 
+## Demo verisi sıfırlama ve seed (EM-106)
+
+Demo ortamı için veritabanını sıfırdan temizleyip etiketli sentetik senaryoyu
+tek komutla yükleyebilirsiniz:
+
+```bash
+# Mevcut tabloları koruyarak sentetik senaryoyu yükle (yukarı-yazımlı)
+make demo-seed
+
+# TÜM tabloları düşür, yeniden oluştur ve temiz sentetik senaryoyu yükle
+make demo-reset
+```
+
+`make demo-reset`, `python scripts/demo_seed.py --reset` komutunun kısa yoldur.
+Aynı davranışı ortam değişkeniyle de tetikleyebilirsiniz:
+
+```bash
+DEMO_RESET=1 APP_ENV=demo python scripts/demo_seed.py
+```
+
+Not: Yüklenen tüm kayıtlar **SENTETİK VERİ** olarak etiketlenir (gerçek gözlem
+değildir). Sıfırlama, `src.models` altında kayıtlı tüm tabloları etkiler.
+
+
 ## Docker Kurulumu
 
 ```bash

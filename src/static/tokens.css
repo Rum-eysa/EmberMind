@@ -64,6 +64,10 @@
   --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.18);
   --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.25);
   --panel-max-width: 320px;
+
+  /* Keyboard focus ring (code-quality audit C-5) — the single shared
+     outline every interactive control falls back to. */
+  --focus-ring: 2px solid var(--color-accent);
 }
 
 /* Manual dark theme switch */
