@@ -2182,7 +2182,7 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   `test_operator_map_scripts_are_served`. 15 bağlı UI-wiring testi tek mantıksal
   birim okumaya alındı (`tests/ui_bundle.py`), assert'ler değişmedi.
 - **Aşama 2 (YÜKSEK) — A-6 backend `create_fastapi_app` parçalama, adım
-  1/core-data (bu commit):** Kullanıcı onayıyla en büyük backend sıcak noktası
+  1/core-data):** Kullanıcı onayıyla en büyük backend sıcak noktası
   (763 satır factory) projenin kendi `register_*_routes` kalıbına göre bölünmeye
   başlandı. Çekirdek veri domain'i (fires+weather+topography+land-cover): 12
   Pydantic model + 9 route **verbatim** `src/routes/core_data.py` içine taşındı;
@@ -2192,16 +2192,30 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   yok → blast-radius içeride. Kanıt: app importu temiz, mypy 196 Success, 1799
   integration testi birebir geçiyor → davranış-nötr. Kalan domain'ler (spatial/
   events, grid, pipeline, CRUD) sonraki adımlar.
+- **Aşama 2 (YÜKSEK) — A-6 backend `create_fastapi_app` parçalama, adım
+  2/spatial-events (bu commit):** Aynı `register_*_routes` kalıbıyla uzamsal +
+  elle yangın-olayı domain'i (events listesi GET + events/{key} GET +
+  silent-regions GET + polygon-intersection POST + events/manual POST) ayrıştırıldı:
+  3 Pydantic model (`ManualFireEventRequest`/`ManualFireEventResponse`/
+  `PolygonIntersectionRequest`) + `parse_datetime` helper'ı + 5 route **verbatim**
+  `src/routes/spatial_events.py` içine taşındı; `register_spatial_event_routes
+  (api, database, settings)` **aynı konumdan** çağrılıyor (kesintisiz blok →
+  yerinde çağrı, kayıt sırası ve OpenAPI yüzeyi birebir korunur). `fastapi_app.py`
+  866→632 satır; `ManualFireEventUpdateRequest` ile PUT/DELETE bilinçli olarak
+  inline kaldı (grid/pipeline bloklarıyla iç içe → sırayı bozmamak için); 7
+  artık-kullanılmayan import temizlendi (datetime, SilentRegion, safe_record_update,
+  manual_fire_event helper'ları, spatial_db, SpreadError). Kanıt: app importu
+  temiz, mypy 197 Success, 1799 integration testi birebir geçiyor → davranış-nötr.
 - **Bilinçli ertelenen (onay kapsamı dışında bırakılanlar):** tam hex/px token
   göçü (renk token'ları tema-bağımlı → dark-mode'da literal ile aynı değil,
   güvenli otomasyon yok), z-index skalasının 28 literal'e bağlanması (görsel
   davranış değiştirir), `create_fastapi_app` bölünmesinin kalan domain'leri
-  (spatial/events, grid, pipeline, CRUD — core-data bu turda tamamlandı),
+  (grid, pipeline, events PUT/DELETE — core-data + spatial-events tamamlandı),
   `session.query`→`select` (A-6), `setStatus/when/save` JS birleştirme
   (davranış-nötr tek kaynak için elle inceleme ister; ölçüldü: envanter `setStatus(text)`
   tek-arg `className`'i temizliyor, operatör hiç dokunmuyor → naive merge davranış
   değiştirir). Ölü kod A-4 kullanıcı kararıyla listede bırakıldı.
-- **Kapılar:** black(temiz 297)/mypy(Success — 196 dosya)/pylint(10.00)/
+- **Kapılar:** black(temiz 298)/mypy(Success — 197 dosya)/pylint(10.00)/
   bandit(-ll Medium+High 0)/pytest **1799**.
 - **Commit:** `fix(audit): ...` (bu dal).
 

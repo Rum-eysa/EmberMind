@@ -87,6 +87,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     **1799 integration testi** (doğrudan `create_fastapi_app("testing")` üzerinden)
     birebir geçiyor → route'lar aynı davranıyor. Kalan domain'ler (spatial/events,
     grid, pipeline, CRUD) sonraki adımlar.
+- Kod kalitesi denetimi (Aşama 2, A-6 backend — `create_fastapi_app` parçalama,
+  adım 2/spatial-events): aynı `register_*_routes` kalıbıyla uzamsal + elle
+  yangın-olayı domain'i (events listesi GET + events/{key} GET + silent-regions
+  GET + polygon-intersection POST + events/manual POST) factory'den ayrıştırıldı:
+  - `src/routes/spatial_events.py` yeni modülü: 3 Pydantic modeli
+    (`ManualFireEventRequest`, `ManualFireEventResponse`,
+    `PolygonIntersectionRequest`) + `parse_datetime` helper'ı +
+    `register_spatial_event_routes(api, database, settings)` içine 5 route. Model,
+    helper ve route gövdeleri **verbatim** taşındı.
+  - `fastapi_app.py`: inline route bloğu (150 satır) kaldırılıp **aynı
+    konumda** tek `register_spatial_event_routes(...)` çağrısı kondu → route
+    kayıt sırası (ve OpenAPI yüzeyi) birebir korunuyor (kesintisiz blok, yerinde
+    çağrı). 632 satıra indi; `ManualFireEventUpdateRequest` ile PUT/DELETE
+    inline kaldı (grid/pipeline bloklarıyla iç içe → sırayı bozmamak için bu
+    adımda bırakıldı). Artık-kullanılmayan importlar temizlendi (datetime,
+    SilentRegion, safe_record_update, DuplicateFireEventError/ManualFireEventError/
+    create_manual_fire_event/trigger_prediction_for_event, SpatialQueryError/
+    execute_polygon_intersection_query, SpreadError).
+  - **Kanıt (davranış-nötr):** app importu temiz; black 303 dosya değişmez ·
+    mypy 197 Success · pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test**
+    birebir geçiyor. Kalan domain'ler (grid, pipeline, events PUT/DELETE)
+    sonraki adımlar.
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)
