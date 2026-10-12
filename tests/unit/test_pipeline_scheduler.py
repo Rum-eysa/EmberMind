@@ -154,26 +154,29 @@ def test_celery_tasks_execution(monkeypatch, test_db):
 
 def test_pipeline_fastapi_endpoints(client, monkeypatch):
     """Test /api/v1/pipeline endpoints for status, history, and trigger."""
+    # The pipeline-trigger route now lives in src.routes.grid_pipeline (extracted
+    # from the create_fastapi_app monolith); its closure resolves the sync
+    # helpers from that module namespace, so the patch targets follow the code.
     monkeypatch.setattr(
-        "src.fastapi_app.sync_firms",
+        "src.routes.grid_pipeline.sync_firms",
         lambda session, config: {"observations": 3, "clusters": 1},
     )
     monkeypatch.setattr(
-        "src.fastapi_app.sync_weather_for_clusters",
+        "src.routes.grid_pipeline.sync_weather_for_clusters",
         lambda session, config: {
             "clusters_processed": 1,
             "weather_points_saved": 8,
         },
     )
     monkeypatch.setattr(
-        "src.fastapi_app.sync_topography_for_clusters",
+        "src.routes.grid_pipeline.sync_topography_for_clusters",
         lambda session, config: {
             "clusters_processed": 1,
             "topography_points_saved": 1,
         },
     )
     monkeypatch.setattr(
-        "src.fastapi_app.sync_land_cover_for_clusters",
+        "src.routes.grid_pipeline.sync_land_cover_for_clusters",
         lambda session, config: {
             "clusters_processed": 1,
             "land_cover_points_saved": 1,

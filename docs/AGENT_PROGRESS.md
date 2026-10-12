@@ -2206,6 +2206,23 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   artık-kullanılmayan import temizlendi (datetime, SilentRegion, safe_record_update,
   manual_fire_event helper'ları, spatial_db, SpreadError). Kanıt: app importu
   temiz, mypy 197 Success, 1799 integration testi birebir geçiyor → davranış-nötr.
+- **Aşama 2 (YÜKSEK) — A-6 backend `create_fastapi_app` parçalama, adım
+  3/grid-pipeline (bu commit):** Aynı `register_*_routes` kalıbıyla ızgara-standartı
+  + veri-hattı denetim domain'i ayrıştırıldı: 5 Pydantic model (`PipelineJobResponse`/
+  `PipelineJobsResponse`/`PipelineTriggerRequest`/`TransformCoordinateRequest`/
+  `ResampleGridRequest`) + 6 route (grid 3 → pipeline 3) **verbatim**
+  `src/routes/grid_pipeline.py` içine taşındı. Grid ve pipeline **tek fonksiyonda**
+  birleştirildi (`register_grid_pipeline_routes(api, database, settings)`): grid
+  uçları `database`/`settings`'i hiç, pipeline ikisini de kullanıyor → ortak imzada
+  atıl argüman yok (W0613). `fastapi_app.py` kesintisiz blok kaldırılıp **aynı
+  konumda** tek çağrı kondu (sıra/OpenAPI korunur); 573→380 satır gövde; `Query` +
+  10 artık-kullanılmayan servis importu temizlendi. events PUT/DELETE ile `/health`+
+  `/api/v1` yerinde kaldı. **Test hedefi taşıması:** `test_pipeline_fastapi_endpoints`
+  monkeypatch'leri `src.fastapi_app.sync_*` → `src.routes.grid_pipeline.sync_*` (route
+  closure'ı adları yeni modül isim uzamından çözüyor; patch kodu izliyor, davranış
+  aynı). Kanıt: app importu temiz (288 route), black değişmez, mypy 198 Success,
+  pylint 10.00, bandit `-ll` çıkış 0, 1799 integration testi birebir geçiyor →
+  davranış-nötr. Kalan inline domain: events PUT/DELETE (sonraki adım).
 - **Tur dışı UI düzeltmesi — operatör haritası üst barı (bu commit):** Kullanıcı
   talebiyle `#horizon-bar` yeniden düzenlendi. Kök neden: bar `left:50% +
   translateX(-50%)` ile ortalanmış mutlak konumda + ~35 kontrol tek satırda → iki

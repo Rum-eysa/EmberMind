@@ -123,6 +123,34 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     mypy 197 Success · pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test**
     birebir geçiyor. Kalan domain'ler (grid, pipeline, events PUT/DELETE)
     sonraki adımlar.
+- Kod kalitesi denetimi (Aşama 2, A-6 backend — `create_fastapi_app` parçalama,
+  adım 3/grid-pipeline): aynı `register_*_routes` kalıbıyla ızgara-standartı +
+  veri-hattı denetim domain'i (grid: pilot-region GET + transform-coordinate POST
+  + resample-30m POST; pipeline: status GET + jobs GET + trigger POST) factory'den
+  ayrıştırıldı:
+  - `src/routes/grid_pipeline.py` yeni modülü: 5 Pydantic modeli
+    (`PipelineJobResponse`, `PipelineJobsResponse`, `PipelineTriggerRequest`,
+    `TransformCoordinateRequest`, `ResampleGridRequest`) +
+    `register_grid_pipeline_routes(api, database, settings)` içine 6 route (grid
+    3 → pipeline 3). Model ve route gövdeleri **verbatim** taşındı.
+  - Grid ve pipeline **tek fonksiyonda birleştirildi** (iki ayrı modül değil):
+    grid uçları `database`/`settings`'i hiç, pipeline uçları ikisini de kullanıyor
+    → ortak imzada hiçbir argüman atıl kalmıyor (pylint W0613 yok).
+  - `fastapi_app.py`: kesintisiz grid+pipeline inline bloğu kaldırılıp **aynı
+    konumda** tek `register_grid_pipeline_routes(...)` çağrısı kondu → route kayıt
+    sırası (ve OpenAPI yüzeyi) birebir korunuyor. 573 satıra indi (380 satır
+    gövde); `Query` + 10 artık-kullanılmayan servis importu temizlendi
+    (effis/fire_sync/firms/fwi/grid_standard/land_cover/pipeline_tracker/
+    road_network/topography/weather; `manual_fire_event` ve `observability` kaldı).
+    events PUT/DELETE ile `/health` + `/api/v1` bilinçli olarak yerinde kaldı.
+  - **Test hedefi taşıması (davranış-nötr):** `test_pipeline_fastapi_endpoints`
+    monkeypatch'leri `src.fastapi_app.sync_*` yerine `src.routes.grid_pipeline.sync_*`
+    hedefliyor — route'un kapanışı (closure) bu adları artık yeni modül
+    isim uzamından (namespace) çözüyor; patch hedefi taşınan kodu izliyor, route
+    davranışı aynı.
+  - **Kanıt (davranış-nötr):** app importu temiz (288 route); black değişmez ·
+    mypy 198 Success · pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test**
+    birebir geçiyor. Kalan inline domain: events PUT/DELETE (sonraki adım).
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)
