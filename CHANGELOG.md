@@ -16,6 +16,9 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   kapanıyor (`operator_map_init.js` içine işlev-kapsamlı delege dinleyici; HTML
   işaret dili saf kalır, split-monolit testi geçmeye devam eder). Tüm `id`'ler
   (`horizon-slider`, `*-open`) korundu → JS bağlayıcıları ve testler kırılmadı.
+  (4) Devam: "Paneller" menüsü **İzleme / Analiz / Yönetim** başlıklarıyla üç
+  gruba ayrıldı (23 buton konu bazlı yeniden sıralandı; `hb-menu-panel` +
+  `hb-menu-group`/`hb-menu-title` CSS) — arama maliyeti azaldı, `id`'ler yine aynı.
 - Kod kalitesi denetimi (Aşama 2, tur dışı bakım) — paylaşılan duyarlı/erişilebilir katman:
   - `tokens.css` içine tek `--focus-ring` jetonu eklendi; `components.css` sonuna
     **sayfalar-arası ortak** iki kural kondu: (1) `table { max-width:100% }` ve

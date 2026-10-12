@@ -2218,6 +2218,13 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   Kanıt: design_system 15 test + tam 1799 pytest geçti; canlı `/ui` doğrulandı
   (`panels-menu` var, horizon-bar artik `translateX` yok). Python degmedi →
   black(298)/mypy(197)/pylint(10.00)/bandit(-ll 0) aynen yesil.
+- **Tur dışı UI — "Paneller" menüsü gruplandı (bu commit):** Aynı üst-bar
+  işinin devamı; 23 buton **İzleme / Analiz / Yönetim** başlıkları altında
+  konu bazlı yeniden sıralandı. Yalnız CSS+markup: `hb-menu-grid` mutlak panel
+  olmaktan çıkarıldı, `hb-menu-panel` (mutlak kapsayıcı) + `hb-menu-group`/
+  `hb-menu-title` (başlık + 2-sütun alt grid) oldu. Buton `title` metinleri ve
+  tüm `id`'ler **verbatim** korundu → davranış-nötr. Kanıt: design_system 15 +
+  tam 1799 pytest geçti; canlı `/ui`'da üç grup başlığı doğrulandı.
 - **Bilinçli ertelenen (onay kapsamı dışında bırakılanlar):** tam hex/px token
   göçü (renk token'ları tema-bağımlı → dark-mode'da literal ile aynı değil,
   güvenli otomasyon yok), z-index skalasının 28 literal'e bağlanması (görsel

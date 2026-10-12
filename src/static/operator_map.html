@@ -42,11 +42,16 @@
     #panels-menu > summary::-webkit-details-marker { display: none; }
     #panels-menu[open] > summary { border-color: var(--color-primary);
       color: var(--color-primary); }
-    #panels-menu .hb-menu-grid { position: absolute; top: calc(100% + 8px); right: 0;
-      z-index: 1200; display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr));
-      gap: 6px; width: 320px; max-width: 70vw; max-height: 60vh; overflow-y: auto;
+    #panels-menu .hb-menu-panel { position: absolute; top: calc(100% + 8px); right: 0;
+      z-index: 1200; width: 340px; max-width: 80vw; max-height: 70vh; overflow-y: auto;
       background: var(--bg-surface-raised); border: 1px solid var(--border-color);
       border-radius: var(--radius-md); box-shadow: var(--shadow-card); padding: 10px; }
+    #panels-menu .hb-menu-group + .hb-menu-group { margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid var(--border-color); }
+    #panels-menu .hb-menu-title { font-size: 11px; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--text-secondary); margin: 0 0 6px; }
+    #panels-menu .hb-menu-grid { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 6px; }
     #panels-menu .hb-menu-grid button { font-size: 12px; cursor: pointer;
       padding: 6px 8px; text-align: left; border: 1px solid var(--border-color);
       border-radius: 6px; background: none; color: var(--text-primary);
@@ -902,7 +907,10 @@
     <button type="button" id="sound-toggle" title="EM-032 eşik aşımı uyarı sesi (aç/kapa)">🔔 Ses</button>
     <details id="panels-menu">
       <summary>Paneller ▾</summary>
-      <div class="hb-menu-grid">
+      <div class="hb-menu-panel">
+        <div class="hb-menu-group">
+          <div class="hb-menu-title">İzleme</div>
+          <div class="hb-menu-grid">
     <button type="button" id="silent-open"
       title="EM-078 sessiz bölge güven paneli — güvenilir/düşük bölgeleri filtrele, haritada seç">Sessiz Bölgeler</button>
     <button type="button" id="timeline-open"
@@ -913,14 +921,20 @@
       title="EM-083 salt okunur belediye görünümü — bölgeniz için sadeleştirilmiş izleme ekranı">Belediye</button>
     <button type="button" id="bildirim-open"
       title="EM-086 bildirim merkezi — uyarıları okundu/onaylandı izleyin, sesli uyarıyı seviyeye göre ayarlayın">Bildirimler</button>
-    <button type="button" id="sitrep-open"
-      title="EM-087 durum raporu (SITREP) — tek sayfalık özeti derle, PDF/Yazdır ile dışa aktar">Durum Raporu</button>
-    <button type="button" id="handover-open"
-      title="EM-089 vardiya devri notları — olaya not ekle, notları zaman çizelgesinde gör, tek tıkla devir özeti oluştur">Vardiya Devri</button>
-    <button type="button" id="webhook-open"
-      title="EM-094 olay & uyarı webhook'ları — uç nokta ve olay tiplerini yapılandır, imzalı gönder ve teslim geçmişini izle">Webhook'lar</button>
-    <button type="button" id="audit-open"
-      title="EM-096 birleşik denetim kaydı — hangi alt sistemden gelirse gelsin kim/ne zaman/hangi kararı-ğişikliği değiştiremez silinemez defterde gör">Denetim Kaydı</button>
+    <button type="button" id="sra-open"
+      title="EM-040 sessiz bölge uyarıları — yayılım tehdidi ulaşan yüksek öncelikli sessiz bölgeler için bölge/süre/risk seviyeli uyarı; aynı bölgenin tekrar uyarıları bastırılır">
+      Sessiz Bölge Uyarıları</button>
+    <button type="button" id="maptool-open"
+      title="EM-080 harita aracı — sokak/uydu/arazi altlığı seç, yer adı veya koordinat ara, mesafe/alan ölç">
+      Harita Aracı</button>
+    <button type="button" id="fieldview-open"
+      title="EM-084 saha görünümü — telefondan okunur görev kartı + konuma göre en yakın risk bölgesi">
+      Saha Görünümü</button>
+          </div>
+        </div>
+        <div class="hb-menu-group">
+          <div class="hb-menu-title">Analiz</div>
+          <div class="hb-menu-grid">
     <button type="button" id="signal-open"
       title="EM-035 sinyal baz çizgisi — hücre bazında 30 günlük iletişim/rapor normali ve bugünkü sessizlik adayı">
       Sinyal Baz Çizgisi</button>
@@ -939,18 +953,22 @@
     <button type="button" id="sdp-open"
       title="EM-042 sessiz bölge performans ölçümü — sentetik senaryoda TPR/FPR ve uyarı gecikmesi">
       Sessiz Bölge Performans</button>
-    <button type="button" id="sra-open"
-      title="EM-040 sessiz bölge uyarıları — yayılım tehdidi ulaşan yüksek öncelikli sessiz bölgeler için bölge/süre/risk seviyeli uyarı; aynı bölgenin tekrar uyarıları bastırılır">
-      Sessiz Bölge Uyarıları</button>
+          </div>
+        </div>
+        <div class="hb-menu-group">
+          <div class="hb-menu-title">Yönetim</div>
+          <div class="hb-menu-grid">
+    <button type="button" id="sitrep-open"
+      title="EM-087 durum raporu (SITREP) — tek sayfalık özeti derle, PDF/Yazdır ile dışa aktar">Durum Raporu</button>
+    <button type="button" id="handover-open"
+      title="EM-089 vardiya devri notları — olaya not ekle, notları zaman çizelgesinde gör, tek tıkla devir özeti oluştur">Vardiya Devri</button>
+    <button type="button" id="webhook-open"
+      title="EM-094 olay & uyarı webhook'ları — uç nokta ve olay tiplerini yapılandır, imzalı gönder ve teslim geçmişini izle">Webhook'lar</button>
+    <button type="button" id="audit-open"
+      title="EM-096 birleşik denetim kaydı — hangi alt sistemden gelirse gelsin kim/ne zaman/hangi kararı-ğişikliği değiştiremez silinemez defterde gör">Denetim Kaydı</button>
     <button type="button" id="szt-open"
       title="EM-044 sessiz bölge hassasiyet ve eşik ayarı — bölge bazlı eşik (z-skoru) ve minimum sessizlik süresi arayüzden ayarlanır; her değişiklik denetim kaydına yazılır; varsayılana dönme seçeneği vardır">
       Sessiz Bölge Ayarı</button>
-    <button type="button" id="maptool-open"
-      title="EM-080 harita aracı — sokak/uydu/arazi altlığı seç, yer adı veya koordinat ara, mesafe/alan ölç">
-      Harita Aracı</button>
-    <button type="button" id="fieldview-open"
-      title="EM-084 saha görünümü — telefondan okunur görev kartı + konuma göre en yakın risk bölgesi">
-      Saha Görünümü</button>
     <button type="button" id="a11y-open"
       title="EM-085 erişilebilirlik — renk körü güvenli risk kodlaması (renk+etiket+şekil+desen), tema ve genel klavye kısayolları">
       Erişilebilirlik</button>
@@ -963,6 +981,8 @@
     <button type="button" id="security-privacy-open"
       title="EM-100 güvenlik ve gizlilik uygunluğu — gizlilik-tasarım (bölge/hücre bazlı, kişisel veri yok) denetimi, maskelenmiş gizli-anahtar durumu ve dürüst TLS/aktarım duruşu">
       Güvenlik &amp; Gizlilik</button>
+          </div>
+        </div>
       </div>
     </details>
   </div>
