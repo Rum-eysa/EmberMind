@@ -292,7 +292,9 @@ def test_endpoint_out_of_radius_excluded(client, session):
 def test_ui_wires_field_view():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "toggleFieldViewPanel" in html
     assert "loadFieldView" in html
     assert "renderFieldView" in html

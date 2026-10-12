@@ -244,7 +244,9 @@ def test_inventory_persists_and_validates_limits(client, session):
 def test_ui_wires_rejected_proposals():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "loadRejectedProposals" in html
     assert "positioning-rejected" in html
     assert "rj-item" in html

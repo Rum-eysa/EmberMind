@@ -161,9 +161,9 @@ def test_endpoint_get_missing_is_404(client):
 def test_operator_map_has_decision_toolbar():
     from pathlib import Path
 
-    html = (
-        Path(__file__).resolve().parents[2] / "src" / "static" / "operator_map.html"
-    ).read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "db-accept" in html
     assert "db-reject" in html
     assert "decideProposal(" in html

@@ -198,9 +198,9 @@ def test_endpoint_delete(client):
 def test_operator_map_has_scenario_toolbar():
     from pathlib import Path
 
-    html = (
-        Path(__file__).resolve().parents[2] / "src" / "static" / "operator_map.html"
-    ).read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert 'id="whatif-scenario"' in html
     assert 'id="whatif-scen-save"' in html
     assert "/api/v1/whatif/scenarios" in html

@@ -12,6 +12,22 @@ OPERATOR_MAP_HTML = (STATIC_DIR / "operator_map.html").read_text(encoding="utf-8
 RISK_PANEL_HTML = (STATIC_DIR / "risk_panel.html").read_text(encoding="utf-8")
 APP_JS = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
 
+# operator_map.html monolith split (code-quality audit): the page's inline JS was
+# relocated verbatim into these ordered classic scripts, loaded in document order.
+OPERATOR_SCRIPTS = (
+    "operator_map_core.js",
+    "operator_map_panels_a.js",
+    "operator_map_panels_b.js",
+    "operator_map_init.js",
+)
+OPERATOR_JS = {
+    name: (STATIC_DIR / name).read_text(encoding="utf-8") for name in OPERATOR_SCRIPTS
+}
+# operator_map.html + its scripts are one logical unit (see the monolith split).
+OPERATOR_MAP_BUNDLE = "\n".join(
+    [OPERATOR_MAP_HTML] + [OPERATOR_JS[name] for name in OPERATOR_SCRIPTS]
+)
+
 
 def _risk_tokens(css: str) -> dict[str, str]:
     """Extract the --risk-* custom properties from the light :root block."""
@@ -98,15 +114,17 @@ def test_shared_escape_html_helper_is_the_single_source():
     and no apostrophe escaping. The per-page replace chains must be gone."""
     assert "WFS.escapeHtml = function" in APP_JS
     assert "&#" in APP_JS  # escapes entities
-    # Both pages load the shared script before their inline script and delegate.
-    for page in (OPERATOR_MAP_HTML, RISK_PANEL_HTML):
-        assert '<script src="/static/app.js"></script>' in page
-        assert "WFS.escapeHtml(value," in page
+    # operator_map.html links the shared script before its (now external) code;
+    # the escapeHtml delegate lives in the split scripts, so assert on the bundle.
+    assert '<script src="/static/app.js"></script>' in OPERATOR_MAP_HTML
+    assert '<script src="/static/app.js"></script>' in RISK_PANEL_HTML
+    assert "WFS.escapeHtml(value," in OPERATOR_MAP_BUNDLE
+    assert "WFS.escapeHtml(value," in RISK_PANEL_HTML
     # Each page's option reproduces its previous contract, nothing else.
-    assert "WFS.escapeHtml(value, { escapeApostrophe: true })" in OPERATOR_MAP_HTML
+    assert "WFS.escapeHtml(value, { escapeApostrophe: true })" in OPERATOR_MAP_BUNDLE
     assert "WFS.escapeHtml(value, { nullToEmpty: true })" in RISK_PANEL_HTML
     # The old inline replace chains were removed from both pages.
-    assert '.replace(/\'/g, "&#39;")' not in OPERATOR_MAP_HTML
+    assert '.replace(/\'/g, "&#39;")' not in OPERATOR_MAP_BUNDLE
     assert 'String(value == null ? "" : value)' not in RISK_PANEL_HTML
 
 
@@ -158,3 +176,62 @@ def test_shared_js_asset_is_served(client):
     assert "javascript" in response.headers["content-type"]
     assert "WFS.escapeHtml" in response.text
     assert client.get("/static/app.html").status_code == 404
+
+
+def _top_level_declarations(text: str) -> set[str]:
+    """Return identifiers declared at the script's top level.
+
+    operator_map scripts use a 2-space base indent, so only lines starting with
+    exactly two spaces are top-level; anything deeper is inside a function or an
+    object literal and may legitimately repeat across files.
+    """
+    pattern = r"^  (?:const|let|var|function|class)\s+([A-Za-z0-9_]+)"
+    pattern_async = r"^  async\s+function\s+([A-Za-z0-9_]+)"
+    names = set(re.findall(pattern, text, re.MULTILINE))
+    names |= set(re.findall(pattern_async, text, re.MULTILINE))
+    return names
+
+
+def test_operator_map_monolith_is_split_into_ordered_scripts():
+    """Audit A-monolith: operator_map.html must ship as markup only, linking the
+    four scripts in order after the shared app.js, with no inline JS left behind.
+    Each external script is a separate classic script, so strict mode does NOT
+    propagate across them -- every file must open with its own "use strict".
+    The launch call (init().catch) must remain the final executable statement."""
+    # The big inline block is gone: no async functions or inline JS left in HTML.
+    assert "async function" not in OPERATOR_MAP_HTML
+    positions = [
+        OPERATOR_MAP_HTML.index(f"/static/{name}") for name in OPERATOR_SCRIPTS
+    ]
+    assert positions == sorted(positions)  # loaded in the split order
+    assert OPERATOR_MAP_HTML.index('/static/app.js"') < positions[0]
+    # Strict-mode header preserved per file, and the bootstrap stays last.
+    for text in OPERATOR_JS.values():
+        body = text.splitlines()
+        code = next(i for i, ln in enumerate(body) if ln.strip() == '"use strict";')
+        assert body[code + 1].strip()  # real code follows the header
+    init_body = [ln.strip() for ln in OPERATOR_JS["operator_map_init.js"].splitlines()]
+    launch = [i for i, ln in enumerate(init_body) if ln.startswith("init().catch(")]
+    assert launch and launch[-1] == max(i for i, ln in enumerate(init_body) if ln)
+
+
+def test_operator_map_split_has_no_duplicate_top_level_declarations():
+    """Behaviour-safety guard: all classic scripts share one global lexical
+    scope, so a `const`/`let`/`function` name declared at top level in two split
+    files would throw "already declared" and break the page. The contiguous
+    split guarantees disjointness -- this test locks that invariant in."""
+    seen: dict[str, str] = {}
+    for name in OPERATOR_SCRIPTS:
+        for decl in _top_level_declarations(OPERATOR_JS[name]):
+            assert decl not in seen, f"{decl} declared in {seen.get(decl)} and {name}"
+            seen[decl] = name
+
+
+def test_operator_map_scripts_are_served(client):
+    """The split scripts must be whitelisted and served as JavaScript."""
+    for name in OPERATOR_SCRIPTS:
+        response = client.get(f"/static/{name}")
+        assert response.status_code == 200, name
+        assert "javascript" in response.headers["content-type"], name
+    # The whitelist is still explicit: unlisted files are rejected.
+    assert client.get("/static/operator_map_core.html").status_code == 404

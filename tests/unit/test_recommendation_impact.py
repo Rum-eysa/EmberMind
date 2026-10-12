@@ -244,7 +244,9 @@ def test_endpoint_config(client):
 def test_ui_wires_impact_comparison():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "loadImpactComparison" in html
     assert "positioning-impact" in html
     assert "/api/v1/recommendations/impact" in html

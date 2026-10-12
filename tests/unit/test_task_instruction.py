@@ -322,7 +322,9 @@ def test_endpoint_task_cards_config(client):
 def test_ui_wires_task_cards():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "toggleTaskCards" in html
     assert "loadTaskCards" in html
     assert "renderTaskCard" in html

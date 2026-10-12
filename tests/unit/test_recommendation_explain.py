@@ -198,9 +198,9 @@ def test_explain_endpoint_config(client):
 def test_operator_map_has_explain_panel():
     from pathlib import Path
 
-    html = (
-        Path(__file__).resolve().parents[2] / "src" / "static" / "operator_map.html"
-    ).read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "db-why" in html
     assert "explainProposal(" in html
     assert "/api/v1/recommendations/explain" in html

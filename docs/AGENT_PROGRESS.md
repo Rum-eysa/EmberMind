@@ -2168,14 +2168,27 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   birleştirilmedi** (1 vs 2 arg, farklı DOM hedefi) — listede kaldı. Testler:
   `test_shared_escape_html_helper_is_the_single_source`,
   `test_shared_js_asset_is_served`.
-- **Bilinçli ertelenen (onay kapsamı dışında bırakılanlar):** `operator_map.html`
-  monolit bölünmesi (A-1/B-2, yüksek riskli), tam hex/px token göçü, z-index
-  skalasının 28 literal'e bağlanması, `create_fastapi_app` bölünmesi,
+- **Aşama 2 (YÜKSEK dilim) — monolit bölme (bu commit):** Kullanıcı onayıyla
+  `operator_map.html` (6.169 satır) bölündü. Önce **ölçüldü**: inline JS 1410→6321
+  (~4.910 satır, 444 üst-seviye ifade), sıra-duyarlı üst-seviye çalıştırma yalnız
+  3 yerde (`use strict`, tek `addTo(map)` init, sondaki `init().catch()`).
+  Satırlar **verbatim** (dedent yok) 4 sıralı klasik script'e taşındı
+  (`operator_map_core/panels_a/panels_b/init.js`); her dosya `use strict` ile
+  açılıyor (strict mod script'ler arası yayılmaz). **Kanıt:** 4 dosyanın gövdeleri
+  concat == orijinal inline gövde (4.909 satır, bayt-bayt) → davranış değişmedi.
+  HTML 6.169 → **1.382 satır**. `/static` whitelist 4 asset'i JS sunar. Yeni
+  testler: `test_operator_map_monolith_is_split_into_ordered_scripts`,
+  `test_operator_map_split_has_no_duplicate_top_level_declarations`,
+  `test_operator_map_scripts_are_served`. 15 bağlı UI-wiring testi tek mantıksal
+  birim okumaya alındı (`tests/ui_bundle.py`), assert'ler değişmedi.
+- **Bilinçli ertelenen (onay kapsamı dışında bırakılanlar):** tam hex/px token
+  göçü, z-index skalasının 28 literal'e bağlanması, `create_fastapi_app` bölünmesi,
   `session.query`→`select` (A-6), `setStatus/when/save` JS birleştirme
-  (davranış-nötr tek kaynak için elle inceleme ister). Ölü kod A-4
-  kullanıcı kararıyla listede bırakıldı.
-- **Kapılar:** black(temiz 300)/mypy(Success — 195 dosya)/pylint(10.00)/
-  bandit(-ll Medium+High 0)/pytest **1796** (1794 + 2 yeni).
+  (davranış-nötr tek kaynak için elle inceleme ister; ölçüldü: envanter `setStatus(text)`
+  tek-arg `className`'i temizliyor, operatör hiç dokunmuyor → naive merge davranış
+  değiştirir). Ölü kod A-4 kullanıcı kararıyla listede bırakıldı.
+- **Kapılar:** black(temiz 296)/mypy(Success — 195 dosya)/pylint(10.00)/
+  bandit(-ll Medium+High 0)/pytest **1799** (1796 + 3 yeni split testi).
 - **Commit:** `fix(audit): ...` (bu dal).
 
 

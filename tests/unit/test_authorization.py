@@ -348,7 +348,9 @@ def test_legacy_route_still_works_when_enforcement_off(client: TestClient):
 def test_ui_wires_authorization_gating():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     for needle in (
         "/api/v1/authz/effective",
         "loadAuthorization",

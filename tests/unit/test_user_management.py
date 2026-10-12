@@ -484,7 +484,9 @@ def test_route_enforced_actor_is_proven_email():
 def test_ui_wires_user_management_panel():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     for needle in (
         "/api/v1/users/manage",
         "toggleUserMgmtPanel",

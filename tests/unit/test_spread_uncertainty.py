@@ -392,7 +392,10 @@ def test_uncertainty_in_layer_catalog_and_endpoint(client):
 
 
 def test_ui_shows_confidence_band_and_badge(client):
-    html = client.get("/ui").text
+    assert client.get("/ui").status_code == 200
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert 'id="confidence-badge"' in html
     assert "renderConfidence" in html
     assert "Belirsizlik bandı" in html

@@ -41,6 +41,31 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     listeye alındı. `inventory.html`'de `escapeHtml` yok, etkilenmedi.
   - `tests/unit/test_design_system.py`: `test_shared_escape_html_helper_is_the_single_source`
     ve `test_shared_js_asset_is_served` eklendi (1796 test).
+- Kod kalitesi denetimi (Aşama 2, monolit bölme) — `operator_map.html` 6.169 →
+  1.382 satır (yalnız markup), JS **davranış-nötr** dış script'lere taşındı:
+  - Ölçüm (KURAL 2): inline JS satır 1410→6321 (~4.910 satır, 444 üst-seviye
+    ifade); sıra-duyarlı üst-seviye **çalıştırma** yalnız 3 yerde (`"use strict"`,
+    tek top-level `}).addTo(map)` init, sondaki `init().catch()` bootstrap) →
+    klasik "tüm tanımlar → en son bootstrap" düzeni. Kesim noktaları (1666
+    `loadLayer`, 3430 `refreshActiveLayers`, 5920 `init`) **tam ifade sınırı**.
+  - Yöntem: satırlar **birebir verbatim** 4 sıralı klasik script'e kopyalandı
+    (`operator_map_core/panels_a/panels_b/init.js`); **dedent yapılmadı** (çok
+    satırlı template-literal içeriğini bozardı). Tüm klasik script'ler tek global
+    sözel kapsamı paylaştığı için üst-seviye `const/let/function` dosyalar
+    arası görünür; strict mod script'ler arası **yayılmediği** için her dosya
+    kendi `"use strict"` başlığıyla açılıyor. Yükleme sırası HTML'de korundu.
+  - **Kanıt**: 4 dosyanın gövde-kuyrukları concat == orijinal inline gövde
+    (4.909 satır, bayt-bayt). Uygulama davranışı değişmedi; yalnız kaynak
+    konumu değişti.
+  - Kök-çözüm testi: `test_operator_map_monolith_is_split_into_ordered_scripts`
+    (markup-only, sıralı link, per-file `use strict`, bootstrap sonda) ve
+    `test_operator_map_split_has_no_duplicate_top_level_declarations` (aynı
+    üst-seviye ad iki dosyada "already declared" patlardı → ayrık küme kilidi)
+    ve `test_operator_map_scripts_are_served`. `/static` whitelist'i 4 asset'i
+    `application/javascript` olarak sunuyor.
+  - 15 bağlı UI-wiring testi artık HTML+script'leri **tek mantıksal birim**
+    olarak okuyor (`tests/ui_bundle.py::operator_map_bundle`); assert'ler
+    değişmedi, yalnız kaynak birleştirildi (davranış testi değil, wiring koruması).
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)

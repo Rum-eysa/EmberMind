@@ -12,7 +12,17 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 STYLEGUIDE_PAGE = STATIC_DIR / "styleguide.html"
 
 # Whitelist of servable static assets; no arbitrary file reads.
-STATIC_ASSETS = {"tokens.css", "components.css", "app.js"}
+STATIC_ASSETS = {
+    "tokens.css",
+    "components.css",
+    "app.js",
+    # operator_map.html monolith split (code-quality audit): the page's JS
+    # lives in these ordered classic scripts, loaded in document order.
+    "operator_map_core.js",
+    "operator_map_panels_a.js",
+    "operator_map_panels_b.js",
+    "operator_map_init.js",
+}
 
 
 def register_design_system_routes(

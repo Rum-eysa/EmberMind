@@ -474,7 +474,9 @@ def test_endpoint_login_lockout_returns_423(client):
 def test_ui_wires_auth_panel_and_flow():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert 'id="auth-open"' in html
     assert 'id="auth-panel"' in html
     assert "toggleAuthPanel" in html

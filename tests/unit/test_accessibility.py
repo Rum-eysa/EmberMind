@@ -185,7 +185,9 @@ def test_endpoint_shortcuts(client):
 def test_ui_wires_accessibility_panel_and_global_shortcuts():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert 'id="a11y-open"' in html
     assert 'id="a11y-panel"' in html
     assert "toggleAccessibilityPanel" in html

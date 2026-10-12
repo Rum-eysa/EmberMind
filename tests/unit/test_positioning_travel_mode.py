@@ -240,7 +240,9 @@ def test_endpoint_returns_travel_mode(client, session):
 def test_ui_renders_travel_mode_badge():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "mode-air" in html
     assert "mode-road" in html
     assert "Hava (kuş uçuşu)" in html

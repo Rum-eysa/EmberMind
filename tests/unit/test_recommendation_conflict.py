@@ -257,7 +257,9 @@ def test_endpoint_config_exposes_conflict(client):
 def test_ui_wires_assignment_release():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "toggleAssignments" in html
     assert "loadAssignments" in html
     assert "/api/v1/recommendations/assignments" in html

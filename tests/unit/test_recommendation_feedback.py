@@ -192,7 +192,9 @@ def test_feedback_endpoint_scoped_and_config(client, session):
 def test_ui_wires_feedback_panel():
     from pathlib import Path
 
-    html = Path("src/static/operator_map.html").read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert "toggleFeedback" in html
     assert "loadFeedback" in html
     assert "renderFeedback" in html

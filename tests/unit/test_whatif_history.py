@@ -140,9 +140,9 @@ def test_endpoint_clear(client):
 def test_operator_map_has_history_toolbar():
     from pathlib import Path
 
-    html = (
-        Path(__file__).resolve().parents[2] / "src" / "static" / "operator_map.html"
-    ).read_text(encoding="utf-8")
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert 'id="whatif-hist-list"' in html
     assert 'id="whatif-hist-revert"' in html
     assert "recordWhatifHistory(body" in html

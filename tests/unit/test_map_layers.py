@@ -302,7 +302,10 @@ def test_ui_page_served_with_toggles_and_slider(client):
     response = client.get("/ui")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    html = response.text
+    from tests.ui_bundle import operator_map_bundle
+
+    # Wiring lives in the page plus its split scripts (see the monolith split).
+    html = operator_map_bundle()
     # Katman anahtarları (Leaflet layer control) ve zaman kaydırıcısı.
     assert 'id="horizon-slider"' in html
     assert "L.control.layers" in html

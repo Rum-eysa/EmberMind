@@ -196,7 +196,9 @@ def test_evaluate_endpoint_writes_feed(client, session):
 def test_operator_map_embeds_alert_notification(client):
     response = client.get("/ui")
     assert response.status_code == 200
-    html = response.text
+    from tests.ui_bundle import operator_map_bundle
+
+    html = operator_map_bundle()
     assert 'id="alert-banner"' in html
     assert 'id="sound-toggle"' in html
     assert "/api/v1/risk-index/alerts/evaluate" in html
