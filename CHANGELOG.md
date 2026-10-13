@@ -151,6 +151,27 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - **Kanıt (davranış-nötr):** app importu temiz (288 route); black değişmez ·
     mypy 198 Success · pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test**
     birebir geçiyor. Kalan inline domain: events PUT/DELETE (sonraki adım).
+- Kod kalitesi denetimi (Aşama 2, A-6 backend — `create_fastapi_app` parçalama,
+  adım 4/event-lifecycle — son inline domain): aynı `register_*_routes` kalıbıyla
+  elle yangın-olayı mutasyon uçları (events/{key} PUT + events/{key} DELETE)
+  factory'den ayrıştırıldı:
+  - `src/routes/event_lifecycle.py` yeni modülü: `ManualFireEventUpdateRequest`
+    modeli + `register_event_lifecycle_routes(api, database, _settings)` içine
+    2 route. Model ve route gövdeleri (geniş-`except` + `_LOG.exception` dahil)
+    **verbatim** taşındı; modül kendi `logging` logger'ını tanımlıyor.
+  - `settings` bu iki elde kullanılmıyor (yalnız `database` gerekiyor) → argüman
+    projedeki mevcut kalıba uygun `_settings` olarak adlandırıldı (bos çizgi
+    öneki pylint W0613'ü susturur; çağrı konumsal, imza değişmez).
+  - `fastapi_app.py`: kesintisiz PUT/DELETE bloğu kaldırılıp **aynı konumda**
+    (grid+pipeline kaydından hemen sonra, `return api` öncesi) tek
+    `register_event_lifecycle_routes(...)` çağrısı kondu → kayıt sırası/OpenAPI
+    birebir korunuyor. Model + `_LOG` kaldırıldı; 7 artık-kullanılmayan import
+    temizlendi (`logging`, `typing.Any`, `HTTPException`, `BaseModel`,
+    `sqlalchemy.delete/select`, `FireEvent/FireForecast`, `manual_fire_event`).
+    Factory'de artık yalnız `/health` + `/api/v1` satır içi kalıyor.
+  - **Kanıt (davranış-nötr):** app importu temiz (288 route, `/api/v1/events/
+    {event_key}` GET+PUT+DELETE aynı yolda); black değişmez · mypy 199 Success ·
+    pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test** birebir geçiyor.
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)

@@ -2223,6 +2223,21 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   aynı). Kanıt: app importu temiz (288 route), black değişmez, mypy 198 Success,
   pylint 10.00, bandit `-ll` çıkış 0, 1799 integration testi birebir geçiyor →
   davranış-nötr. Kalan inline domain: events PUT/DELETE (sonraki adım).
+- **Aşama 2 (YÜKSEK) — A-6 backend `create_fastapi_app` parçalama, adım
+  4/event-lifecycle (bu commit — son inline domain):** Aynı `register_*_routes`
+  kalıbıyla elle yangın-olayı mutasyon uçları (events/{key} PUT + DELETE)
+  ayrıştırıldı: `ManualFireEventUpdateRequest` modeli + 2 route (geniş-`except`
+  ve `_LOG.exception` dahil) **verbatim** `src/routes/event_lifecycle.py` içine
+  taşındı; modül kendi logging logger'ını tanımlıyor. `settings` bu iki elde
+  kullanılmadığı için argüman projedeki kalıba uygun `_settings` adını aldı
+  (bos çizgi öneki W0613'ü susturur; çağrı konumsal). `fastapi_app.py` kesintisiz
+  blok kaldırılıp **aynı konumda** (grid+pipeline sonrası, `return api` öncesi)
+  tek çağrı kondu; model + `_LOG` silindi; 7 artık-kullanılmayan import temizlendi
+  (logging, Any, HTTPException, BaseModel, sqlalchemy delete/select,
+  FireEvent/FireForecast, manual_fire_event). Factory'de artık yalnız `/health` +
+  `/api/v1` satır içi kalıyor. Kanıt: app importu temiz (288 route), black
+  değişmez, mypy 199 Success, pylint 10.00, bandit `-ll` çıkış 0, 1799 test
+  birebir geçiyor → davranış-nötr. A-6 factory bölme serisi tamamlandı.
 - **Tur dışı UI düzeltmesi — operatör haritası üst barı (bu commit):** Kullanıcı
   talebiyle `#horizon-bar` yeniden düzenlendi. Kök neden: bar `left:50% +
   translateX(-50%)` ile ortalanmış mutlak konumda + ~35 kontrol tek satırda → iki

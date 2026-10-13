@@ -1,15 +1,10 @@
 """Single public FastAPI application for wildfire monitoring."""
-import logging
 from contextlib import asynccontextmanager
-from typing import Any
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import delete, select
+from fastapi import FastAPI
 
 from src.config.settings import get_config
 from src.database import Database
-from src.models.spatial import FireEvent, FireForecast
 from src.routes.accessibility import register_accessibility_routes
 from src.routes.api_access import register_api_access_routes
 from src.routes.api_docs import register_api_docs_routes
@@ -26,6 +21,7 @@ from src.routes.data_governance import register_data_governance_routes
 from src.routes.data_quality import register_data_quality_routes
 from src.routes.decision_support import register_decision_support_routes
 from src.routes.design_system import register_design_system_routes
+from src.routes.event_lifecycle import register_event_lifecycle_routes
 from src.routes.event_timeline import register_event_timeline_routes
 from src.routes.exposure import register_exposure_routes
 from src.routes.external_support import register_external_support_routes
@@ -101,19 +97,7 @@ from src.services.api_docs import (
     OPENAPI_TAGS,
     OPENAPI_TERMS,
 )
-from src.services.manual_fire_event import VALID_SEVERITIES, VALID_STATUSES
 from src.services.observability import setup_logging
-
-_LOG = logging.getLogger(__name__)
-
-
-class ManualFireEventUpdateRequest(BaseModel):
-    """Request payload for updating a manual fire event."""
-
-    name: str | None = None
-    severity: str | None = None
-    status: str | None = None
-    notes: str | None = None
 
 
 def create_fastapi_app(config_name: str | None = None) -> FastAPI:
@@ -256,123 +240,7 @@ def create_fastapi_app(config_name: str | None = None) -> FastAPI:
 
     register_grid_pipeline_routes(api, database, settings)
 
-    @api.put(
-        "/api/v1/events/{event_key}",
-        tags=["events"],
-    )
-    def update_manual_event(
-        event_key: str,
-        req: ManualFireEventUpdateRequest,
-    ) -> dict[str, Any]:
-        """Update an existing fire event."""
-        try:
-            with database.session() as session:
-                event = session.scalar(
-                    select(FireEvent).where(FireEvent.event_key == event_key)
-                )
-
-                if not event:
-                    raise HTTPException(
-                        status_code=404,
-                        detail={
-                            "status": "not_found",
-                            "error": f"Event {event_key} not found",
-                        },
-                    )
-
-                # Update fields if provided (controlled vocabularies enforced)
-                if req.name is not None:
-                    event.name = req.name  # type: ignore[assignment]
-                if req.severity is not None:
-                    if req.severity not in VALID_SEVERITIES:
-                        raise HTTPException(
-                            status_code=400,
-                            detail={
-                                "status": "error",
-                                "error": (
-                                    f"invalid severity '{req.severity}'; "
-                                    f"expected one of {list(VALID_SEVERITIES)}"
-                                ),
-                            },
-                        )
-                    event.severity = req.severity  # type: ignore[assignment]
-                if req.status is not None:
-                    if req.status not in VALID_STATUSES:
-                        raise HTTPException(
-                            status_code=400,
-                            detail={
-                                "status": "error",
-                                "error": (
-                                    f"invalid status '{req.status}'; "
-                                    f"expected one of {list(VALID_STATUSES)}"
-                                ),
-                            },
-                        )
-                    event.status = req.status  # type: ignore[assignment]
-                if req.notes is not None:
-                    event.notes = req.notes  # type: ignore[assignment]
-
-                session.flush()
-
-                return {
-                    "status": "updated",
-                    "event": event.as_dict,
-                }
-        except HTTPException:
-            raise
-        except Exception as exc:  # pylint: disable=broad-except
-            _LOG.exception("failed to update fire event %s", event_key)
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "status": "error",
-                    "error": "internal server error while updating event",
-                },
-            ) from exc
-
-    @api.delete(
-        "/api/v1/events/{event_key}",
-        tags=["events"],
-    )
-    def delete_manual_event(event_key: str) -> dict[str, Any]:
-        """Delete a fire event."""
-        try:
-            with database.session() as session:
-                event = session.scalar(
-                    select(FireEvent).where(FireEvent.event_key == event_key)
-                )
-
-                if not event:
-                    raise HTTPException(
-                        status_code=404,
-                        detail={
-                            "status": "not_found",
-                            "error": f"Event {event_key} not found",
-                        },
-                    )
-
-                # App-level cascade: stored forecasts belong to this event and
-                # must not outlive it as orphans.
-                session.execute(
-                    delete(FireForecast).where(FireForecast.event_key == event_key)
-                )
-                session.delete(event)
-
-                return {
-                    "status": "deleted",
-                    "event_key": event_key,
-                }
-        except HTTPException:
-            raise
-        except Exception as exc:  # pylint: disable=broad-except
-            _LOG.exception("failed to delete fire event %s", event_key)
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "status": "error",
-                    "error": "internal server error while deleting event",
-                },
-            ) from exc
+    register_event_lifecycle_routes(api, database, settings)
 
     return api
 
