@@ -30,7 +30,7 @@ import json
 import re
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.models.scenario_editor import CustomScenario
@@ -170,7 +170,8 @@ def create(
     clean_seed = _validate_seed(seed)
     normalized = _validated_config(config)
     cap = _max_items(settings)
-    if session.query(CustomScenario).count() >= cap:
+    existing = session.scalar(select(func.count()).select_from(CustomScenario))
+    if (existing or 0) >= cap:
         raise ScenarioEditorError(
             f"custom scenario limit reached ({cap}); delete one first"
         )
