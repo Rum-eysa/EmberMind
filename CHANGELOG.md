@@ -187,6 +187,28 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - **Kanıt (davranış-nötr):** black değişmez · mypy 199 Success · pylint 10.00 ·
     bandit `-ll` çıkış 0 · **1799 test** birebir geçiyor. `src/` artık hiçbir
     `.query(` legacy çağrısı içermiyor.
+- Kod kalitesi denetimi (Aşama 2, MEDIUM — paylaşılan route yardımcısı `parse_as_of`):
+  - Ölçüm (kapsam HIGH→MEDIUM'a genişletildi): `src/routes`+`src/services` içinde
+    aynı-adlı yardımcılar sayıldı. Çoğu **yanlış-pozitif** — aynı adı taşıyor ama
+    davranışları domain-bazlı ayrışıyor: `_http_error` (×12) farklı HTTP
+    durumlarına eşliyor (400 / 404 "bulunamadı"/"not found" / 423 kilitli) ve
+    farklı tiplenmiş servis hatası alıyor; `_max_limit` (×6) farklı `settings`
+    özniteliklerini okuyor; `_new_key` (×4) farklı anahtar ön-ekleri üretiyor
+    (`dec-`/`szu-`/`szv-`); `_rank` (×4) farklı sıra-tablolarına bakıyor
+    (`_SEVERITY_RANK` vs `_LEVEL_RANK`). Bunları birleştirmek **davranış
+    değiştirirdi** → kapsam gereği dokunulmadı (ölç + listele).
+  - Tek gerçekten **bayt-bayta özdeş** yeniden kullanım: `_parse_as_of` (×4) —
+    `isolation_forest_anomaly`, `signal_baseline`, `signal_baseline_seasonal`,
+    `silent_zone_confidence`. Aynı gövde, aynı `400` durumu, aynı
+    `"as_of YYYY-MM-DD biçiminde olmalı"` mesajı.
+  - Kök-çözüm: `src/routes/_common.py` (FastAPI `HTTPException` fırlattığı için
+    saf `src/utils` yerine route katmanında) içine tek `parse_as_of` kondu; dört
+    modül `from src.routes._common import parse_as_of as _parse_as_of` ile
+    bağlıyor — çağrı noktaları **değişmedi**. Her modülden yalnızca
+    `_parse_as_of` tarafından kullanılan `from datetime import date` importu kaldırıldı;
+    `HTTPException` başka handler'larda da kullanıldığı için korundu.
+  - **Kanıt (davranış-nötr):** black değişmez · mypy 200 Success (+1 modül) ·
+    pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test** birebir geçiyor.
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)

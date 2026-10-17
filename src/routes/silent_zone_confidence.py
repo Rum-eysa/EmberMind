@@ -4,29 +4,17 @@ Read-only: the false-alarm confidence ladder is derived on each request from the
 EM-035 per-cell baseline (no DB access, nothing is written). These feed the
 operator map's "yanlış alarm önleme" confidence panel.
 """
-from datetime import date
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
 from src.database import Database
+from src.routes._common import parse_as_of as _parse_as_of
 from src.services.silent_zone_confidence import (
     SilentZoneConfidenceError,
     silent_zone_confidence_config,
     silent_zone_confidence_report,
 )
-
-
-def _parse_as_of(value: str | None) -> date | None:
-    if value is None:
-        return None
-    try:
-        return date.fromisoformat(value.strip())
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={"status": "error", "error": "as_of YYYY-MM-DD biçiminde olmalı"},
-        ) from exc
 
 
 def register_silent_zone_confidence_routes(

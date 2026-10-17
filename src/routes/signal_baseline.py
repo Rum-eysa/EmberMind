@@ -5,12 +5,12 @@ selected signal source, so nothing is written to the database. These feed the
 operator map's silent-zone baseline panel.
 """
 
-from datetime import date
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
 from src.database import Database
+from src.routes._common import parse_as_of as _parse_as_of
 from src.services.signal_baseline import (
     SignalBaselineError,
     baseline_cell,
@@ -25,18 +25,6 @@ def _http_error(exc: SignalBaselineError) -> HTTPException:
     return HTTPException(
         status_code=status, detail={"status": "error", "error": message}
     )
-
-
-def _parse_as_of(value: str | None) -> date | None:
-    if value is None:
-        return None
-    try:
-        return date.fromisoformat(value.strip())
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={"status": "error", "error": "as_of YYYY-MM-DD biçiminde olmalı"},
-        ) from exc
 
 
 def register_signal_baseline_routes(
