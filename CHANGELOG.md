@@ -172,6 +172,21 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
   - **Kanıt (davranış-nötr):** app importu temiz (288 route, `/api/v1/events/
     {event_key}` GET+PUT+DELETE aynı yolda); black değişmez · mypy 199 Success ·
     pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test** birebir geçiyor.
+- Kod kalitesi denetimi (Aşama 2, A-6 — `session.query`→`select` göçü):
+  `src/` içinde kalan **son** SQLAlchemy 1.x legacy çağrısı kaldırıldı:
+  - `src/services/scenario_editor.py:create` içindeki kapasite kontrolü
+    `session.query(CustomScenario).count()` → `session.scalar(select(func.count())
+    .select_from(CustomScenario))` (2.0 stili) ile değiştirildi; aynı dosya
+    zaten `select()` kullanıyordu, tek satır içi istisna kalmıştı.
+  - mypy `session.scalar` dönüşünü `int | None` tipler (COUNT asla NULL döndürmez
+    ama tip Optional) → `>= cap` karşılaştırması `[operator]` hatası verdi. Legacy
+    `.count()` garanti `int` döndürdüğü için **davranış-nötr** karşılık: sonucu
+    `existing` değişkenine al + `(existing or 0) >= cap` (`or 0` yalnız imkânsız
+    `None`/`0` ucunu etkiler, pozitif sayımı değiştirmez).
+  - `func` importu eklendi (`from sqlalchemy import func, select`).
+  - **Kanıt (davranış-nötr):** black değişmez · mypy 199 Success · pylint 10.00 ·
+    bandit `-ll` çıkış 0 · **1799 test** birebir geçiyor. `src/` artık hiçbir
+    `.query(` legacy çağrısı içermiyor.
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)

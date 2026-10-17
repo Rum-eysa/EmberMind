@@ -2238,6 +2238,18 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   `/api/v1` satır içi kalıyor. Kanıt: app importu temiz (288 route), black
   değişmez, mypy 199 Success, pylint 10.00, bandit `-ll` çıkış 0, 1799 test
   birebir geçiyor → davranış-nötr. A-6 factory bölme serisi tamamlandı.
+- **Aşama 2 (YÜKSEK) — A-6 `session.query`→`select` göçü (bu commit):** `src/`
+  içinde kalan **son** SQLAlchemy 1.x legacy çağrısı kaldırıldı.
+  `src/services/scenario_editor.py:create` kapasite kontrolü
+  `session.query(CustomScenario).count()` →
+  `session.scalar(select(func.count()).select_from(CustomScenario))` (2.0 stili);
+  aynı dosya zaten `select()` kullanıyordu. mypy `session.scalar` dönüşünü
+  `int | None` tipledi (COUNT NULL dönmez ama tip Optional) → `>= cap`
+  `[operator]` hatası; legacy `.count()` garanti `int` olduğundan davranış-nötr
+  karşılık `(existing or 0) >= cap` (sonuç `existing`'e alındı; `or 0` yalnız
+  imkânsız `None`/`0` ucunu etkiler). `func` importu eklendi. Kanıt: black
+  değişmez, mypy 199 Success, pylint 10.00, bandit `-ll` çıkış 0, 1799 test
+  birebir geçiyor → davranış-nötr. `src/` artık hiç `.query(` içermiyor.
 - **Tur dışı UI düzeltmesi — operatör haritası üst barı (bu commit):** Kullanıcı
   talebiyle `#horizon-bar` yeniden düzenlendi. Kök neden: bar `left:50% +
   translateX(-50%)` ile ortalanmış mutlak konumda + ~35 kontrol tek satırda → iki
@@ -2261,8 +2273,9 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   göçü (renk token'ları tema-bağımlı → dark-mode'da literal ile aynı değil,
   güvenli otomasyon yok), z-index skalasının 28 literal'e bağlanması (görsel
   davranış değiştirir), `create_fastapi_app` bölünmesinin kalan domain'leri
-  (grid, pipeline, events PUT/DELETE — core-data + spatial-events tamamlandı),
-  `session.query`→`select` (A-6), `setStatus/when/save` JS birleştirme
+  (grid, pipeline, events PUT/DELETE — core-data + spatial-events + grid-pipeline
+  + event-lifecycle tamamlandı, factory'de yalnız /health + /api/v1 satır içi),
+  `setStatus/when/save` JS birleştirme
   (davranış-nötr tek kaynak için elle inceleme ister; ölçüldü: envanter `setStatus(text)`
   tek-arg `className`'i temizliyor, operatör hiç dokunmuyor → naive merge davranış
   değiştirir). Ölü kod A-4 kullanıcı kararıyla listede bırakıldı.
