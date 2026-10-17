@@ -5,12 +5,12 @@ from the selected source on every request, so nothing is written to the database
 These feed the operator map's seasonal-baseline panel and expose the flat-vs-
 seasonal false-alarm comparison and the daily-refresh recompute.
 """
-from datetime import date
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
 from src.database import Database
+from src.routes._common import parse_as_of as _parse_as_of
 from src.services.signal_baseline_seasonal import (
     SignalSeasonalError,
     refresh_daily_baselines,
@@ -22,18 +22,6 @@ from src.services.signal_baseline_seasonal import (
 def _http_error(exc: SignalSeasonalError) -> HTTPException:
     message = str(exc)
     return HTTPException(status_code=400, detail={"status": "error", "error": message})
-
-
-def _parse_as_of(value: str | None) -> date | None:
-    if value is None:
-        return None
-    try:
-        return date.fromisoformat(value.strip())
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={"status": "error", "error": "as_of YYYY-MM-DD biçiminde olmalı"},
-        ) from exc
 
 
 def register_signal_baseline_seasonal_routes(

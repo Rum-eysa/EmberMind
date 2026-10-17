@@ -7,12 +7,12 @@ anomaly-scoring panel and expose the real-time (15-min cadence) sweep that the
 Celery beat drives.
 """
 
-from datetime import date
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 
 from src.database import Database
+from src.routes._common import parse_as_of as _parse_as_of
 from src.services.isolation_forest_anomaly import (
     IsolationForestAnomalyError,
     anomaly_config,
@@ -24,18 +24,6 @@ from src.services.isolation_forest_anomaly import (
 def _http_error(exc: IsolationForestAnomalyError) -> HTTPException:
     message = str(exc)
     return HTTPException(status_code=400, detail={"status": "error", "error": message})
-
-
-def _parse_as_of(value: str | None) -> date | None:
-    if value is None:
-        return None
-    try:
-        return date.fromisoformat(value.strip())
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={"status": "error", "error": "as_of YYYY-MM-DD biçiminde olmalı"},
-        ) from exc
 
 
 def register_isolation_forest_anomaly_routes(

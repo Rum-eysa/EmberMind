@@ -2250,6 +2250,20 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   imkânsız `None`/`0` ucunu etkiler). `func` importu eklendi. Kanıt: black
   değişmez, mypy 199 Success, pylint 10.00, bandit `-ll` çıkış 0, 1799 test
   birebir geçiyor → davranış-nötr. `src/` artık hiç `.query(` içermiyor.
+- **Aşama 2 (MEDIUM) — paylaşılan route yardımcısı `parse_as_of` (bu commit):**
+  Onaylı HIGH+davranış-nötr kapsamı bitince kullanıcı MEDIUM'a genişletmeyi
+  seçti. Ölçüm: `src/routes`/`src/services` aynı-adlı yardımcılarının çoğu
+  yanlış-pozitif (`_http_error`×12 farklı HTTP durumlarına eşliyor 400/404/423,
+  `_max_limit`×6 farklı `settings` özniteliği, `_new_key`×4 farklı ön-ek,
+  `_rank`×4 farklı sıra-tablosu) → birleştirmek davranış değiştirirdi, dokunulmadı.
+  Tek bayt-bayta özdeş: `_parse_as_of`×4 (`isolation_forest_anomaly`,
+  `signal_baseline`, `signal_baseline_seasonal`, `silent_zone_confidence`).
+  `src/routes/_common.py` içine tek `parse_as_of` kondu (HTTPException fırlattığı
+  için `src/utils` değil route katmanı); dört modül `import ... as _parse_as_of`
+  ile bağlıyor (çağrı noktaları değişmedi), her modülden artık-kullanılmayan
+  `date` importu silindi (`HTTPException` başka handler'larda kaldığı için korundu).
+  Kanıt: black değişmez, mypy 200 Success (+1 modül), pylint 10.00, bandit `-ll`
+  çıkış 0, 1799 test birebir geçiyor → davranış-nötr.
 - **Tur dışı UI düzeltmesi — operatör haritası üst barı (bu commit):** Kullanıcı
   talebiyle `#horizon-bar` yeniden düzenlendi. Kök neden: bar `left:50% +
   translateX(-50%)` ile ortalanmış mutlak konumda + ~35 kontrol tek satırda → iki
@@ -2276,9 +2290,11 @@ hesaplanır; önerilerde görünür. E5 Must (sp5).
   (grid, pipeline, events PUT/DELETE — core-data + spatial-events + grid-pipeline
   + event-lifecycle tamamlandı, factory'de yalnız /health + /api/v1 satır içi),
   `setStatus/when/save` JS birleştirme
-  (davranış-nötr tek kaynak için elle inceleme ister; ölçüldü: envanter `setStatus(text)`
-  tek-arg `className`'i temizliyor, operatör hiç dokunmuyor → naive merge davranış
-  değiştirir). Ölü kod A-4 kullanıcı kararıyla listede bırakıldı.
+  (ölçüldü: `when` bir fonksiyon değil yerel `const`, `save`ler alakasız
+  (form-save vs saveSound vs saveScenario) → birleştirilecek ortak kaynak yok;
+  tek gerçek çift `setStatus` iki yalıtılmış bağlamda **farklı davranıyor**:
+  envanter `setStatus(text, isError)` `className`'i de ayarlıyor, operatör
+  `setStatus(text)` hiç dokunmuyor → naive merge davranış değiştirir). Ölü kod A-4 kullanıcı kararıyla listede bırakıldı.
 - **Kapılar:** black(temiz 298)/mypy(Success — 197 dosya)/pylint(10.00)/
   bandit(-ll Medium+High 0)/pytest **1799**.
 - **Commit:** `fix(audit): ...` (bu dal).
