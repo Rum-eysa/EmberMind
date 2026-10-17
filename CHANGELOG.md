@@ -5,6 +5,20 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
 ## [Unreleased]
 
 ### Fixed
+- Operatör haritası üst barı (`#horizon-bar`) estetik/düzen düzeltmesi (kullanıcı
+  talebi): bar **`left:50% + translateX(-50%)` ile ortalanmış mutlak** konumdaydı ve
+  ~35 kontrolü tek satıra sığdırmaya çalıştığı için iki uçtan ekran dışına taşıyor,
+  bir kısmı kesiliyordu. Kök-çözüm: (1) bar artık **tam genişlikte, sola hizalı**
+  (`left:12px; right:12px`) ve `flex-wrap` ile dar ekranda düzgün sarıyor — taşma/
+  kesilme yok. (2) ~23 panel-açma butonu tek **"Paneller ▾"** `<details>` açılır
+  menüsüne toplandı (iki sütunlu grid, scroll'lu); Ufuk kontrolleri + What-If +
+  rozetler + Ses üstte görünür kaldı. (3) Menüden panel seçilince menü otomatik
+  kapanıyor (`operator_map_init.js` içine işlev-kapsamlı delege dinleyici; HTML
+  işaret dili saf kalır, split-monolit testi geçmeye devam eder). Tüm `id`'ler
+  (`horizon-slider`, `*-open`) korundu → JS bağlayıcıları ve testler kırılmadı.
+  (4) Devam: "Paneller" menüsü **İzleme / Analiz / Yönetim** başlıklarıyla üç
+  gruba ayrıldı (23 buton konu bazlı yeniden sıralandı; `hb-menu-panel` +
+  `hb-menu-group`/`hb-menu-title` CSS) — arama maliyeti azaldı, `id`'ler yine aynı.
 - Kod kalitesi denetimi (Aşama 2, tur dışı bakım) — paylaşılan duyarlı/erişilebilir katman:
   - `tokens.css` içine tek `--focus-ring` jetonu eklendi; `components.css` sonuna
     **sayfalar-arası ortak** iki kural kondu: (1) `table { max-width:100% }` ve
@@ -87,6 +101,77 @@ Tüm değişiklikleri bu dosyada dokümante ediyoruz.
     **1799 integration testi** (doğrudan `create_fastapi_app("testing")` üzerinden)
     birebir geçiyor → route'lar aynı davranıyor. Kalan domain'ler (spatial/events,
     grid, pipeline, CRUD) sonraki adımlar.
+- Kod kalitesi denetimi (Aşama 2, A-6 backend — `create_fastapi_app` parçalama,
+  adım 2/spatial-events): aynı `register_*_routes` kalıbıyla uzamsal + elle
+  yangın-olayı domain'i (events listesi GET + events/{key} GET + silent-regions
+  GET + polygon-intersection POST + events/manual POST) factory'den ayrıştırıldı:
+  - `src/routes/spatial_events.py` yeni modülü: 3 Pydantic modeli
+    (`ManualFireEventRequest`, `ManualFireEventResponse`,
+    `PolygonIntersectionRequest`) + `parse_datetime` helper'ı +
+    `register_spatial_event_routes(api, database, settings)` içine 5 route. Model,
+    helper ve route gövdeleri **verbatim** taşındı.
+  - `fastapi_app.py`: inline route bloğu (150 satır) kaldırılıp **aynı
+    konumda** tek `register_spatial_event_routes(...)` çağrısı kondu → route
+    kayıt sırası (ve OpenAPI yüzeyi) birebir korunuyor (kesintisiz blok, yerinde
+    çağrı). 632 satıra indi; `ManualFireEventUpdateRequest` ile PUT/DELETE
+    inline kaldı (grid/pipeline bloklarıyla iç içe → sırayı bozmamak için bu
+    adımda bırakıldı). Artık-kullanılmayan importlar temizlendi (datetime,
+    SilentRegion, safe_record_update, DuplicateFireEventError/ManualFireEventError/
+    create_manual_fire_event/trigger_prediction_for_event, SpatialQueryError/
+    execute_polygon_intersection_query, SpreadError).
+  - **Kanıt (davranış-nötr):** app importu temiz; black 303 dosya değişmez ·
+    mypy 197 Success · pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test**
+    birebir geçiyor. Kalan domain'ler (grid, pipeline, events PUT/DELETE)
+    sonraki adımlar.
+- Kod kalitesi denetimi (Aşama 2, A-6 backend — `create_fastapi_app` parçalama,
+  adım 3/grid-pipeline): aynı `register_*_routes` kalıbıyla ızgara-standartı +
+  veri-hattı denetim domain'i (grid: pilot-region GET + transform-coordinate POST
+  + resample-30m POST; pipeline: status GET + jobs GET + trigger POST) factory'den
+  ayrıştırıldı:
+  - `src/routes/grid_pipeline.py` yeni modülü: 5 Pydantic modeli
+    (`PipelineJobResponse`, `PipelineJobsResponse`, `PipelineTriggerRequest`,
+    `TransformCoordinateRequest`, `ResampleGridRequest`) +
+    `register_grid_pipeline_routes(api, database, settings)` içine 6 route (grid
+    3 → pipeline 3). Model ve route gövdeleri **verbatim** taşındı.
+  - Grid ve pipeline **tek fonksiyonda birleştirildi** (iki ayrı modül değil):
+    grid uçları `database`/`settings`'i hiç, pipeline uçları ikisini de kullanıyor
+    → ortak imzada hiçbir argüman atıl kalmıyor (pylint W0613 yok).
+  - `fastapi_app.py`: kesintisiz grid+pipeline inline bloğu kaldırılıp **aynı
+    konumda** tek `register_grid_pipeline_routes(...)` çağrısı kondu → route kayıt
+    sırası (ve OpenAPI yüzeyi) birebir korunuyor. 573 satıra indi (380 satır
+    gövde); `Query` + 10 artık-kullanılmayan servis importu temizlendi
+    (effis/fire_sync/firms/fwi/grid_standard/land_cover/pipeline_tracker/
+    road_network/topography/weather; `manual_fire_event` ve `observability` kaldı).
+    events PUT/DELETE ile `/health` + `/api/v1` bilinçli olarak yerinde kaldı.
+  - **Test hedefi taşıması (davranış-nötr):** `test_pipeline_fastapi_endpoints`
+    monkeypatch'leri `src.fastapi_app.sync_*` yerine `src.routes.grid_pipeline.sync_*`
+    hedefliyor — route'un kapanışı (closure) bu adları artık yeni modül
+    isim uzamından (namespace) çözüyor; patch hedefi taşınan kodu izliyor, route
+    davranışı aynı.
+  - **Kanıt (davranış-nötr):** app importu temiz (288 route); black değişmez ·
+    mypy 198 Success · pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test**
+    birebir geçiyor. Kalan inline domain: events PUT/DELETE (sonraki adım).
+- Kod kalitesi denetimi (Aşama 2, A-6 backend — `create_fastapi_app` parçalama,
+  adım 4/event-lifecycle — son inline domain): aynı `register_*_routes` kalıbıyla
+  elle yangın-olayı mutasyon uçları (events/{key} PUT + events/{key} DELETE)
+  factory'den ayrıştırıldı:
+  - `src/routes/event_lifecycle.py` yeni modülü: `ManualFireEventUpdateRequest`
+    modeli + `register_event_lifecycle_routes(api, database, _settings)` içine
+    2 route. Model ve route gövdeleri (geniş-`except` + `_LOG.exception` dahil)
+    **verbatim** taşındı; modül kendi `logging` logger'ını tanımlıyor.
+  - `settings` bu iki elde kullanılmıyor (yalnız `database` gerekiyor) → argüman
+    projedeki mevcut kalıba uygun `_settings` olarak adlandırıldı (bos çizgi
+    öneki pylint W0613'ü susturur; çağrı konumsal, imza değişmez).
+  - `fastapi_app.py`: kesintisiz PUT/DELETE bloğu kaldırılıp **aynı konumda**
+    (grid+pipeline kaydından hemen sonra, `return api` öncesi) tek
+    `register_event_lifecycle_routes(...)` çağrısı kondu → kayıt sırası/OpenAPI
+    birebir korunuyor. Model + `_LOG` kaldırıldı; 7 artık-kullanılmayan import
+    temizlendi (`logging`, `typing.Any`, `HTTPException`, `BaseModel`,
+    `sqlalchemy.delete/select`, `FireEvent/FireForecast`, `manual_fire_event`).
+    Factory'de artık yalnız `/health` + `/api/v1` satır içi kalıyor.
+  - **Kanıt (davranış-nötr):** app importu temiz (288 route, `/api/v1/events/
+    {event_key}` GET+PUT+DELETE aynı yolda); black değişmez · mypy 199 Success ·
+    pylint 10.00 · bandit `-ll` çıkış 0 · **1799 test** birebir geçiyor.
 
 ### Tests
 - EM-123: risk indeksi ve kapasite hesabı sınır değer testleri (E13)
